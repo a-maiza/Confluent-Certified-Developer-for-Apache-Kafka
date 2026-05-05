@@ -8,11 +8,15 @@ Kafka Streams is a client library designed to build real-time applications and m
 - **Topology**: A graph of stream processors (nodes) connected by streams (edges), defining the flow of data.
 - **KStreams and KTables**: KStreams represent a continuous stream of data, while KTables represent a changelog stream, akin to a table in a database.
 
+![Core-Concepts-Kafka-Streams.png](images/Core-Concepts-Kafka-Streams.png)
+
 ### Know the Differences between KStream and KTable
 - KStream processes each record as an independent event, while KTable treats each record as an update.
 - KStream is useful for processing individual events, while KTable is suitable for maintaining the latest value for a given key.
 - KStream supports record-by-record transformations, while KTable allows aggregations and joins based on a key.
 
+![Differences-between-KStream-and-KTable.png](images/Differences-between-KStream-and-KTable.png)
+- 
 ### Identify the Appropriate Use Cases
 - Use KStream when you need to process each record independently, perform stateless transformations, or handle unbounded data.
 - Use KTable when you need to perform aggregations, joins, or maintain a materialized view of the latest values for each key.
@@ -22,10 +26,14 @@ Stream-table duality:
 - **Stream as Table:** A stream can be viewed as a changelog of a table, where each data record in the stream captures a state change of the table. A stream can be turned into a 'real' table by replaying the changelog from the beginning to reconstruct the table.
 - **Table as Stream:** A table can be viewed as a snapshot of the latest value for each key in a stream. A table can be turned into a 'real' stream by iterating over each key-value entry in the table.
 
+![Identify-the-Appropriate-Use-Cases.png](images/Identify-the-Appropriate-Use-Cases.png)
+
 ### Fundamental Components
 
 - **Stream Processor**: A fundamental unit that processes each incoming record, capable of transforming, filtering, or aggregating data streams.
 - **State Stores**: Facilitate storing state for stateful operations, enabling functionalities like windowing and interactive queries.
+- 
+![Fundamental-Components.png](images/Fundamental-Components.png)
 
 ### Permanent State Stores in Kafka Streams:
 
@@ -39,11 +47,15 @@ Stream-table duality:
 - **Scaling:** State stores can be scaled across multiple instances using partitioning and sharding.
 - **Monitoring:** Monitor metrics related to state stores, such as cache hit rates and store sizes, to ensure efficient operation.
 
+![Permanent-State-Stores-in-Kafka-Streams.png](images/Permanent-State-Stores-in-Kafka-Streams.png)
+
 ### Key Features
 
 - **Time Windowing**: Execute operations on data within specific time frames, crucial for temporal data analysis.
 - **Stateful Operations**: Perform computations that require maintaining a state, such as joins, aggregations, and windowed computations.
 - **Exactly-Once Semantics**: Ensure each record is processed exactly once, crucial for fault-tolerant processing.
+
+![Key-Features.png](images/Key-Features.png)
 
 ### Developing with Kafka Streams
 
@@ -73,6 +85,8 @@ Critical configurations for Kafka Streams applications include the application I
 - **Sliding Window**: Overlapping windows based on time difference between records.
 - **Session Window**: Dynamically sized, non-overlapping windows based on activity sessions.
 
+![Window-Types.png](images/Window-Types.png)
+
 #### SerDes and Streams DSL
 - **SerDes**: Serialization and Deserialization frameworks essential for data interpretation in Kafka Streams.
 - **Streams DSL**: High-level domain-specific language to define stream processing topologies, including `KStream`, `KTable`, and `GlobalKTable`.
@@ -98,6 +112,8 @@ Exactly-once processing can be achieved for Kafka-to-Kafka workflows using the K
 
 Stream processing applications written with the Kafka Streams library can enable exactly-once semantics by setting the `processing.guarantee` configuration to `exactly_once` (the default value is `at_least_once`). This change requires no code modifications.
 
+![Message-Delivery-Guarantees.png](images/Message-Delivery-Guarantees.png)
+
 ### Co-Partitioning
 
 Co-partitioning is a concept in Kafka where two or more topics have their partitions aligned in such a way that the same partition numbers across these topics contain related data. This alignment is crucial for operations that involve joining data streams, ensuring that related data from different topics can be processed together efficiently. Here are the key rules and considerations for achieving co-partitioning in Kafka:
@@ -116,6 +132,8 @@ Co-partitioning is a concept in Kafka where two or more topics have their partit
 
 7. **Producing to Co-Partitioned Topics**: When producing messages to co-partitioned topics, ensure that the keys used for partitioning are consistent and that messages destined to be joined together use the same keys.
 
+![Co-Partitioning.png](images/Co-Partitioning.png)
+
 ### Parallel processing
 
 Kafka Streams scales by allowing multiple threads of execution within one instance of the application and by supporting load balancing between distributed instances of the application. You can run the Streams application on one machine with multiple threads or on multiple machines; in either case, all active threads in the application will balance the data processing work.
@@ -123,6 +141,8 @@ Kafka Streams scales by allowing multiple threads of execution within one instan
 The Streams engine parallelizes the execution of a topology by splitting it into tasks. The number of tasks is determined by the Streams engine and depends on the number of partitions in the topics that the application processes. Each task is responsible for a subset of the partitions: the task subscribes to those partitions and consumes events from them. For every event it consumes, the task executes all the processing steps that apply to this partition in order before eventually writing the result to the sink. These tasks are the basic unit of parallelism in Kafka Streams, as each task can execute independently of others.
 
 To achieve the maximum parallelism in a Kafka Streams application, you can set the `num.stream.threads` configuration parameter to the desired parallelism, **not necessarily the number of partitions**.
+
+![paralle-processing-in-kafka-stream.png](images/paralle-processing-in-kafka-stream.png)
 
 ### Repartitioning
 
@@ -137,6 +157,8 @@ The two sets of tasks can still run independently and in parallel because:
 - The second set consumes and processes events from the new topic independently.
 
 There is no communication or shared resources between the tasks, allowing them to run on separate threads or servers.
+
+![Repartitioning.png](images/Repartitioning.png)
 
 ## Understand the Available Operations
 - KStream operations:
