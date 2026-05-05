@@ -1,0 +1,23 @@
+flowchart TB
+    subgraph FRAME [" "]
+        direction TB
+        subgraph QUORUM ["🗳️ Quorum KRaft"]
+            direction LR
+            B1["🖥️ Broker 1<br/>(controller candidate)"]
+            B2["🖥️ Broker 2<br/>(controller leader)"]
+            B3["🖥️ Broker 3<br/>(controller candidate)"]
+            B1 <-->|"vote / log Raft"| B2
+            B2 <-->|"vote / log Raft"| B3
+            B1 <-->|"vote / log Raft"| B3
+        end
+        QUORUM -.->|"maintient"| META["📋 Métadonnées du cluster<br/>(topics, partitions, leaders...)"]
+        META -.->|"vue cohérente"| ALL["✅ Tous les brokers"]
+    end
+
+    style QUORUM fill:#e3f2fd,stroke:#0d47a1,stroke-width:2px
+    style B1 fill:#fff8e1,stroke:#f57c00
+    style B2 fill:#1e88e5,color:#fff,stroke:#0d47a1,stroke-width:3px
+    style B3 fill:#fff8e1,stroke:#f57c00
+    style META fill:#f3e5f5,stroke:#6a1b9a
+    style ALL fill:#c8e6c9,stroke:#2e7d32
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CCDAK Quiz — Apache Kafka Partitions</title>
+    <style>
+        body { margin:0; font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:#f5f5f3; color:#1f2937; }
+        .topbar { height:10px; background:#ddd; width:100%; position:fixed; top:0; left:0; z-index:10; }
+        .progress { height:10px; width:0%; background:#378ADD; transition:width .3s ease; }
+        .wrap { max-width:980px; margin:36px auto; padding:20px; }
+        .card { background:white; border:1px solid #d8d8d4; border-radius:12px; padding:26px; box-shadow:0 8px 22px rgba(0,0,0,.04); }
+        .head { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; margin-bottom:14px; }
+        h1 { font-size:24px; margin:0 0 8px; }
+        h2 { font-size:21px; margin:0 0 18px; line-height:1.35; }
+        .meta { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+        .badge { display:inline-block; padding:6px 10px; border-radius:999px; background:#eef6ff; color:#1f5f99; border:1px solid #cfe7ff; font-size:13px; font-weight:700; }
+        .timer { min-width:70px; text-align:center; font-weight:800; color:white; background:#378ADD; padding:8px 12px; border-radius:999px; }
+        .timer.orange { background:#f59e0b; }
+        .timer.red { background:#dc2626; animation:pulse 1s infinite; }
+        @keyframes pulse { 0%{transform:scale(1)} 50%{transform:scale(1.05)} 100%{transform:scale(1)} }
+        .option { border:1px solid #d6d6d1; border-radius:10px; padding:14px 14px; margin:10px 0; cursor:pointer; background:#fff; transition:background .15s,border .15s,transform .05s; }
+        .option:hover { background:#f7fbff; border-color:#9ac9f3; }
+        .option.selected { border-color:#378ADD; background:#edf6ff; }
+        .option.correct { border-color:#16a34a; background:#dcfce7; }
+        .option.wrong { border-color:#dc2626; background:#fee2e2; }
+        .option.missed { border:2px dashed #16a34a; background:#f0fdf4; }
+        .letter { font-weight:800; color:#374151; margin-right:8px; }
+        button { border:0; border-radius:10px; padding:12px 16px; font-weight:800; cursor:pointer; margin:8px 8px 0 0; }
+        .primary { background:#378ADD; color:white; }
+        .secondary { background:#e5e7eb; color:#111827; }
+        button:disabled { opacity:.45; cursor:not-allowed; }
+        .explain { margin-top:22px; padding:18px; border-radius:12px; background:#fafafa; border:1px solid #e5e5e5; display:none; }
+        .explain h3 { margin:16px 0 6px; font-size:16px; }
+        .explain p, .explain li { line-height:1.48; }
+        .scorebox { text-align:center; padding:18px; }
+        .scorebar { height:18px; border-radius:99px; background:#e5e7eb; overflow:hidden; margin:20px 0; }
+        .scorefill { height:18px; width:0%; background:#378ADD; transition:width .4s; }
+        .muted { color:#6b7280; }
+        .timeout { color:#dc2626; font-weight:900; display:none; margin:10px 0; }
+        code { background:#f3f4f6; padding:2px 5px; border-radius:5px; }
+    </style>
+</head>
+<body onload="recommencer()">
+<div class="topbar"><div id="progress" class="progress"></div></div>
+<div class="wrap">
+    <div class="card" id="app"></div>
+</div>
+
+<script>
+    var qIdx = 0;
+    var selected = {};
+    var answered = false;
+    var score = 0;
+    var timeLeft = 90;
+    var timerInterval = null;
+    var totalTimeUsed = 0;
+
+    var QUESTIONS = [
+      {
+        type:"single",
+        q:"A team creates a topic <code>orders</code> that must handle far more storage and throughput than a single broker can provide. Which course mechanism directly addresses this need?",
+        options:[
+          {t:"Split the topic into multiple partitions distributed across several brokers", c:true},
+          {t:"Use a null key for all messages to obtain global ordering", c:false},
+          {t:"Create one larger partition on the most powerful broker", c:false},
+          {t:"Rely on consumers to redistribute messages after reading them", c:false}
+        ],
+        explanation:{
+          key:"A partition is a subdivision of a topic. Kafka distributes partitions across cluster nodes to exceed the limits of a single machine.",
+          correct:["Partitioning enables horizontal scalability: storage and throughput can span multiple brokers. This is exactly the role of partitions in the course."],
+          incorrect:["A null key is used for round-robin routing, not for global ordering.","A single partition remains constrained by a single machine and does not solve the capacity problem.","Consumers read data; they do not replace Kafka's internal partition distribution mechanism."],
+          tip:"Partitions = scalability and parallelism. Distribution across brokers = horizontal capacity."
+        }
+      },
+      {
+        type:"multiple",
+        q:"Which statements correctly describe a Kafka partition according to the module?",
+        options:[
+          {t:"It is an independent log belonging to a topic", c:true},
+          {t:"It can be placed on a broker in the cluster", c:true},
+          {t:"It guarantees global ordering for all messages in the topic", c:false},
+          {t:"A topic can have hundreds or thousands of partitions", c:true},
+          {t:"It replaces the topic concept from the producer's point of view", c:false}
+        ],
+        explanation:{
+          key:"A Kafka topic is divided into partitions, which are independent logs. This split is hidden behind the topic abstraction but is central to distributed storage.",
+          correct:["A partition is indeed an independent log.","Partitions can be distributed across brokers in the cluster.","The course states that a topic can have hundreds or thousands of partitions."],
+          incorrect:["Kafka does not guarantee global ordering in a partitioned topic; ordering is per partition.","Producers still write to a topic; Kafka then routes records to partitions."],
+          tip:"Topic = logical abstraction. Partition = unit of distribution and ordering."
+        }
+      },
+      {
+        type:"single",
+        q:"A topic has 3 partitions. Messages m1, m2, and m3 are written to three different partitions. What can you say about their read order?",
+        options:[
+          {t:"Kafka only guarantees ordering inside each partition", c:true},
+          {t:"Kafka guarantees that m1 will always be read before m2 and m3", c:false},
+          {t:"Kafka guarantees global ordering if the messages come from the same producer", c:false},
+          {t:"Kafka guarantees no ordering at all, even inside a partition", c:false}
+        ],
+        explanation:{
+          key:"Partitioning removes global ordering guarantees at the topic level. Ordering remains local to each partition.",
+          correct:["Messages written to the same partition are read in the same order. Across partitions, global order is undefined."],
+          incorrect:["m1 before m2 is not guaranteed if the records are in different partitions.","Same producer is not enough if records are routed to multiple partitions.","Kafka does preserve order inside a given partition."],
+          tip:"Kafka ordering = partition, not topic."
+        }
+      },
+      {
+        type:"single",
+        q:"A producer sends messages with <code>key = null</code>. Which routing behavior is described in the course?",
+        options:[
+          {t:"Round-robin distribution across partitions", c:true},
+          {t:"Hash the message value and apply modulo by the number of partitions", c:false},
+          {t:"Send all messages to partition 0", c:false},
+          {t:"Route to the partition with the fewest bytes", c:false}
+        ],
+        explanation:{
+          key:"Without a key, the course presents round-robin distribution: each new message is assigned to the next partition in the rotation.",
+          correct:["Round-robin distributes load evenly when business ordering does not matter."],
+          incorrect:["In the model presented, hashing is based on the key, not the value.","Sending everything to partition 0 would break distribution.","The course does not describe routing based on size or fill level."],
+          tip:"No key = uniform distribution, but no ordering guarantee."
+        }
+      },
+      {
+        type:"single",
+        q:"What is the main business risk of sending events from the same sensor without a key?",
+        options:[
+          {t:"Events can be spread across multiple partitions and lose their ordering guarantee", c:true},
+          {t:"Kafka will reject the messages because the key is mandatory", c:false},
+          {t:"All events will automatically be compacted", c:false},
+          {t:"The broker will modify the message content to add a key", c:false}
+        ],
+        explanation:{
+          key:"The key is not mandatory, but it determines whether events for the same entity are grouped in the same partition.",
+          correct:["Without a key, round-robin may send two consecutive readings from the same sensor to different partitions. Processing order for that sensor is no longer guaranteed."],
+          incorrect:["Kafka accepts messages with a null key.","Compaction is not covered in this module and is not an automatic consequence of a missing key.","Kafka does not rewrite messages to invent a business key."],
+          tip:"Need ordering per entity? Use the entity ID as the key."
+        }
+      },
+      {
+        type:"single",
+        q:"The course gives the formula <code>partition = hash(key) % number_of_partitions</code>. What is the direct consequence?",
+        options:[
+          {t:"All messages with the same key go to the same partition as long as the partition count stays unchanged", c:true},
+          {t:"All different keys necessarily go to different partitions", c:false},
+          {t:"Ordering is guaranteed across all keys in the same topic", c:false},
+          {t:"The producer must manually choose the message offset", c:false}
+        ],
+        explanation:{
+          key:"Key-based routing uses a hash and then a modulo operation. It stabilizes the target partition for a given key, as long as the number of partitions does not change.",
+          correct:["Same key + same partition count = same modulo result, therefore same partition and ordering by key."],
+          incorrect:["Different keys can produce the same modulo result and share a partition.","Ordering is not global across different keys.","The offset is a position in the partition, not a manual choice described here."],
+          tip:"Same key = same partition. But different keys do not necessarily mean different partitions."
+        }
+      },
+      {
+        type:"multiple",
+        q:"In which cases does the course implicitly recommend using a message key?",
+        options:[
+          {t:"Events from the same user must be processed in order", c:true},
+          {t:"Readings from the same sensor must preserve their sequence", c:true},
+          {t:"Transactions where ordering by transaction ID matters", c:true},
+          {t:"Generic independent logs where only balancing matters", c:false},
+          {t:"Messages for which you absolutely want global topic ordering", c:false}
+        ],
+        explanation:{
+          key:"The key preserves ordering per entity by routing all events for that entity to the same partition.",
+          correct:["A user ID is a typical key for ordering events from that user.","A sensor ID ensures its readings stay in one partition.","A transaction ID can be used as a key when processing consistency by transaction is required."],
+          incorrect:["For independent logs, using no key favors homogeneous distribution.","A key does not create global topic ordering; it creates ordering by key/partition."],
+          tip:"Key = ordering per entity. No key = load balancing."
+        }
+      },
+      {
+        type:"single",
+        q:"Why must adding partitions to an existing topic be done carefully according to the module?",
+        options:[
+          {t:"The modulo changes, so the same key may be routed to another partition after the increase", c:true},
+          {t:"Kafka automatically deletes old partitions", c:false},
+          {t:"The topic stops being distributed and returns to a single broker", c:false},
+          {t:"Consumers can no longer read any messages unless the cluster is recreated", c:false}
+        ],
+        explanation:{
+          key:"Key-based routing depends on the number of partitions. Changing that number can change the result of <code>hash(key) % N</code>.",
+          correct:["If sensor-42 went to P1 with 3 partitions, it may go to P2 with 5 partitions. During the transition, this can break ordering assumptions for the key."],
+          incorrect:["Adding partitions does not automatically delete existing ones.","Partitioning remains distributed.","The course does not describe total read failure, but a risk for routing and ordering."],
+          tip:"Changing the number of partitions can change key destinations. Be careful with ordering guarantees."
+        }
+      },
+      {
+        type:"multiple",
+        q:"Which guarantees are correctly associated with key-based partitioning?",
+        options:[
+          {t:"Ordering is guaranteed for messages sharing the same key", c:true},
+          {t:"The same key is routed to the same partition", c:true},
+          {t:"Ordering is guaranteed across all partitions", c:false},
+          {t:"Distribution is always perfectly uniform regardless of key distribution", c:false},
+          {t:"Different keys can end up in the same partition", c:true}
+        ],
+        explanation:{
+          key:"Key hashing groups the same key in the same partition. This gives ordering by key, not perfect uniformity or global order.",
+          correct:["The course emphasizes strict ordering for messages with the same key.","The hash modulo partition count gives a stable partition for the same key.","The hash result can place several different keys in the same partition."],
+          incorrect:["Ordering across partitions is not guaranteed.","If some keys are much more frequent, load may concentrate; the course describes concentration by key."],
+          tip:"Partitions = local ordering. Key = logical co-location."
+        }
+      },
+      {
+        type:"single",
+        q:"A team processes independent events where ordering does not matter, but they want the load to be as even as possible across partitions. Which choice matches the course?",
+        options:[
+          {t:"Send messages without a key to benefit from round-robin", c:true},
+          {t:"Use a constant key for all messages", c:false},
+          {t:"Reduce the topic to a single partition", c:false},
+          {t:"Change the number of partitions after every batch of messages", c:false}
+        ],
+        explanation:{
+          key:"Without a key, Kafka distributes messages round-robin in the course, which favors uniform distribution.",
+          correct:["For independent events, no key gives homogeneous distribution and avoids concentrating one key on one partition."],
+          incorrect:["A constant key would send all messages to the same partition.","A single partition removes the scalability benefit of partitioning.","Frequently changing partition count disrupts hash routing and is not an intended balancing mechanism."],
+          tip:"Uniform load with no ordering constraint: null key."
+        }
+      },
+      {
+        type:"single",
+        q:"Which statement best corrects the mistake: “A Kafka topic has guaranteed total ordering”?",
+        options:[
+          {t:"A partitioned topic has no guaranteed global order; ordering is only guaranteed within each partition", c:true},
+          {t:"Total order is guaranteed if the topic has more than three partitions", c:false},
+          {t:"Total order is guaranteed only with round-robin", c:false},
+          {t:"Kafka never preserves any order in its logs", c:false}
+        ],
+        explanation:{
+          key:"Kafka preserves sequential order in each partition log. A full topic made of multiple logs does not have one guaranteed sequence.",
+          correct:["This restates the central rule: ordering by partition, not across the topic."],
+          incorrect:["Adding partitions reduces the possibility of global ordering; it does not improve it.","Round-robin spreads messages and does not guarantee global order.","Kafka does preserve order inside a partition."],
+          tip:"Strict total ordering would require one partition, but that limits scalability. This module focuses on partition-level ordering."
+        }
+      },
+      {
+        type:"multiple",
+        q:"Which consequences does the course attribute to topic partitioning?",
+        options:[
+          {t:"The topic can exceed the capacity of a single node", c:true},
+          {t:"Throughput and storage can rely on several machines", c:true},
+          {t:"Global topic ordering becomes guaranteed", c:false},
+          {t:"Partitions are independent logs", c:true},
+          {t:"Keys become useless for routing", c:false}
+        ],
+        explanation:{
+          key:"Partitioning distributes a topic, but it also requires reasoning about ordering and routing.",
+          correct:["Capacity is no longer limited to one machine.","Storage and throughput scale horizontally.","Each partition is an independent log."],
+          incorrect:["Partitioning removes global ordering guarantees.","Keys remain essential for routing and ordering by entity."],
+          tip:"Scalability gained, global ordering lost."
+        }
+      },
+      {
+        type:"single",
+        q:"In the model presented, what is the main difference between “without key” and “with key”?",
+        options:[
+          {t:"Without key favors uniform distribution; with key favors ordering per entity", c:true},
+          {t:"Without key guarantees ordering per entity; with key only guarantees throughput", c:false},
+          {t:"Without key writes to one broker; with key writes to all brokers", c:false},
+          {t:"Without key prevents consumers from reading", c:false}
+        ],
+        explanation:{
+          key:"Choosing a key is a trade-off between load balancing and business ordering.",
+          correct:["Round-robin without key distributes evenly. Hash with key groups an entity in a partition to preserve ordering."],
+          incorrect:["It is the opposite: the key is what enables ordering per entity.","Routing is about partitions, not simultaneous writes to all brokers.","A missing key does not prevent consumption."],
+          tip:"Common CCDAK question: null key = load balancing; defined key = ordering by key."
+        }
+      },
+      {
+        type:"single",
+        q:"According to the course, around Kafka version 4.0, approximately how many partitions can a cluster support in total?",
+        options:[
+          {t:"About 2 million", c:true},
+          {t:"About 2,000", c:false},
+          {t:"Exactly 50 per topic and no more", c:false},
+          {t:"One partition per broker", c:false}
+        ],
+        explanation:{
+          key:"The module mentions a scale of about 2 million total partitions in a Kafka cluster around version 4.0.",
+          correct:["This value illustrates the partitioning scale possible in Kafka according to the course."],
+          incorrect:["2,000 is far below the cited figure.","The course discusses hundreds or thousands of partitions per topic, not a fixed limit of 50.","A broker can host multiple partitions."],
+          tip:"Remember the order of magnitude from the course: ~2M partitions per cluster around v4.0."
+        }
+      },
+      {
+        type:"multiple",
+        q:"Which pitfalls are explicitly or directly covered by this module?",
+        options:[
+          {t:"Assuming global ordering in a partitioned topic", c:true},
+          {t:"Forgetting that a null key spreads messages by round-robin", c:true},
+          {t:"Changing the partition count without considering the effect on key hashing", c:true},
+          {t:"Believing partitioning is only used for security", c:false},
+          {t:"Using a key when ordering by entity is required", c:false}
+        ],
+        explanation:{
+          key:"The course warnings focus on ordering, routing without a key, and the effect of changing the number of partitions.",
+          correct:["No global ordering is a central pitfall.","Without a key, messages from the same producer can go to different partitions.","Changing N in hash(key) % N can move keys."],
+          incorrect:["Security is not the topic of this module.","Using a key for entity ordering is a good practice, not a pitfall."],
+          tip:"Partition pitfalls: global order, null key, adding partitions."
+        }
+      },
+      {
+        type:"single",
+        q:"A client sees Kafka as a unified system, but internally the cluster contains several brokers. What role do partitions play in this abstraction?",
+        options:[
+          {t:"They split and distribute the logs of a topic across the distributed reality of the cluster", c:true},
+          {t:"They hide messages from producers until manual validation", c:false},
+          {t:"They turn Kafka into a relational database with updated rows", c:false},
+          {t:"They force every topic to remain on a single node", c:false}
+        ],
+        explanation:{
+          key:"Kafka exposes a unified logical view, but actually stores data across multiple machines. Partitions are the splitting mechanism between these two views.",
+          correct:["The topic remains the logical object, while its partitions are distributed in the cluster."],
+          incorrect:["No manual producer validation is described.","The course does not present Kafka as a relational table.","Partitions exist precisely to avoid the limit of a single node."],
+          tip:"External view: unified Kafka. Internal view: brokers + partitions."
+        }
+      },
+      {
+        type:"single",
+        q:"A very frequent key represents 80% of the traffic. Based on the course, what logical risk can you anticipate?",
+        options:[
+          {t:"Load concentration on the partition associated with that key", c:true},
+          {t:"Guaranteed global ordering across the whole topic", c:false},
+          {t:"Round-robin distribution of that key across all partitions", c:false},
+          {t:"The hash modulo formula disappears", c:false}
+        ],
+        explanation:{
+          key:"With a key, Kafka concentrates all messages with the same key on the same partition. This is useful for ordering, but it can concentrate load.",
+          correct:["If one key dominates traffic, the partition targeted by its hash receives a disproportionate share of messages."],
+          incorrect:["A key does not create global ordering.","Round-robin applies to messages without a key in the course.","The routing formula remains hash(key) % number_of_partitions."],
+          tip:"Ordering by key can cost load balance."
+        }
+      },
+      {
+        type:"multiple",
+        q:"Which statements match the course comparison between round-robin and key hashing?",
+        options:[
+          {t:"Round-robin: uniform distribution", c:true},
+          {t:"Round-robin: no ordering guarantee", c:true},
+          {t:"Key hashing: concentration by key", c:true},
+          {t:"Key hashing: ordering by key", c:true},
+          {t:"Key hashing: global topic ordering", c:false}
+        ],
+        explanation:{
+          key:"The comparison contrasts uniform distribution without a key and ordering by entity with a key.",
+          correct:["Without a key, the course indicates uniform distribution.","Without a key, ordering is not guaranteed.","With a key, messages with the same key concentrate on one partition.","This concentration guarantees ordering for that key."],
+          incorrect:["Key hashing does not guarantee global topic ordering."],
+          tip:"Round-robin = balance. Hash = ordering by key."
+        }
+      }
+    ];
+
+    function shuffleOptions() {
+      var i, j, tmp, q;
+      for (q = 0; q < QUESTIONS.length; q++) {
+        for (i = QUESTIONS[q].options.length - 1; i > 0; i--) {
+          j = Math.floor(Math.random() * (i + 1));
+          tmp = QUESTIONS[q].options[i];
+          QUESTIONS[q].options[i] = QUESTIONS[q].options[j];
+          QUESTIONS[q].options[j] = tmp;
+        }
+      }
+    }
+
+    function fmt(sec) {
+      var m = Math.floor(sec / 60);
+      var s = sec % 60;
+      return (m < 10 ? "0" + m : "" + m) + ":" + (s < 10 ? "0" + s : "" + s);
+    }
+
+    function startTimer() {
+      clearInterval(timerInterval);
+      timeLeft = 90;
+      timerInterval = setInterval(function() {
+        timeLeft--;
+        paintTimer();
+        if (timeLeft <= 0) {
+          clearInterval(timerInterval);
+          valider(true);
+        }
+      }, 1000);
+    }
+
+    function paintTimer() {
+      var el = document.getElementById("timer");
+      if (!el) return;
+      el.innerHTML = fmt(timeLeft);
+      el.className = "timer";
+      if (timeLeft <= 30 && timeLeft >= 15) el.className = "timer orange";
+      if (timeLeft < 15) el.className = "timer red";
+    }
+
+    function pickOption(i) {
+      if (answered) return;
+      var q = QUESTIONS[qIdx];
+      if (q.type === "single") {
+        selected = {};
+        selected[i] = true;
+      } else {
+        selected[i] = !selected[i];
+      }
+      paint();
+    }
+
+    function isCorrectSelection() {
+      var q = QUESTIONS[qIdx];
+      var i;
+      for (i = 0; i < q.options.length; i++) {
+        if (!!selected[i] !== !!q.options[i].c) return false;
+      }
+      return true;
+    }
+
+    function valider(timeout) {
+      if (answered) return;
+      answered = true;
+      clearInterval(timerInterval);
+      totalTimeUsed += (90 - timeLeft);
+      if (!timeout && isCorrectSelection()) score++;
+      paint();
+      if (timeout) {
+        document.getElementById("timeout").style.display = "block";
+      }
+    }
+
+    function suivante() {
+      if (!answered) return;
+      qIdx++;
+      if (qIdx >= QUESTIONS.length) {
+        paintScore();
+        return;
+      }
+      selected = {};
+      answered = false;
+      paint();
+      startTimer();
+    }
+
+    function recommencer() {
+      clearInterval(timerInterval);
+      qIdx = 0;
+      selected = {};
+      answered = false;
+      score = 0;
+      timeLeft = 90;
+      totalTimeUsed = 0;
+      shuffleOptions();
+      paint();
+      startTimer();
+    }
+
+    function paint() {
+      var q = QUESTIONS[qIdx];
+      var app = document.getElementById("app");
+      var pct = (qIdx / QUESTIONS.length) * 100;
+      document.getElementById("progress").style.width = pct + "%";
+      var html = "";
+      var i, cls, letter;
+      html += "<div class='head'><div><h1>CCDAK Quiz — Kafka Partitions</h1><div class='meta'><span class='badge'>Question " + (qIdx + 1) + " / " + QUESTIONS.length + "</span><span class='badge'>" + (q.type === "single" ? "Single answer" : "Multiple answers") + "</span></div></div><div id='timer' class='timer'>" + fmt(timeLeft) + "</div></div>";
+      html += "<h2>" + q.q + "</h2>";
+      html += "<div id='timeout' class='timeout'>Time’s up!</div>";
+      for (i = 0; i < q.options.length; i++) {
+        cls = "option";
+        if (!answered && selected[i]) cls += " selected";
+        if (answered) {
+          if (q.options[i].c && selected[i]) cls += " correct";
+          if (!q.options[i].c && selected[i]) cls += " wrong";
+          if (q.options[i].c && !selected[i]) cls += " missed";
+        }
+        letter = String.fromCharCode(65 + i);
+        html += "<div class='" + cls + "' onclick='pickOption(" + i + ")'><span class='letter'>" + letter + ".</span>" + q.options[i].t + "</div>";
+      }
+      html += "<button class='primary' onclick='valider(false)' " + (answered ? "disabled" : "") + ">Validate</button>";
+      html += "<button class='primary' onclick='suivante()' " + (!answered ? "disabled" : "") + ">Next Question →</button>";
+      html += "<button class='secondary' onclick='recommencer()'>Restart Quiz</button>";
+      html += "<div class='explain' style='display:" + (answered ? "block" : "none") + "'>";
+      html += "<h3>1. Key Concept</h3><p>" + q.explanation.key + "</p>";
+      html += "<h3>2. Why it is correct</h3><ul>";
+      for (i = 0; i < q.explanation.correct.length; i++) html += "<li>" + q.explanation.correct[i] + "</li>";
+      html += "</ul><h3>3. Why it is incorrect</h3><ul>";
+      for (i = 0; i < q.explanation.incorrect.length; i++) html += "<li>" + q.explanation.incorrect[i] + "</li>";
+      html += "</ul><h3>4. Exam Tip (CCDAK)</h3><p>" + q.explanation.tip + "</p></div>";
+      app.innerHTML = html;
+      paintTimer();
+    }
+
+    function paintScore() {
+      clearInterval(timerInterval);
+      document.getElementById("progress").style.width = "100%";
+      var app = document.getElementById("app");
+      var pct = Math.round((score / QUESTIONS.length) * 100);
+      var avg = Math.round(totalTimeUsed / QUESTIONS.length);
+      var msg = "";
+      var color = "#dc2626";
+      if (pct >= 85) { msg = "Excellent — strong CCDAK-level understanding of Kafka partitions."; color = "#16a34a"; }
+      else if (pct >= 70) { msg = "Good result — review ordering pitfalls and partition-count changes."; color = "#f59e0b"; }
+      else { msg = "Needs reinforcement — focus on keys, round-robin, partition-level ordering, and scalability."; color = "#dc2626"; }
+      app.innerHTML = "<div class='scorebox'><h1>Final Score</h1><h2>" + score + " / " + QUESTIONS.length + " — " + pct + "%</h2><div class='scorebar'><div class='scorefill' style='width:" + pct + "%; background:" + color + "'></div></div><p><strong>" + msg + "</strong></p><p class='muted'>Average time per question: " + fmt(avg) + "</p><button class='primary' onclick='recommencer()'>Restart Quiz</button></div>";
+    }
+</script>
+</body>
+</html>

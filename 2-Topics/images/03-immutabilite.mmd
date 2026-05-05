@@ -1,0 +1,18 @@
+flowchart LR
+    subgraph FRAME [" "]
+        direction LR
+        P["🏭 Producteur"] -->|"écrit"| M["📦 Message<br/>offset: 42<br/>value: 24°C"]
+        M --> T[("📋 Topic")]
+
+        T -.->|"✅ Lecture<br/>(non destructive)"| OK1["📖 Possible"]
+        T -.->|"⏳ Expiration<br/>(rétention)"| OK2["🗑️ Possible"]
+        T -.->|"✏️ Modification"| KO["❌ IMPOSSIBLE"]
+    end
+
+    style P fill:#43a047,color:#fff
+    style M fill:#fff8e1,stroke:#f57c00,stroke-width:2px
+    style T fill:#1e88e5,color:#fff,stroke:#0d47a1,stroke-width:3px
+    style OK1 fill:#c8e6c9,color:#000
+    style OK2 fill:#fff9c4,color:#000
+    style KO fill:#ffcdd2,color:#000,stroke:#c62828,stroke-width:2px
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

@@ -1,0 +1,18 @@
+sequenceDiagram
+    autonumber
+    participant APP as 💻 Application
+    participant KP as ☕ KafkaProducer
+    participant PR as 📦 ProducerRecord
+    participant K as ⚡ Cluster Kafka
+
+    rect rgb(250, 250, 250)
+        APP->>KP: 1️⃣ new KafkaProducer(config)
+        APP->>PR: 2️⃣ new ProducerRecord(topic, key, value)
+        APP->>KP: 3️⃣ producer.send(record)
+
+        Note over KP,K: 🔧 Plomberie auto
+
+        KP->>K: connexion + envoi
+        K-->>KP: ack
+        KP-->>APP: callback / future
+    end

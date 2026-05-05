@@ -1,0 +1,25 @@
+flowchart TB
+    subgraph FRAME [" "]
+        direction LR
+        subgraph OK ["✅ 3 consumers / 3 partitions"]
+            direction LR
+            OP0["📦 P0"] --> OC1["📱 C1"]
+            OP1["📦 P1"] --> OC2["📱 C2"]
+            OP2["📦 P2"] --> OC3["📱 C3"]
+        end
+
+        subgraph KO ["⚠️ 4 consumers / 3 partitions"]
+            direction LR
+            KP0["📦 P0"] --> KC1["📱 C1"]
+            KP1["📦 P1"] --> KC2["📱 C2"]
+            KP2["📦 P2"] --> KC3["📱 C3"]
+            KC4["📱 C4<br/>(idle)"]
+            KC4 -.->|"❌ pas de partition<br/>à consommer"| IDLE["💤 Inactif"]
+        end
+    end
+
+    style OK fill:#e8f5e9,stroke:#2e7d32
+    style KO fill:#fff3e0,stroke:#e65100
+    style KC4 fill:#eceff1,stroke:#9e9e9e,stroke-dasharray:3 3
+    style IDLE fill:#ffe0b2
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

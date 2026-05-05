@@ -1,0 +1,23 @@
+flowchart LR
+    subgraph FRAME [" "]
+        direction LR
+        subgraph SELF ["🛠️ Self-managed (Apache Kafka)"]
+            direction TB
+            U1["👤 Utilisateur"] --> SBR["🖥️🖥️🖥️ Brokers visibles"]
+            SBR --> ST["📋 Topics & messages"]
+        end
+
+        subgraph CLOUD ["☁️ Service managé (Confluent Cloud)"]
+            direction TB
+            U2["👤 Utilisateur"] --> CT["📋 Topics & messages"]
+            HIDE["🖥️🖥️🖥️ Brokers cachés<br/>(abstraction)"] -.-> CT
+        end
+    end
+
+    style SELF fill:#fff3e0,stroke:#e65100
+    style CLOUD fill:#e3f2fd,stroke:#0d47a1
+    style SBR fill:#fff8e1,stroke:#f57c00
+    style HIDE fill:#eceff1,stroke:#9e9e9e,stroke-dasharray:3 3
+    style ST fill:#c8e6c9,stroke:#2e7d32
+    style CT fill:#c8e6c9,stroke:#2e7d32
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CCDAK Quiz — Apache Kafka Topics</title>
+    <style>
+        body{margin:0;background:#f5f5f3;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1f2937;}
+        .wrap{max-width:980px;margin:0 auto;padding:28px 16px 44px;}
+        .top{height:12px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin-bottom:18px;border:1px solid #d1d5db;}
+        .bar{height:100%;width:0;background:#378ADD;transition:width .3s ease;}
+        .card{background:#fff;border:1px solid #d9d9d6;border-radius:12px;padding:24px;box-shadow:0 8px 22px rgba(0,0,0,.04);}
+        .head{display:flex;gap:12px;justify-content:space-between;align-items:flex-start;margin-bottom:16px;}
+        h1{font-size:24px;margin:0 0 4px;} h2{font-size:21px;margin:12px 0 14px;line-height:1.35;}
+        .muted{color:#6b7280;font-size:14px}.badge{display:inline-block;background:#eaf4ff;color:#155e9f;border:1px solid #b8daf8;border-radius:999px;padding:6px 10px;font-weight:700;font-size:13px;}
+        .timer{font-weight:800;border:1px solid #cbd5e1;border-radius:999px;padding:8px 12px;color:#378ADD;min-width:64px;text-align:center;}
+        .timer.orange{color:#c77700;border-color:#f59e0b;background:#fff7ed}.timer.red{color:#b91c1c;border-color:#ef4444;background:#fef2f2;animation:pulse .8s infinite alternate;}
+        @keyframes pulse{from{transform:scale(1)}to{transform:scale(1.04)}}
+        .opts{display:grid;gap:10px;margin:18px 0}.opt{border:1px solid #d1d5db;border-radius:10px;padding:13px 14px;cursor:pointer;background:#fff;display:flex;gap:10px;line-height:1.35;transition:.15s;}
+        .opt:hover{background:#f8fafc;border-color:#9dc8ef}.opt.sel{border-color:#378ADD;background:#eef6ff}.opt.good{border-color:#15803d;background:#dcfce7}.opt.bad{border-color:#b91c1c;background:#fee2e2}.opt.missed{border:2px dashed #15803d;background:#f0fdf4}.letter{font-weight:800;min-width:24px;color:#374151}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.btn{border:0;border-radius:10px;padding:11px 16px;font-weight:800;cursor:pointer;background:#378ADD;color:#fff}.btn.secondary{background:#eef2f7;color:#1f2937}.btn:disabled{background:#cbd5e1;color:#64748b;cursor:not-allowed}.explain{display:none;margin-top:18px;border-top:1px solid #e5e7eb;padding-top:16px}.explain h3{margin:14px 0 6px;font-size:16px;color:#111827}.explain p,.explain li{line-height:1.52}.warn{font-weight:800;color:#b91c1c}.scoreBox{text-align:center;padding:22px}.scoreNum{font-size:48px;font-weight:900;color:#378ADD}.resultBar{height:18px;border-radius:999px;background:#e5e7eb;overflow:hidden;margin:18px 0}.resultFill{height:100%;background:#378ADD;width:0}.pill{display:inline-block;border:1px solid #d1d5db;border-radius:999px;padding:7px 11px;margin:4px;background:#fff}.hidden{display:none}
+    </style>
+</head>
+<body onload="initQuiz()">
+<div class="wrap">
+    <div class="top"><div id="progress" class="bar"></div></div>
+    <div id="quiz" class="card">
+        <div class="head">
+            <div><h1>CCDAK Quiz — Apache Kafka Topics</h1><div id="meta" class="muted"></div></div>
+            <div id="timer" class="timer">01:30</div>
+        </div>
+        <span id="badge" class="badge"></span>
+        <h2 id="question"></h2>
+        <div id="options" class="opts"></div>
+        <div id="status" class="muted"></div>
+        <div class="actions">
+            <button id="validateBtn" class="btn" onclick="valider()">Validate</button>
+            <button id="nextBtn" class="btn secondary" onclick="suivante()" disabled>Next Question →</button>
+        </div>
+        <div id="explanation" class="explain"></div>
+    </div>
+    <div id="final" class="card hidden"></div>
+</div>
+<script>
+    var qIdx = 0;
+    var selected = {};
+    var answered = false;
+    var score = 0;
+    var timeLeft = 90;
+    var timerInterval = null;
+    var totalTimeSpent = 0;
+    var lastTimeUp = false;
+    var QUESTIONS = [
+     {type:'single',q:'A team is migrating thermostat monitoring from a SQL table to Kafka. Which model best follows the paradigm presented in the course?',opts:[
+      {t:'Write each new reading as a new event in an append-only topic.',c:true},{t:'Update the latest Kafka message with the same sensor key.',c:false},{t:'Automatically delete the old reading as soon as a consumer reads it.',c:false},{t:'Store only the latest temperature to save offsets.',c:false}],
+      exp:{key:'Kafka models changes as an ordered and immutable log. A topic keeps successive events instead of replacing the previous state like a table UPDATE.',correct:['Appending a new event preserves the full history: 22°C, then 24°C, then 25°C. This is the natural behavior of an append-only Kafka topic and it enables trend calculations such as heating speed.'],wrong:['Modifying an existing message contradicts Kafka immutability: once written, an event is not changed.','Removing the message on read describes a destructive queue, not a Kafka topic.','Keeping only the latest state recreates the table problem: loss of historical context.'],tip:'Remember: Table = UPDATE, Kafka log = APPEND. A topic keeps history as long as retention allows.'}},
+     {type:'single',q:'In the module, why is the expression “Kafka queue” considered a conceptual mistake?',opts:[
+      {t:'Because a topic is a log: reading a message does not delete it.',c:true},{t:'Because Kafka can store only one consumer per topic.',c:false},{t:'Because Kafka forbids multiple applications from using the same data.',c:false},{t:'Because a topic never has a read order.',c:false}],
+      exp:{key:'A queue usually removes a message after consumption. A Kafka log remains available after reading and can be read by multiple independent consumers.',correct:['Reading in Kafka is non-destructive. Consumers move through the log using their read position, but the message remains in the topic until expiration/retention.'],wrong:['Kafka allows multiple consumers and multiple consumer groups on the same topic.','Fan-out is precisely a central use case: analytics, archiving, notifications, and billing can read the same topic.','The course emphasizes an ordered sequence of messages; ordering is a fundamental property of the log.'],tip:'CCDAK trap: “queue” implies destructive consumption; “Kafka topic” implies a readable log.'}},
+     {type:'multiple',q:'Which statements correctly describe Kafka message immutability according to the course?',opts:[
+      {t:'A written message can be read multiple times without being destroyed.',c:true},{t:'A written message can expire or be deleted by retention.',c:true},{t:'A written message can be corrected in place if its offset is known.',c:false},{t:'A transformation must produce new messages, often in a new topic.',c:true},{t:'The value can be modified by the broker to apply a schema.',c:false}],
+      exp:{key:'Immutability means that an event already written is part of history. Kafka may forget it after retention, but it does not modify it.',correct:['Reading is non-destructive: it does not remove the event from the topic.','Retention can delete old data; that is different from in-place modification.','To transform, you read a source topic, apply logic, then write to an output topic.'],wrong:['Knowing the offset does not give permission to modify the message: offset and content are immutable.','Kafka is format-agnostic; the broker does not understand or rewrite the value to apply a schema.'],tip:'Immutable does not mean eternal: retention is possible, UPDATE is impossible.'}},
+     {type:'single',q:'A service wants to detect “hot” rooms by keeping only temperature readings above 28°C. Which architecture matches the course?',opts:[
+      {t:'Read thermostat-readings, filter, then write the results to hot-locations.',c:true},{t:'Rewrite thermostat-readings to remove temperatures less than or equal to 28°C.',c:false},{t:'Ask the Kafka broker to modify the content of existing messages.',c:false},{t:'Use headers as the main place to store all filtered temperatures.',c:false}],
+      exp:{key:'With immutable data, transformation is done as a pipeline: source topic → stream processor → destination topic.',correct:['The source topic remains intact. The hot-locations topic represents a filtered view produced by stream processing, as in the SELECT * WHERE temp > 28 example.'],wrong:['Rewriting the source topic breaks the append-only model.','The broker does not transform the business value; transformation belongs to an application or stream processing engine.','Headers are for lightweight metadata, not for primary business data storage.'],tip:'Kafka Streams/ksqlDB transform; topics store. You do not “update” a log, you derive a new log.'}},
+     {type:'multiple',q:'In the Kafka message structure from the course, which fields are assigned automatically by Kafka or by the Kafka context?',opts:[
+      {t:'Offset',c:true},{t:'Topic',c:true},{t:'Timestamp',c:true},{t:'Value',c:false},{t:'Mandatory business headers',c:false}],
+      exp:{key:'The course distinguishes fields provided by the application from those related to Kafka storage: value, key, timestamp, headers, topic, and offset.',correct:['The offset is the sequential position of the message in the topic: 0, 1, 2, and so on.','The topic is the logical destination of the message.','The timestamp can come from the producer or be assigned by the broker upon receipt.'],wrong:['The value is the main content provided by the producer; it is required.','Headers are optional and should remain lightweight metadata, not a mandatory business field.'],tip:'Value = what, timestamp = when, key = which entity, offset = where in the log.'}},
+     {type:'single',q:'A producer sends IoT readings. Which key choice is most aligned with the course?',opts:[
+      {t:'The logical identifier of the sensor or thermostat.',c:true},{t:'A random value to maximize unpredictability.',c:false},{t:'The temperature itself, because it is the main value.',c:false},{t:'No key, because keys are forbidden in Kafka.',c:false}],
+      exp:{key:'The key is optional but recommended. It identifies the logical entity and influences distribution across partitions.',correct:['Using the sensor ID logically groups events from the same entity and provides a coherent basis for partitioning.'],wrong:['A random key can destroy logical locality and make per-entity processing harder.','Temperature changes constantly and does not identify the entity; it belongs more naturally in the value.','Kafka allows a null key, but the course recommends choosing the key carefully.'],tip:'CCDAK: the key is not decorative; it drives partitioning and can create skew.'}},
+     {type:'multiple',q:'Which risks are explicitly associated with poor schema or format usage in the course?',opts:[
+      {t:'Kafka stores byte[] and does not know the schema of the value.',c:true},{t:'Without schema management, producers and consumers can silently become incompatible.',c:true},{t:'Schema Registry stores Kafka messages instead of the broker.',c:false},{t:'JSON, Avro, and Protobuf are examples of usable formats.',c:true},{t:'The broker automatically validates every Avro or Protobuf evolution.',c:false}],
+      exp:{key:'Kafka is schema-less at the broker level. Serialization and schema compatibility are handled by applications and external tools such as Schema Registry.',correct:['The broker sees byte arrays, not typed business objects.','Without a schema tool, a field evolution can break a consumer without a clear alert from the broker.','The course cites JSON, Avro, Protobuf, and custom formats as serialization options.'],wrong:['Schema Registry manages schemas, not the Kafka data itself.','Schema validation is not performed automatically by the Kafka broker; it depends on serializers/tools.'],tip:'Tip: Schema Registry = data contracts; Kafka broker = byte storage/transport.'}},
+     {type:'single',q:'In a fan-out pattern on an orders topic, which statement is correct?',opts:[
+      {t:'Analytics, archiving, notifications, and billing can independently read the same topic.',c:true},{t:'The first service that reads orders removes the messages for the others.',c:false},{t:'All services must share exactly the same read position.',c:false},{t:'Fan-out requires manually copying messages into one queue per service.',c:false}],
+      exp:{key:'Fan-out leverages the fact that a Kafka topic is readable and each consumer or group can progress independently.',correct:['Each service can read the same orders stream for its own purpose: real time, archiving, emails, or billing.'],wrong:['That is the behavior of a destructive queue, not a Kafka log.','The course specifies that each consumer has its own logical offset; they do not have to be synchronized.','Kafka avoids the manual multiplication of dedicated queues thanks to the shared log.'],tip:'Fan-out = one stream, many uses. Do not confuse application-level duplication with independent reading.'}},
+     {type:'single',q:'Why does the full history of thermostat readings become usable in Kafka?',opts:[
+      {t:'Each change is recorded as a new ordered event in the log.',c:true},{t:'Kafka automatically replaces old values with the latest value.',c:false},{t:'Consumers write the history into headers.',c:false},{t:'The timestamp deletes obsolete messages as soon as they are read.',c:false}],
+      exp:{key:'The append-only log keeps successive states. This enables time-based analysis that is missing from a table updated in place.',correct:['The sequence 22°C at 08:00, 24°C at 08:15, 25°C at 08:30 remains available as a series of events.'],wrong:['Replacing old values is the table/UPDATE model criticized in the course.','Headers are not a business history store.','The timestamp describes when; it does not trigger deletion on read.'],tip:'Kafka history = successive events + order + sufficient retention.'}},
+     {type:'multiple',q:'Which items are part of the “common traps” explicitly listed in the module?',opts:[
+      {t:'Confusing topic and queue.',c:true},{t:'Choosing a poor partitioning key.',c:true},{t:'Wanting to UPDATE an existing message.',c:true},{t:'Ignoring schema management.',c:true},{t:'Using Avro instead of JSON in every case.',c:false}],
+      exp:{key:'The module closes with four warnings: vocabulary, key, immutability, and schema.',correct:['“Kafka queue” is a major confusion: a topic is a log.','A poor key can unbalance load across partitions.','Kafka does not modify messages: you add new events or derived topics.','Without Schema Registry or schema discipline, incompatibilities can appear silently.'],wrong:['The course does not say Avro is always better than JSON; it presents several possible formats depending on the need.'],tip:'Typical exam question: identify the Kafka anti-pattern hidden inside a seemingly normal scenario.'}},
+     {type:'single',q:'A developer wants to place a full business object in Kafka headers to avoid defining a value. What should you tell them according to the course?',opts:[
+      {t:'Headers are intended for lightweight metadata; the main business data should be in the value.',c:true},{t:'This is recommended because headers are typed and versioned by Kafka.',c:false},{t:'This is mandatory with Avro and Protobuf.',c:false},{t:'This is the only way to allow multiple consumers.',c:false}],
+      exp:{key:'The value carries the main event content. Headers are optional and intended for lightweight metadata such as source or trace information.',correct:['Putting the business payload in the value keeps a clear separation: value = what, headers = lightweight context.'],wrong:['Headers are untyped key-value pairs; they do not provide a versioned business contract.','Avro and Protobuf concern value serialization, not an obligation to use headers.','Fan-out depends on the log model, not on header usage.'],tip:'Headers ≠ payload. This is a frequent event design confusion.'}},
+     {type:'single',q:'The course says a Kafka cluster can contain thousands of topics. Which analogy is proposed, while still noting a fundamental difference?',opts:[
+      {t:'Topics resemble tables as logical groupings, but behave as append-only logs.',c:true},{t:'Topics are identical to SQL tables because they allow row-by-row UPDATE and DELETE.',c:false},{t:'Topics replace serializers because they understand JSON, Avro, and Protobuf.',c:false},{t:'Topics are specialized consumers.',c:false}],
+      exp:{key:'A topic is a logical grouping of messages, like a table groups rows, but its behavior is that of an immutable log.',correct:['The analogy helps with organization, not semantics. Unlike a table, you append events instead of updating a row.'],wrong:['Row-by-row UPDATE is not the Kafka model.','The Kafka broker is format-agnostic; serializers and Schema Registry are external to the broker.','A topic stores messages; a consumer reads them.'],tip:'Useful but limited analogy: Topic ≈ table for naming, Topic ≠ table for operations.'}},
+     {type:'multiple',q:'Regarding offsets in this module, which statements are correct?',opts:[
+      {t:'They start at 0 and increment by 1 for each new message.',c:true},{t:'They identify the sequential position of the message in the topic.',c:true},{t:'They can be modified to correct the message value.',c:false},{t:'They are automatic.',c:true},{t:'They replace the key as a stable business identifier.',c:false}],
+      exp:{key:'The offset is the position of a message in the log. It is simple, sequential, and immutable.',correct:['The course explicitly gives the sequence 0, 1, 2, 3, and so on.','The offset indicates where a message is located in the topic/log.','The application does not manually choose the offset; Kafka assigns it.'],wrong:['The offset does not allow the message to be edited.','The key identifies the logical entity; the offset identifies a technical position.'],tip:'Offset = position, key = logical identity. Do not mix them up.'}},
+     {type:'single',q:'An application reads a Kafka message. What immediately happens on the topic side according to the course?',opts:[
+      {t:'The message remains available for rereading and for other consumers.',c:true},{t:'The message is deleted to guarantee exclusive processing.',c:false},{t:'The broker modifies the value to mark it as “read”.',c:false},{t:'The topic is immediately compacted around this message.',c:false}],
+      exp:{key:'Kafka reading is non-destructive. The topic remains a shared log.',correct:['Even after reading, the message can be reread by the same consumer or read by another consumer, depending on its position.'],wrong:['Deletion after reading corresponds to a classic queue.','Marking the value as read would violate immutability.','The course discusses retention/expiration, not immediate compaction triggered by reading.'],tip:'In Kafka, reading does not physically consume the message; it only advances the consumer-side read position.'}},
+     {type:'multiple',q:'Which answers correctly describe formats and serialization in the course?',opts:[
+      {t:'Kafka ultimately stores messages as byte[].',c:true},{t:'A serializer converts application data into a format such as JSON, Avro, or Protobuf.',c:true},{t:'Kafka requires Avro for all production topics.',c:false},{t:'Schema Registry is presented as external to the Kafka broker.',c:true},{t:'A custom format can also be used.',c:true}],
+      exp:{key:'Kafka does not dictate the data format. The application and serializers decide how to encode the value.',correct:['The broker stores bytes.','The serializer transforms the application object into a transmittable representation.','The schema is managed outside the broker, for example with Schema Registry.','The course explicitly mentions custom formats.'],wrong:['Avro is common, but Kafka does not require it.'],tip:'CCDAK: Kafka is format-agnostic; Confluent Schema Registry adds schema governance.'}},
+     {type:'single',q:'Which scenario best illustrates a Kafka audit trail according to the course?',opts:[
+      {t:'Record every system action as an immutable event in a topic.',c:true},{t:'Keep only the latest action per user in a replaced table.',c:false},{t:'Delete an action as soon as a compliance service has read it.',c:false},{t:'Place all actions in the topic name.',c:false}],
+      exp:{key:'An audit trail relies on a journal of past actions. Kafka fits because its topics are append-only logs.',correct:['Each action becomes a durable event during the retention period, preserving the history.'],wrong:['Keeping only the latest state destroys traceability.','Deleting on read contradicts both the audit goal and the log model.','The topic name organizes data; it does not contain the events.'],tip:'Audit = complete history. Any solution that deletes or replaces events is suspicious.'}},
+     {type:'multiple',q:'In the pipeline thermostat-readings → hot-locations → alerts, which interpretations are correct?',opts:[
+      {t:'Each topic can represent a transformation step.',c:true},{t:'The source topic remains available for other processing.',c:true},{t:'The stream processor reads one topic and writes another topic.',c:true},{t:'The broker modifies old messages to create alerts.',c:false},{t:'This approach is incompatible with immutability.',c:false}],
+      exp:{key:'Kafka stream processing builds derived topics from source topics without altering existing events.',correct:['A topic can be a source, a filtered result, or an alerting result.','The thermostat-readings topic remains consumable by other services.','The processing reads, filters/enriches/aggregates, then publishes a new stream.'],wrong:['The broker does not edit old messages.','This approach is precisely the standard way to work with immutable logs.'],tip:'Kafka Connect moves data; Kafka Streams/ksqlDB transform streams — a useful CCDAK reference point, even if the module mostly illustrates the principle.'}},
+     {type:'single',q:'Which sentence best describes the difference between “final state” and “full history” in the module?',opts:[
+      {t:'An updated table shows the current state; a Kafka log shows the successive changes.',c:true},{t:'A table always preserves history better than a log.',c:false},{t:'Kafka loses history as soon as the temperature changes.',c:false},{t:'A Kafka log prevents temporal evolution analysis.',c:false}],
+      exp:{key:'The table/log comparison is central: the table replaces a value, while the log accumulates facts.',correct:['With the log, successive temperatures remain visible and analyzable over time.'],wrong:['The course says the opposite: the table UPDATE loses the previous value.','Kafka stores changes as new events.','The log is exactly what enables time-based analysis.'],tip:'Quick cue: if the scenario asks “how fast?”, “when?”, or “trend?”, think event log.'}},
+     {type:'single',q:'Consumer A reads the message at offset 0. Consumer B arrives later and wants to read from the beginning. According to the course, is this conceptually possible?',opts:[
+      {t:'Yes, because the message remains in the log and reads are independent.',c:true},{t:'No, because A destroyed the message by reading it.',c:false},{t:'No, because Kafka forbids rereading.',c:false},{t:'Yes, but only if A copied the message into headers.',c:false}],
+      exp:{key:'The Kafka log enables rereading and independent consumption. This is a major difference from queues.',correct:['B can read offset 0 as long as the message is still available according to the topic retention.'],wrong:['Destructive reading is a queue model, not Kafka.','Rereading is an explicitly presented Kafka advantage.','Headers play no role in making the message available to B.'],tip:'Always mentally add “as long as retention allows it” when discussing rereading.'}},
+     {type:'multiple',q:'Which design choices follow the course-derived best practices for an orders event topic?',opts:[
+      {t:'Put order details in the value.',c:true},{t:'Use a logical key such as orderId or customerId depending on the partitioning need.',c:true},{t:'Add lightweight headers for source or traceability.',c:true},{t:'Create a derived topic for filtered or enriched orders.',c:true},{t:'Modify the original event when the invoice is created.',c:false}],
+      exp:{key:'A well-designed Kafka event separates payload, logical identity, metadata, and derived transformations.',correct:['The value carries the main business content.','The key should be chosen according to the entity and desired distribution.','Headers are suitable for lightweight metadata such as source and traceability.','Transformations produce new topics without altering the original stream.'],wrong:['Modifying the initial event contradicts append-only behavior and creates a Kafka anti-pattern.'],tip:'Event-driven design: immutable original event, derived views in new topics.'}}
+    ];
+
+    function shuffleOptions(){
+      var i; var j; var tmp; var arr;
+      for(i=0;i<QUESTIONS.length;i++){
+        arr = QUESTIONS[i].opts;
+        for(j=arr.length-1;j>0;j--){
+          var k = Math.floor(Math.random()*(j+1));
+          tmp = arr[j]; arr[j] = arr[k]; arr[k] = tmp;
+        }
+      }
+    }
+    function initQuiz(){shuffleOptions(); paint();}
+    function fmt(s){var m=Math.floor(s/60);var r=s%60;return (m<10?'0'+m:m)+':'+(r<10?'0'+r:r);}
+    function startTimer(){
+      clearInterval(timerInterval); timeLeft=90; lastTimeUp=false; paintTimer();
+      timerInterval=setInterval(function(){timeLeft--; paintTimer(); if(timeLeft<=0){clearInterval(timerInterval); lastTimeUp=true; valider();}},1000);
+    }
+    function paintTimer(){
+      var el=document.getElementById('timer'); el.innerHTML=fmt(timeLeft); el.className='timer';
+      if(timeLeft<=30 && timeLeft>=15){el.className='timer orange';}
+      if(timeLeft<15){el.className='timer red';}
+    }
+    function pickOption(i){
+      if(answered){return;} var q=QUESTIONS[qIdx];
+      if(q.type==='single'){selected={}; selected[i]=true;} else {selected[i]=!selected[i]; if(!selected[i]){delete selected[i];}}
+      paintOptions();
+    }
+    function paintOptions(){
+      var q=QUESTIONS[qIdx]; var box=document.getElementById('options'); var html=''; var letters='ABCDEFGHIJKLMNOPQRSTUVWXYZ'; var i; var cls;
+      for(i=0;i<q.opts.length;i++){
+        cls='opt';
+        if(selected[i]){cls+=' sel';}
+        if(answered){
+          if(q.opts[i].c && selected[i]){cls='opt good';}
+          if(!q.opts[i].c && selected[i]){cls='opt bad';}
+          if(q.opts[i].c && !selected[i]){cls='opt missed';}
+        }
+        html+='<div class="'+cls+'" onclick="pickOption('+i+')"><span class="letter">'+letters.charAt(i)+'.</span><span>'+q.opts[i].t+'</span></div>';
+      }
+      box.innerHTML=html;
+    }
+    function isCorrect(){
+      var q=QUESTIONS[qIdx]; var i;
+      for(i=0;i<q.opts.length;i++){
+        if(q.opts[i].c && !selected[i]){return false;}
+        if(!q.opts[i].c && selected[i]){return false;}
+      }
+      return true;
+    }
+    function valider(){
+      if(answered){return;} clearInterval(timerInterval); answered=true; totalTimeSpent += (90-timeLeft);
+      var ok=isCorrect(); if(ok){score++;}
+      document.getElementById('validateBtn').disabled=true; document.getElementById('nextBtn').disabled=false;
+      document.getElementById('status').innerHTML= lastTimeUp ? '<span class="warn">Time’s up!</span>' : (ok ? 'Correct.' : 'Incorrect.');
+      paintOptions(); paintExplanation(); paintScore();
+    }
+    function paintExplanation(){
+      var q=QUESTIONS[qIdx]; var e=q.exp; var html=''; var i; var n=1;
+      html+='<h3>1. Key Concept</h3><p>'+e.key+'</p>';
+      html+='<h3>2. Why it is correct</h3><ol>';
+      for(i=0;i<e.correct.length;i++){html+='<li>'+e.correct[i]+'</li>';}
+      html+='</ol><h3>3. Why it is incorrect</h3><ol>';
+      for(i=0;i<e.wrong.length;i++){html+='<li>'+e.wrong[i]+'</li>'; n++;}
+      html+='</ol><h3>4. Exam Tip (CCDAK)</h3><p>'+e.tip+'</p>';
+      document.getElementById('explanation').style.display='block'; document.getElementById('explanation').innerHTML=html;
+    }
+    function paint(){
+      var q=QUESTIONS[qIdx]; selected={}; answered=false;
+      document.getElementById('quiz').className='card'; document.getElementById('final').className='card hidden';
+      document.getElementById('meta').innerHTML='Question '+(qIdx+1)+' / '+QUESTIONS.length+' · Score '+score;
+      document.getElementById('badge').innerHTML=q.type==='single'?'Single answer':'Multiple answers';
+      document.getElementById('question').innerHTML=q.q;
+      document.getElementById('status').innerHTML=''; document.getElementById('explanation').style.display='none';
+      document.getElementById('validateBtn').disabled=false; document.getElementById('nextBtn').disabled=true;
+      paintOptions(); paintScore(); startTimer();
+    }
+    function paintScore(){
+      var pct=((qIdx)/QUESTIONS.length)*100;
+      if(answered){pct=((qIdx+1)/QUESTIONS.length)*100;}
+      document.getElementById('progress').style.width=pct+'%';
+    }
+    function suivante(){
+      if(!answered){return;} qIdx++;
+      if(qIdx>=QUESTIONS.length){showFinal();} else {paint();}
+    }
+    function showFinal(){
+      clearInterval(timerInterval); document.getElementById('quiz').className='card hidden';
+      var pct=Math.round((score/QUESTIONS.length)*100); var avg=Math.round(totalTimeSpent/QUESTIONS.length); var msg='';
+      if(pct>=85){msg='Excellent CCDAK level on this module.';} else if(pct>=70){msg='Solid mastery; review the traps around topic vs queue, key, and schema.';} else {msg='Needs review: focus on append-only logs, immutability, and message structure.';}
+      document.getElementById('final').className='card';
+      document.getElementById('final').innerHTML='<div class="scoreBox"><h1>Final Score</h1><div class="scoreNum">'+score+' / '+QUESTIONS.length+'</div><div class="resultBar"><div class="resultFill" style="width:'+pct+'%"></div></div><p><strong>'+pct+'%</strong> — '+msg+'</p><p><span class="pill">Average time per question: '+avg+'s</span><span class="pill">Questions: '+QUESTIONS.length+'</span></p><button class="btn" onclick="recommencer()">Restart Quiz</button></div>';
+      document.getElementById('progress').style.width='100%';
+    }
+    function recommencer(){
+      clearInterval(timerInterval); qIdx=0; selected={}; answered=false; score=0; timeLeft=90; totalTimeSpent=0; lastTimeUp=false; shuffleOptions(); paint();
+    }
+</script>
+</body>
+</html>

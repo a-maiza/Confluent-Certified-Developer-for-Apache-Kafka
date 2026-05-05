@@ -1,0 +1,26 @@
+flowchart TB
+    subgraph FRAME [" "]
+        direction LR
+        subgraph TABLE ["🗄️ Table (BDD traditionnelle)"]
+            direction TB
+            T1["Cuisine : 22°C"] -->|"UPDATE"| T2["Cuisine : 24°C"]
+            T2 -->|"UPDATE"| T3["Cuisine : 25°C"]
+            T3 -.->|"❌ Historique perdu"| TX["État final<br/>uniquement"]
+        end
+
+        subgraph LOG ["📜 Log Kafka (append-only)"]
+            direction TB
+            L1["[0] 22°C @ 08h00"]
+            L2["[1] 24°C @ 08h15"]
+            L3["[2] 25°C @ 08h30"]
+            L4["[3] 26°C @ 08h45"]
+            L1 --> L2 --> L3 --> L4
+            L4 -.->|"✅ Historique complet"| LX["Toutes les valeurs<br/>conservées"]
+        end
+    end
+
+    style TABLE fill:#ffebee,stroke:#c62828
+    style LOG fill:#e8f5e9,stroke:#2e7d32
+    style TX fill:#ef9a9a,color:#000
+    style LX fill:#a5d6a7,color:#000
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

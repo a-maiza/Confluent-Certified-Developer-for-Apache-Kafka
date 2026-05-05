@@ -1,0 +1,28 @@
+flowchart TB
+    subgraph FRAME [" "]
+        direction LR
+        subgraph WITHOUT ["❌ Sans partitionnement"]
+            direction TB
+            T1["📋 Topic complet"] --> N1[("🖥️ 1 seul nœud")]
+            N1 -.->|"limite stricte"| LIMIT["💥 Capacité = 1 machine<br/>(stockage + débit)"]
+        end
+
+        subgraph WITH ["✅ Avec partitionnement"]
+            direction TB
+            T2["📋 Topic partitionné"]
+            T2 --> NA[("🖥️ Nœud A")]
+            T2 --> NB[("🖥️ Nœud B")]
+            T2 --> NC[("🖥️ Nœud C")]
+            T2 --> ND[("🖥️ Nœud N")]
+            NA -.->|"scalabilité<br/>horizontale"| SCALE["🚀 Capacité = somme<br/>des machines"]
+            NB -.-> SCALE
+            NC -.-> SCALE
+            ND -.-> SCALE
+        end
+    end
+
+    style WITHOUT fill:#ffebee,stroke:#c62828
+    style WITH fill:#e8f5e9,stroke:#2e7d32
+    style LIMIT fill:#ef9a9a,color:#000
+    style SCALE fill:#a5d6a7,color:#000
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

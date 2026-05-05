@@ -1,0 +1,23 @@
+flowchart LR
+    subgraph FRAME [" "]
+        direction LR
+        P["🏭 Producteur"]
+        P -->|"key=sensor-42"| H["🔢 hash(key)<br/>% nb_partitions"]
+        P -->|"key=sensor-17"| H
+        P -->|"key=sensor-42"| H
+        P -->|"key=sensor-99"| H
+
+        H -->|"→ 0"| P0["📦 Partition 0<br/>sensor-99"]
+        H -->|"→ 1"| P1["📦 Partition 1<br/>sensor-42<br/>sensor-42"]
+        H -->|"→ 2"| P2["📦 Partition 2<br/>sensor-17"]
+
+        P1 -.->|"✅ même clé<br/>→ même partition<br/>→ ordre garanti"| ORDER["🎯 Ordre strict<br/>par clé"]
+    end
+
+    style P fill:#43a047,color:#fff
+    style H fill:#7b1fa2,color:#fff,stroke:#4a148c,stroke-width:2px
+    style P0 fill:#fff8e1,stroke:#f57c00
+    style P1 fill:#fff8e1,stroke:#f57c00,stroke-width:3px
+    style P2 fill:#fff8e1,stroke:#f57c00
+    style ORDER fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

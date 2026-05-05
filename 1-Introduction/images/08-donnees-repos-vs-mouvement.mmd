@@ -1,0 +1,18 @@
+graph TB
+    subgraph REST ["🛌 Données au repos (Tables)"]
+        direction TB
+        DB[("🗄️ Base de données")]
+        DB --- Q1["SELECT * FROM ..."]
+        DB --- Q2["État figé à un instant"]
+    end
+
+    subgraph MOTION ["🌊 Données en mouvement (Kafka)"]
+        direction LR
+        FLOW1["📤"] -.->|"événement"| FLOW2["📥"]
+        FLOW2 -.->|"événement"| FLOW3["📥"]
+        FLOW3 -.->|"événement"| FLOW4["📥"]
+    end
+
+    style REST fill:#eceff1,stroke:#455a64
+    style MOTION fill:#e0f7fa,stroke:#006064
+    style DB fill:#90a4ae,color:#fff

@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CCDAK Prep — Level 2 · Kafka Streams</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,sans-serif;background:#1a1a2e;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:32px 16px}
+  .card{background:#fff;border-radius:12px;border:1px solid #dde1e9;width:100%;max-width:840px;overflow:hidden}
+  .card-header{background:#1a1a2e;padding:16px 26px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .card-header h1{color:#fff;font-size:1.1rem;letter-spacing:.8px;white-space:nowrap}
+  .header-right{display:flex;align-items:center;gap:16px}
+  .timer-global{font-size:1rem;font-weight:700;color:#fff;background:rgba(255,255,255,.1);border-radius:7px;padding:5px 12px;white-space:nowrap}
+  .timer-global.warn{color:#f39c12;background:rgba(243,156,18,.15)}
+  .timer-global.danger{color:#e74c3c;background:rgba(231,76,60,.18);animation:pulse .8s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+  .q-count-header{color:#aab;font-size:.82rem;white-space:nowrap}
+  .progress-bar-wrap{height:5px;background:#e9ecef}
+  .progress-bar-fill{height:5px;background:#C0392B;transition:width .4s}
+  .card-body{padding:26px}
+  .q-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .q-num{font-size:.8rem;color:#888}
+  .badges{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .badge{display:inline-block;font-size:.72rem;font-weight:600;border-radius:4px;padding:2px 9px}
+  .badge-single{background:#eaf4fb;color:#1a6fa8}
+  .badge-multi{background:#fef3e2;color:#b05f00}
+  .badge-cours{background:#e8f4fd;color:#1a6fa8}
+  .badge-inference{background:#f0e8fd;color:#6a1ab8}
+  .q-text{font-size:1rem;color:#1a1a2e;font-weight:600;line-height:1.6;margin-bottom:18px}
+  .options-list{list-style:none;display:flex;flex-direction:column;gap:8px}
+  .option-wrap{display:flex;flex-direction:column}
+  .option-btn{width:100%;background:#f8f9fb;border:1.5px solid #dde1e9;border-radius:8px;padding:11px 14px;text-align:left;cursor:pointer;font-size:.93rem;color:#2d3748;display:flex;align-items:flex-start;gap:11px;transition:background .15s,border-color .15s}
+  .option-btn:hover:not([disabled]){background:#eef1f7;border-color:#b0b8cc}
+  .option-btn.selected{background:#e8f0fe;border-color:#3a6fd8}
+  .option-btn.correct{background:#e6f9f0;border-color:#27ae60;color:#145c35}
+  .option-btn.wrong{background:#fdecea;border-color:#e74c3c;color:#7b1a1a}
+  .option-btn.missed{background:#e6f9f0;border-color:#27ae60;border-style:dashed;color:#145c35}
+  .option-btn[disabled]{cursor:default}
+  .opt-letter{font-weight:700;font-size:.88rem;min-width:24px;height:24px;border-radius:50%;background:#dde1e9;display:flex;align-items:center;justify-content:center;color:#555;flex-shrink:0;margin-top:1px}
+  .option-btn.selected .opt-letter{background:#3a6fd8;color:#fff}
+  .option-btn.correct  .opt-letter{background:#27ae60;color:#fff}
+  .option-btn.wrong    .opt-letter{background:#e74c3c;color:#fff}
+  .option-btn.missed   .opt-letter{background:#27ae60;color:#fff}
+  .opt-expl{display:none;font-size:.82rem;color:#555;padding:6px 14px 6px 49px;line-height:1.55;border-left:2px solid #dde1e9;margin-top:2px;border-radius:0 0 6px 6px}
+  .opt-expl.show{display:block}
+  .opt-expl.expl-ok{border-left-color:#27ae60;color:#1a5c38}
+  .opt-expl.expl-ko{border-left-color:#e74c3c;color:#7b1a1a}
+  .opt-expl.expl-missed{border-left-color:#27ae60;color:#1a5c38}
+  .opt-expl.expl-neutral{border-left-color:#ccc;color:#777}
+  .global-expl{display:none;margin-top:18px;background:#12102a;border-left:4px solid #C0392B;border-radius:0 8px 8px 0;padding:14px 16px;color:#e0e0f0;font-size:.88rem;line-height:1.65}
+  .global-expl.show{display:block}
+  .global-expl h4{font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;color:#C0392B;margin-bottom:7px}
+  .actions{margin-top:20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .btn-validate,.btn-next,.btn-restart{border:none;border-radius:7px;padding:10px 24px;font-size:.93rem;font-weight:600;cursor:pointer;transition:opacity .15s}
+  .btn-validate{background:#C0392B;color:#fff}
+  .btn-validate:disabled{opacity:.38;cursor:default}
+  .btn-next{background:#1a1a2e;color:#fff}
+  .btn-next:disabled{opacity:.32;cursor:default}
+  .btn-restart{background:#C0392B;color:#fff}
+  .score-screen{padding:30px 26px;text-align:center}
+  .score-screen h2{font-size:1.55rem;color:#1a1a2e;margin-bottom:7px}
+  .score-msg{font-size:.97rem;color:#555;margin-bottom:22px}
+  .score-bar-wrap{background:#e9ecef;border-radius:999px;height:16px;margin-bottom:22px;overflow:hidden}
+  .score-bar-fill{height:16px;border-radius:999px;transition:width .8s}
+  .score-detail{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px;text-align:left}
+  .score-box{background:#f7f8fc;border-radius:8px;padding:13px 15px;border:1px solid #dde1e9}
+  .score-box .lbl{font-size:.75rem;color:#888;margin-bottom:3px}
+  .score-box .val{font-size:1.35rem;font-weight:700;color:#1a1a2e}
+  .score-box .sub{font-size:.78rem;color:#555;margin-top:2px}
+  .score-box.blue .val{color:#1a6fa8}
+  .score-box.purple .val{color:#6a1ab8}
+  .score-box.orange .val{color:#b05f00}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="card-header">
+    <h1>CCDAK Prep &mdash; Level 2 &middot; Kafka Streams</h1>
+    <div class="header-right">
+      <span class="timer-global" id="globalTimer">⏱ 30:00</span>
+      <span class="q-count-header" id="headerSub">Module 10</span>
+    </div>
+  </div>
+  <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBar" style="width:0%"></div></div>
+  <div id="quizArea" class="card-body"></div>
+</div>
+<script>
+var QUESTIONS = [
+  {
+    source: "cours",
+    type: "single",
+    question: "A ride-sharing platform ingests GPS location events from millions of drivers into Kafka topics. A data engineering team starts with simple filtering (removing null coordinates) in a standard Kafka consumer. Over time, product requests evolve to require: computing the average speed per driver over a rolling 5-minute window, detecting when a driver is near a surge zone (join with a zone topic), and raising an alert if no GPS event is received in 30 seconds (absence detection). The current consumer-based approach is becoming unmanageable. What is the root cause, and what is the recommended solution?",
+    options: [
+      {
+        text: "The consumer is undersized. Increase the number of consumer instances and partition count to handle load.",
+        explanation: "✗ Scaling partitions and consumer instances improves throughput, but does not add stateful capabilities. Rolling windows, stream joins, and absence detection require state management that the Kafka consumer API simply does not provide."
+      },
+      {
+        text: "Kafka consumers do not natively support stateful operations like windowing, stream joins, or absence detection. The team should adopt Apache Flink or Kafka Streams as a dedicated stream processing framework.",
+        explanation: "✓ The Kafka consumer API is designed for reading records — not for stateful computation. Windowed aggregations, stream joins, and timeout detection require a stream processing framework (Flink or Kafka Streams) with built-in state management, fault tolerance, and time semantics."
+      },
+      {
+        text: "Use Kafka AdminClient to create additional intermediate topics for each computation, chaining multiple consumers.",
+        explanation: "✗ Chaining consumers via intermediate topics is a manual workaround that recreates a stream processing framework from scratch — without fault tolerance, proper time semantics, or state management. This is exactly the anti-pattern the course warns against."
+      },
+      {
+        text: "Switch from Kafka consumer to Kafka producer and push results to a separate analytics cluster.",
+        explanation: "✗ Changing from consumer to producer inverts the data flow direction entirely. It does not add computational capabilities and makes no architectural sense for the described requirements."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "The Kafka consumer API provides no native support for stateful operations. As soon as requirements include windowing, joins between streams, or temporal absence detection, the consumer code effectively becomes a fragile, custom-built stream processing framework. The correct solution is to delegate these operations to a purpose-built framework — Apache Flink or Kafka Streams — which handle state stores, fault tolerance, and time windowing natively."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A data platform team at a logistics company is starting a new Apache Flink project to process shipment events in real time. The team has strong Java expertise. A team member proposes using the Flink DataStream API because it is 'the original Flink API.' The tech lead disagrees. Which Flink API should they use for the new project, and why?",
+    options: [
+      {
+        text: "DataStream API — it is the most battle-tested API and offers the best performance for new Java projects.",
+        explanation: "✗ While DataStream API is battle-tested, it is the LOWEST-LEVEL API and is not recommended for new projects. It requires more boilerplate, is harder to learn, and is less actively developed than the Table API."
+      },
+      {
+        text: "Flink SQL — it is the only API that supports both streaming and batch processing.",
+        explanation: "✗ Flink SQL does support both streaming and batch, but it is NOT the only API to do so. The Table API also supports both. Additionally, Flink SQL may not be ideal if the team prefers fluent Java code over SQL syntax."
+      },
+      {
+        text: "Table API — it is the high-level, actively developed Java API recommended for new Flink projects, offering fluent method chains similar to SQL operations.",
+        explanation: "✓ The Table API is the recommended choice for new Flink projects. It provides a high-level, fluent Java/Python interface with SQL-like method chaining (select, filter, join, groupBy), is actively developed, and is easier to learn than the DataStream API."
+      },
+      {
+        text: "Kafka Streams — it is the preferred Java API for Flink projects using Kafka as a source.",
+        explanation: "✗ Kafka Streams is a completely separate library from Apache Flink. It is part of Apache Kafka, not a Flink API. Recommending Kafka Streams when the question asks about a Flink API demonstrates a fundamental confusion between the two frameworks."
+      }
+    ],
+    answers: [2],
+    globalExplanation: "Apache Flink offers three APIs: DataStream API (low-level, legacy — avoid for new projects), Table API (high-level Java/Python, actively developed — recommended), and Flink SQL (SQL syntax over streams). For new Java projects, the Table API is the recommended starting point. DataStream API should only be used when low-level control is required and the team has advanced Flink expertise."
+  },
+  {
+    source: "cours",
+    type: "multiple",
+    question: "A data science team at a financial institution needs to build a fraud detection pipeline entirely in SQL. They need to: (1) write pure SQL queries over a Kafka topic of transaction events, (2) call a custom Python scoring function to compute fraud probability for each transaction, and (3) detect duplicate transactions across a 10-minute window. Which TWO Flink capabilities enable these requirements?",
+    options: [
+      {
+        text: "Flink SQL — allows writing stream processing pipelines using standard SQL syntax directly over Kafka topics.",
+        explanation: "✓ Flink SQL enables pure SQL queries over Kafka topics treated as streaming tables. It supports windowing (for duplicate detection) and all standard SQL operators — satisfying requirements (1) and (3)."
+      },
+      {
+        text: "User-Defined Functions (UDFs) in Flink SQL — callable from SQL, implemented in Python or Java, enabling custom logic like a fraud scoring model.",
+        explanation: "✓ Flink SQL supports UDFs implemented in Python or Java that can be called directly from SQL queries. This enables the custom Python fraud scoring function (requirement 2) to be integrated into the SQL pipeline."
+      },
+      {
+        text: "Kafka Streams DSL — provides a Java API that generates SQL queries from method chains.",
+        explanation: "✗ Kafka Streams has no SQL interface and does not generate SQL. It is a separate Java library for building stream processing topologies via a DSL — unrelated to Flink SQL capabilities."
+      },
+      {
+        text: "Flink DataStream API — the recommended API for UDFs when SQL performance is insufficient.",
+        explanation: "✗ DataStream API is a low-level Java programming model, not recommended for new projects. UDFs in Flink SQL do not require dropping down to DataStream API — they are natively supported via the UDF registration mechanism."
+      }
+    ],
+    answers: [0, 1],
+    globalExplanation: "Flink SQL is the correct tool for pure SQL stream processing over Kafka. User-Defined Functions (UDFs) extend Flink SQL with custom logic (Python or Java) callable from SQL queries. Together they cover all three requirements: SQL pipelines over Kafka, custom Python scoring, and windowed duplicate detection. This combination is a frequently tested Flink scenario on the CCDAK exam."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A startup's engineering team builds real-time recommendation features using Kafka. They are evaluating Apache Flink versus Kafka Streams. Their requirements are: the team writes exclusively in Java, they operate at moderate traffic volumes (~50,000 events/second), they do not want to manage a separate cluster, and they want to embed the processing logic inside their existing Spring Boot microservices. Which framework best fits their requirements?",
+    options: [
+      {
+        text: "Apache Flink — it supports Java and can be embedded in Spring Boot applications without a separate cluster.",
+        explanation: "✗ Flink is designed to run on a dedicated Flink cluster (or managed service). While it can be run in local mode for development, production deployments require a separate Flink cluster, contradicting the 'no separate cluster' requirement."
+      },
+      {
+        text: "Kafka Streams — it is a Java library embedded directly in the application, requires no separate cluster, and is ideal for small to medium scale workloads.",
+        explanation: "✓ Kafka Streams is a Java library (jar) that runs embedded inside any Java application, including Spring Boot. It requires NO separate cluster — just a Kafka cluster. It is explicitly designed for small-to-medium scale, matching the 50,000 events/second requirement."
+      },
+      {
+        text: "Flink SQL — it supports Java through its SQL API and can be embedded in existing applications without infrastructure.",
+        explanation: "✗ Flink SQL requires a Flink runtime cluster to execute SQL jobs. It is not an embeddable library in the same way as Kafka Streams — it requires deploying and managing a Flink JobManager and TaskManagers."
+      },
+      {
+        text: "Kafka Streams — but only if the team migrates from Spring Boot to a standalone Java main() application.",
+        explanation: "✗ Kafka Streams integrates seamlessly with Spring Boot (and there is even a Spring for Apache Kafka project). No migration away from Spring Boot is required. Kafka Streams is just a library dependency."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "Kafka Streams is the correct choice when the team is Java-based, works at small-to-medium scale, and wants to avoid managing a separate processing cluster. It is a library that embeds into any Java application (including Spring Boot). Apache Flink targets much larger scales and requires a dedicated cluster, making it overkill for this scenario."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A fraud detection team builds a Kafka Streams application that must detect when a customer makes more than 5 transactions within a fixed 15-minute period. Each 15-minute window must be completely independent — no transaction can appear in more than one window. The windows must start and end at fixed intervals (e.g., 00:00–00:15, 00:15–00:30). Which Kafka Streams window type should they use?",
+    options: [
+      {
+        text: "Hopping Window with size=15 minutes and advance=5 minutes, so transactions are captured in overlapping windows.",
+        explanation: "✗ Hopping windows OVERLAP — a transaction near the window boundary would appear in MULTIPLE windows (e.g., a transaction at 00:14:59 appears in both the 00:00–00:15 and the 00:10–00:25 windows). This violates the 'no transaction in more than one window' requirement."
+      },
+      {
+        text: "Tumbling Window with size=15 minutes — fixed, non-overlapping windows where each transaction belongs to exactly one window.",
+        explanation: "✓ Tumbling windows are fixed-size and non-overlapping. Each 15-minute window is completely independent, starts immediately when the previous ends, and every transaction belongs to exactly ONE window. This perfectly matches the fraud detection requirement."
+      },
+      {
+        text: "Session Window with inactivity gap=15 minutes — windows close after 15 minutes of customer inactivity.",
+        explanation: "✗ Session windows are dynamically sized based on activity gaps between events. They do NOT start at fixed intervals and their size varies per customer. A customer with no gap between transactions would have a single very large window, not fixed 15-minute periods."
+      },
+      {
+        text: "Sliding Window with time difference=15 minutes — windows advance for every new event.",
+        explanation: "✗ Sliding windows overlap based on the time difference between records. Every new record creates a new window anchored around it, meaning a transaction at 00:14 and one at 00:01 would share a 15-minute sliding window. This violates the 'fixed independent intervals' requirement."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "Tumbling windows are the correct choice for fixed, non-overlapping time intervals where each event belongs to exactly one window. They start at fixed calendar boundaries and end after the configured size. Hopping windows overlap, session windows are activity-based, and sliding windows advance per record — none satisfy the 'fixed, non-overlapping, exclusive membership' requirement."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A payment processing company runs a Kafka Streams application that maintains a running balance per account using a persistent state store. After a crash, the application takes 45 minutes to recover because it replays the entire input topic from the beginning. The SRE team needs to reduce recovery time to under 5 minutes without losing any state. What is the recommended approach?",
+    options: [
+      {
+        text: "Switch to in-memory state stores to eliminate disk I/O and speed up state rebuilding.",
+        explanation: "✗ In-memory state stores are lost on crash and must be FULLY rebuilt from the changelog topic or input topic. This would make recovery WORSE (full rebuild every time), not better. Persistent stores are the correct choice for fast recovery."
+      },
+      {
+        text: "Store the Kafka Streams application state on a persistent volume. On restart, only the delta (missing state since last flush) needs to be restored from the changelog topic.",
+        explanation: "✓ Persistent volumes allow Kafka Streams to checkpoint state to durable disk. On restart, the state is loaded from the local checkpoint on disk, and only the delta (records produced to the changelog topic since the last flush) needs to be restored from Kafka — dramatically reducing recovery time."
+      },
+      {
+        text: "Set auto.offset.reset=earliest on the Kafka Streams consumer to ensure all records are replayed from the beginning on restart.",
+        explanation: "✗ auto.offset.reset=earliest causes the consumer to start from the beginning of the topic — which is exactly the current behavior causing the 45-minute recovery. This property would worsen the problem, not solve it."
+      },
+      {
+        text: "Increase the number of Streams instances to parallelize state rebuilding across multiple nodes.",
+        explanation: "✗ Adding more instances distributes tasks but does not eliminate the need to replay the input topic to rebuild state. Without persistent state stores, each instance still needs to rebuild its assigned partitions from scratch."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "Persistent state stores (backed by RocksDB) combined with persistent volumes are the best-practice solution for fast Kafka Streams recovery. State is checkpointed to disk at regular intervals. On restart, the local disk snapshot is loaded first, and only the incremental delta (from the changelog Kafka topic) is replayed — reducing recovery from a full topic replay to a small delta restore."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A fintech company builds a Kafka Streams application that joins a stream of payment authorization events with a stream of merchant risk scores. Both streams are co-partitioned on merchant_id. The team needs to match payment authorizations with the corresponding risk score received within the last 10 minutes. Which join type and configuration should they use?",
+    options: [
+      {
+        text: "KTable-to-KTable inner join (non-windowed) — risk scores are stable reference data and KTable-to-KTable joins require no time window.",
+        explanation: "✗ Payment authorization events are not a changelog stream appropriate for KTable. KTable-to-KTable joins work when BOTH sides represent the latest state per key — not when one side is a continuous event stream that needs a time-bounded join."
+      },
+      {
+        text: "KStream-to-KTable join (non-windowed) with the risk score stream as the KTable — only the latest risk score per merchant is matched.",
+        explanation: "✗ This works if only the LATEST risk score should be joined with each authorization. However, if risk scores change and the team needs to match authorizations with risk scores received WITHIN the last 10 minutes specifically (not just the latest), a windowed KStream-to-KStream join is more appropriate."
+      },
+      {
+        text: "KStream-to-KStream windowed inner join with a 10-minute window — both streams are event streams that need time-bounded matching.",
+        explanation: "✓ Both payment authorizations and risk scores are event streams (KStream). To match events within a 10-minute time window, a windowed KStream-to-KStream inner join is correct. The window bounds which risk score events can be joined with each authorization."
+      },
+      {
+        text: "KStream-to-GlobalKTable join (non-windowed) — GlobalKTable eliminates the co-partitioning requirement and holds the latest risk score.",
+        explanation: "✗ GlobalKTable holds only the LATEST value per key (no time window). If the requirement is to match records within a 10-minute window (not just the latest), GlobalKTable cannot satisfy the temporal constraint. Also, since both topics are already co-partitioned, GlobalKTable's main advantage (no co-partitioning) is not needed."
+      }
+    ],
+    answers: [2],
+    globalExplanation: "When both sides of a join are unbounded event streams and a time-bounded match is required, a windowed KStream-to-KStream join is the correct choice. Both authorization events and risk score events are independent events (KStream), and the 10-minute window bounds which events can be matched. KTable-based joins only expose the LATEST value per key — inappropriate when temporal matching within a window is required."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "An e-commerce platform maintains a Kafka topic called `product-prices` where each record represents the latest price for a given product_id. New records for the same product_id overwrite the previous price. A Kafka Streams application needs to enrich an order event stream by looking up the current price for each ordered product. Which abstraction should the developer use for the `product-prices` topic and what type of join should they perform?",
+    options: [
+      {
+        text: "Read product-prices as a KStream, then perform a windowed KStream-to-KStream inner join with the order stream.",
+        explanation: "✗ A KStream processes every record as an independent event. Multiple records for the same product_id would be treated as separate events, not as price updates. A windowed join would only match prices recorded within the window, missing prices set outside the window."
+      },
+      {
+        text: "Read product-prices as a KTable, then perform a non-windowed KStream-to-KTable join to look up the current price per product_id for each order event.",
+        explanation: "✓ A KTable represents the LATEST value per key — exactly what a price changelog topic provides. A non-windowed KStream-to-KTable join looks up the current (latest) price for each order's product_id at the time the order arrives. This is the canonical pattern for enriching a stream with reference data."
+      },
+      {
+        text: "Read product-prices as a KStream, then perform a non-windowed KStream-to-KStream join — non-windowed stream joins do not require time bounds.",
+        explanation: "✗ KStream-to-KStream joins are ALWAYS windowed in Kafka Streams. Non-windowed KStream-to-KStream joins do not exist — they would require retaining all records from both streams indefinitely."
+      },
+      {
+        text: "Read product-prices as a GlobalKTable and perform a windowed join to match prices within the last 24 hours.",
+        explanation: "✗ GlobalKTable joins are non-windowed — they look up the current (latest) value, not records within a time window. Applying a windowed join on a GlobalKTable is not possible in the Kafka Streams DSL."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "A compacted changelog topic where each record represents the LATEST value per key maps naturally to a KTable in Kafka Streams. KStream-to-KTable joins are non-windowed and look up the current state of the KTable at join time — the canonical pattern for stream enrichment with reference/lookup data. The KTable always holds the latest value per key, making it perfect for current price lookups."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A healthcare company's Kafka Streams application must process patient monitoring events and guarantee that each vital sign reading is processed exactly once — no duplicates, no data loss — even if a Kafka broker fails during processing. The CTO asks the engineering team what single configuration change is required to achieve this guarantee. What is the correct answer?",
+    options: [
+      {
+        text: "Set enable.idempotence=true on the Kafka producer used by the Streams application.",
+        explanation: "✗ enable.idempotence=true prevents duplicate records produced by a single producer due to retries, but it does NOT provide end-to-end exactly-once semantics for the read-process-write cycle of a Kafka Streams application. The consumer read offset and producer write must be atomically committed together."
+      },
+      {
+        text: "Set processing.guarantee=exactly_once in the Kafka Streams configuration.",
+        explanation: "✓ This is the correct and complete answer. Setting processing.guarantee=exactly_once enables Kafka transactions in Kafka Streams, ensuring that the consumer offset commit and producer record write are atomic. No code changes are needed — only this configuration property change."
+      },
+      {
+        text: "Set acks=all and min.insync.replicas=2 on all output topics used by the Streams application.",
+        explanation: "✗ acks=all with min.insync.replicas=2 ensures DURABILITY (records survive broker failures) but does NOT provide exactly-once semantics. A record could still be written twice if the producer retries without idempotence or transactions."
+      },
+      {
+        text: "Set isolation.level=read_committed on the Kafka Streams consumer to filter out uncommitted records.",
+        explanation: "✗ isolation.level=read_committed filters out records from uncommitted transactions on the READ side, but does not make the Streams application WRITE transactionally. Without processing.guarantee=exactly_once, the application still writes without transactions."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "Kafka Streams provides built-in exactly-once semantics via the processing.guarantee=exactly_once configuration. This enables transactional read-process-write: the consumer offset commit and producer writes are wrapped in a Kafka transaction, ensuring atomic delivery. The default value is at_least_once — this default is a frequent exam trap. No code changes are required."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A streaming analytics team runs a Kafka Streams application consuming from a topic with 24 partitions. They deploy the application on a single server and want to maximize processing parallelism on that server without adding additional machines. Which configuration should they set, and what is the relationship between this parameter and the number of tasks?",
+    options: [
+      {
+        text: "Set num.stream.threads=24. Each thread processes one partition, so the number of tasks equals the number of threads.",
+        explanation: "✗ This is partially correct but misleading. num.stream.threads controls how many threads run within one instance. The number of TASKS is always determined by the number of partitions (24), not by num.stream.threads. A single thread can run multiple tasks sequentially."
+      },
+      {
+        text: "Increase the topic partition count to match the desired thread count on the server.",
+        explanation: "✗ Changing partition count affects total task count (tasks = partitions) but is a topic-level change with broad implications. It does not directly control per-instance thread parallelism. For single-server optimization, num.stream.threads is the correct lever."
+      },
+      {
+        text: "Set num.stream.threads to the desired level of concurrency. The Streams engine determines the number of tasks (= number of partitions = 24) and distributes them across threads. Setting num.stream.threads=24 maximizes parallelism on a single instance.",
+        explanation: "✓ num.stream.threads controls how many concurrent threads process tasks within a single Streams instance. With 24 partitions (= 24 tasks), setting num.stream.threads=24 allows each thread to handle one task simultaneously, maximizing single-server parallelism."
+      },
+      {
+        text: "Set num.stream.threads equal to the number of cores minus 1 to leave capacity for the OS scheduler.",
+        explanation: "✗ While leaving one core for the OS is a general JVM best practice, the exam tests knowledge of the relationship between num.stream.threads and tasks/partitions — not OS scheduling best practices. The correct answer focuses on the partition-task-thread relationship."
+      }
+    ],
+    answers: [2],
+    globalExplanation: "In Kafka Streams, the number of tasks is always determined by the number of partitions in the input topics. num.stream.threads controls how many tasks a single application instance can process concurrently. To maximize single-server parallelism, set num.stream.threads up to the number of tasks. Additional parallelism beyond one instance requires deploying additional Kafka Streams instances (which will receive a share of the tasks via rebalancing)."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A Kafka Streams application processes user activity events keyed by session_id. A developer adds a `selectKey()` operation that re-keys the stream by user_id (to enable per-user aggregations downstream). After deploying, the team notices two distinct subtopologies in the application logs and an internal Kafka topic created automatically. What causes this behavior and is it expected?",
+    options: [
+      {
+        text: "The internal topic is a bug — selectKey() should not create new topics. The developer should use map() instead.",
+        explanation: "✗ This is expected behavior, not a bug. selectKey() changes the record key, which REQUIRES repartitioning. map() also changes keys and would trigger the same repartitioning. The internal repartition topic is by design."
+      },
+      {
+        text: "The internal topic is created by Kafka Streams to repartition data after the key change. After selectKey(), records must be routed to the correct partition based on the new key (user_id). This splits the topology into two subtopologies, which run independently.",
+        explanation: "✓ Changing the key via selectKey() means records for the same new key (user_id) may currently be on different partitions. Kafka Streams creates an internal repartition topic to reshuffle records by the new key. This splits the topology: subtopology 1 writes to the repartition topic; subtopology 2 reads from it and performs the aggregation."
+      },
+      {
+        text: "The internal topic is used to buffer records between the producer and consumer within the same JVM, improving throughput.",
+        explanation: "✗ The internal repartition topic is not an in-JVM buffer — it is a real Kafka topic on the broker. Records go through Kafka to be redistributed by the new key, which inherently involves a network round-trip."
+      },
+      {
+        text: "The two subtopologies indicate a configuration error. The developer should set max.task.idle.ms to prevent premature task splitting.",
+        explanation: "✗ max.task.idle.ms controls how long a task waits for records from all input partitions before processing (relevant for joins). It has no effect on repartitioning caused by key changes. Two subtopologies after a key change is expected behavior."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "When a key-changing operation (selectKey(), groupBy(), map()) is applied in Kafka Streams, a repartition is required so that records with the same new key land on the same partition (and task). Kafka Streams automatically creates an internal repartition topic and splits the processing into two subtopologies: one that writes repartitioned records to the internal topic, and one that reads from it and continues processing. This is expected, correct behavior."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A developer is implementing a Kafka Streams application that computes word counts from a topic of text messages. They write a topology that: (1) reads from `text-input`, (2) splits each message into words using `flatMapValues`, (3) groups by word using `groupBy`, and (4) counts occurrences with `.count()`. The developer is surprised to find an internal repartition topic created between steps (3) and (4). Why does the repartition occur here?",
+    options: [
+      {
+        text: "Because count() always creates an internal topic to buffer results before writing to the output topic.",
+        explanation: "✗ count() does not create an internal repartition topic by itself. It stores the count in a state store. The repartition is triggered by the KEY CHANGE that happens in step (3), not by the count operation."
+      },
+      {
+        text: "Because groupBy() in step (3) changes the grouping key from the original record key to the word itself. Records with the same word may be on different partitions, requiring repartitioning to co-locate them on the same task for correct counting.",
+        explanation: "✓ groupBy((key, word) -> word) changes the key from the original message key to the word. After this key change, records with the same word may be spread across different partitions. Repartitioning ensures all records for the same word land on the same partition/task so the count() aggregation is correct."
+      },
+      {
+        text: "Because flatMapValues() in step (2) produces multiple records per input, and Kafka Streams repartitions to rebalance load.",
+        explanation: "✗ flatMapValues() produces multiple output records per input but does NOT change the key — it uses the original key for all output records. No repartitioning is triggered by flatMapValues() alone."
+      },
+      {
+        text: "Because the `text-input` topic has a different partition count than the output topic, triggering automatic repartitioning.",
+        explanation: "✗ Repartitioning in this context is triggered by the KEY CHANGE in groupBy(), not by partition count differences between topics. The output topic partition count is not evaluated at this stage of the topology."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "Repartitioning in Kafka Streams is triggered by key-changing operations (groupBy, selectKey, map). In the word count topology, groupBy() changes the key from the original message key to the word. Since records with the same word may be on different partitions (based on the original key hash), Kafka Streams creates an internal repartition topic to co-locate all records with the same word on the same partition — enabling correct per-word aggregation."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A Kafka Streams team joins two topics: `orders` (6 partitions) and `customers` (6 partitions) using a KStream-to-KTable join keyed on customer_id. Both topics use the default Kafka partitioner and the same key. After 6 months, the business grows and the team increases `orders` to 12 partitions but forgets to update `customers`. What happens when the Kafka Streams application is restarted?",
+    options: [
+      {
+        text: "The application runs but produces incorrect join results because some customer records are now on different partitions than the matching order records.",
+        explanation: "✗ Kafka Streams validates co-partitioning at startup, not at runtime. If partition counts differ, the application fails to start with an exception — it does not silently produce incorrect results."
+      },
+      {
+        text: "The application fails to start with a TopologyException indicating that the joined topics are not co-partitioned.",
+        explanation: "✓ Kafka Streams enforces co-partitioning validation at topology build time (during startup). If the joined topics have different partition counts, the application throws a TopologyException and refuses to start, preventing silent data correctness issues."
+      },
+      {
+        text: "Kafka Streams automatically repartitions the customers topic internally to match the orders partition count.",
+        explanation: "✗ Kafka Streams does NOT automatically repartition the KTable topic to match the KStream. It only auto-repartitions when a KEY-CHANGING operation (like groupBy or selectKey) explicitly requires it. A topology-level co-partitioning mismatch causes a startup failure."
+      },
+      {
+        text: "The application starts with a WARNING log but continues processing — mismatched partitions only affect performance, not correctness.",
+        explanation: "✗ Co-partitioning violations are not warnings — they cause a hard TopologyException. The application cannot safely produce correct join results if the joined topics have different partition counts, so Kafka Streams refuses to start."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Kafka Streams enforces co-partitioning requirements at startup for KStream-KTable and KStream-KStream joins. If the joined topics have different partition counts, the application throws a TopologyException and does not start. The only exception is GlobalKTable, which does NOT require co-partitioning. Always ensure consistent partition counts across joined topics before scaling."
+  },
+  {
+    source: "inference",
+    type: "multiple",
+    question: "A DevOps team is troubleshooting a Kafka Streams application in production. They discover that two separate deployments share the same `application.id` value. The team observes unexpected behavior: tasks are being stolen between deployments and internal topic names collide. Which TWO roles does `application.id` play in Kafka Streams that explain this behavior?",
+    options: [
+      {
+        text: "application.id is used as the Kafka consumer group ID — two deployments with the same application.id join the SAME consumer group and compete for partition assignments.",
+        explanation: "✓ application.id maps directly to the consumer group ID. Two Kafka Streams instances with the same application.id are treated as members of the same consumer group, meaning they share partitions (and thus tasks) — causing unexpected task rebalancing between unrelated deployments."
+      },
+      {
+        text: "application.id is used as the prefix for all internal Kafka topics (changelog topics, repartition topics) — two deployments with the same application.id share the same internal topics, causing state corruption.",
+        explanation: "✓ All internal topics created by Kafka Streams are prefixed with application.id (e.g., my-app-KSTREAM-AGGREGATE-STATE-STORE-0000000001-repartition). Two deployments sharing the same application.id will read and write to the same internal topics, causing state corruption and data mixing."
+      },
+      {
+        text: "application.id specifies the Kafka cluster endpoint — two deployments with the same application.id connect to the same broker.",
+        explanation: "✗ The Kafka cluster endpoint is specified by bootstrap.servers, not application.id. application.id does not control which Kafka cluster the application connects to."
+      },
+      {
+        text: "application.id controls the number of stream threads — two deployments double the thread count and create duplicate tasks.",
+        explanation: "✗ Thread count per instance is controlled by num.stream.threads, not application.id. Sharing application.id causes consumer group merging and internal topic name collision, not thread count doubling."
+      }
+    ],
+    answers: [0, 1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. application.id has two critical roles in Kafka Streams: (1) it is the consumer group ID — instances with the same ID share partition assignments, and (2) it is the prefix for all internal Kafka topics (changelog and repartition topics). Two separate applications sharing the same application.id will interfere with each other's state stores and task assignments, causing incorrect behavior."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A Kafka Streams application maintains a running total of sales per store using a persistent state store backed by RocksDB. The application crashes and restarts. The team observes that recovery takes only 8 seconds instead of the previously seen 10 minutes. A new engineer asks why. What mechanism explains the fast recovery?",
+    options: [
+      {
+        text: "Kafka Streams replays the input topic from the latest committed offset instead of from the beginning.",
+        explanation: "✗ While committed offsets prevent replaying CONSUMER records, this alone does not explain fast STATE STORE recovery. The state store itself must be rebuilt — and that happens via the changelog topic, not the input topic offset."
+      },
+      {
+        text: "Kafka Streams uses changelog topics (compacted Kafka topics) that act as a write-ahead log for state stores. On restart, the state is restored from the local RocksDB checkpoint on disk, and only the delta (records added to the changelog since the last flush) is replayed.",
+        explanation: "✓ Kafka Streams mirrors every state store write to a compacted changelog Kafka topic. On restart, it loads the local RocksDB snapshot (from the persistent volume) and replays only the incremental delta from the changelog topic — requiring far less replay than rebuilding from scratch."
+      },
+      {
+        text: "Kafka Streams stores state in ZooKeeper, which provides fast key-value lookups on restart.",
+        explanation: "✗ Kafka Streams does NOT use ZooKeeper for state storage. ZooKeeper is used by Kafka brokers (in older versions) for cluster coordination. Kafka Streams uses local RocksDB stores and Kafka changelog topics for state management."
+      },
+      {
+        text: "The application uses in-memory state stores, which are rebuilt instantly from the last snapshot saved in __consumer_offsets.",
+        explanation: "✗ In-memory stores are lost on crash and require FULL reconstruction from the changelog. __consumer_offsets does not store application state — it tracks consumer group offsets only."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Kafka Streams state store fault tolerance relies on two mechanisms working together: (1) changelog topics — every state store write is mirrored to a compacted Kafka topic, and (2) local RocksDB checkpoints on persistent disk — the on-disk snapshot serves as a starting point for recovery. On restart, the local snapshot is loaded and only the delta from the changelog is replayed, minimizing recovery time dramatically compared to full input topic replay."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A payment processing company runs a Kafka Streams application with `processing.guarantee=exactly_once`. The output topic is consumed by a downstream reporting service that needs to read only COMMITTED payment records to avoid displaying duplicate or in-flight records. What configuration must the reporting service's Kafka consumer apply?",
+    options: [
+      {
+        text: "Set enable.auto.commit=false to manually control offset commits and avoid reading uncommitted records.",
+        explanation: "✗ enable.auto.commit=false disables automatic offset commits for the consumer — it controls WHEN offsets are committed, not WHICH records are visible. Uncommitted transactional records are still readable without the correct isolation.level."
+      },
+      {
+        text: "Set isolation.level=read_committed so the consumer only reads records from successfully committed Kafka transactions produced by the Streams application.",
+        explanation: "✓ isolation.level=read_committed instructs the Kafka consumer to skip records that are part of an open (uncommitted) transaction. Since the Streams application writes transactionally (processing.guarantee=exactly_once), only records from committed transactions are visible to the reporting consumer — preventing duplicates and in-flight records."
+      },
+      {
+        text: "Set auto.offset.reset=latest to skip any records produced before the consumer started.",
+        explanation: "✗ auto.offset.reset=latest controls where the consumer starts reading when no committed offset exists — it skips OLDER records, not UNCOMMITTED transactional records. It would cause the consumer to miss historical records, not filter uncommitted ones."
+      },
+      {
+        text: "Set max.poll.records=1 to process one record at a time and reduce the chance of reading uncommitted records.",
+        explanation: "✗ max.poll.records controls how many records are returned per poll() call for performance tuning. It has no bearing on transactional visibility — uncommitted records are still returned regardless of batch size without isolation.level=read_committed."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. For end-to-end exactly-once in a Kafka Streams pipeline: the PRODUCER side uses processing.guarantee=exactly_once (transactional writes), and the CONSUMER side must set isolation.level=read_committed to filter out records from uncommitted or aborted transactions. Both configurations are required for a complete exactly-once end-to-end guarantee."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A Kafka Streams application developer implements a KStream-to-KTable join to enrich click events with user profile information. The `clicks` topic has 8 partitions and the `user-profiles` topic has 8 partitions, both keyed by user_id. During a code review, a senior engineer recommends replacing the KTable with a GlobalKTable instead, noting 'it would eliminate the co-partitioning requirement.' The developer responds: 'but the user profile topic has millions of records — would that cause memory issues?' What is the correct assessment?",
+    options: [
+      {
+        text: "Use GlobalKTable — it is always the better choice for joins because it eliminates co-partitioning and scales automatically.",
+        explanation: "✗ GlobalKTable replicates the ENTIRE topic to EVERY Streams instance. For millions of records, this means every instance holds the full dataset in memory/RocksDB — a significant resource concern. The senior engineer's suggestion is appropriate only for SMALL reference datasets."
+      },
+      {
+        text: "Keep the KTable — since the topics are already co-partitioned (same key, same partition count), the KTable-to-KStream join works correctly and avoids the memory overhead of a GlobalKTable full replication.",
+        explanation: "✓ Since both topics already have 8 partitions and use the same key (user_id), co-partitioning is already satisfied — no repartitioning is needed. A KTable is the correct choice: each instance only holds the subset of user profiles corresponding to its assigned partitions, avoiding the full-dataset replication overhead of GlobalKTable."
+      },
+      {
+        text: "Use GlobalKTable — for exactly-once semantics, GlobalKTable provides stronger guarantees than KTable.",
+        explanation: "✗ Exactly-once semantics are controlled by processing.guarantee, not by the choice of KTable vs GlobalKTable. GlobalKTable does not provide stronger EOS guarantees."
+      },
+      {
+        text: "Use GlobalKTable with num.stream.threads=1 to reduce memory usage from full replication.",
+        explanation: "✗ num.stream.threads does not affect GlobalKTable memory consumption. Each Streams INSTANCE (not thread) receives a full copy of the GlobalKTable. The only way to reduce GlobalKTable memory is to have fewer instances — but that reduces parallelism."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. GlobalKTable eliminates co-partitioning requirements by replicating the ENTIRE topic to every Streams instance — making it ideal for small, static reference datasets. For large topics (millions of records), GlobalKTable causes excessive memory consumption per instance. When topics are already co-partitioned (same key, same partition count), a regular KTable is the correct and resource-efficient choice."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A Kafka Streams application developer wants to join a stream of order events with a large customer profile topic (50 million records, 24 partitions). The orders topic also has 24 partitions and uses the same customer_id key. The developer proposes using a KStream-to-KTable outer join to include orders even when no matching customer profile exists. A senior architect says this is not possible. Who is correct?",
+    options: [
+      {
+        text: "The developer is correct — KStream-to-KTable supports inner, left, and outer join just like SQL.",
+        explanation: "✗ KStream-to-KTable does NOT support outer join. The Kafka Streams DSL only supports inner join and left join for KStream-to-KTable. Outer join is not available for this operand combination."
+      },
+      {
+        text: "The senior architect is correct — KStream-to-KTable supports only inner join and left join. Outer join is not supported for this operand combination.",
+        explanation: "✓ The Kafka Streams DSL has specific join type support based on operand types. KStream-to-KTable supports INNER join and LEFT join only. Outer join requires KStream-to-KStream (with a window) or KTable-to-KTable — not KStream-to-KTable."
+      },
+      {
+        text: "The developer is correct — outer join is supported but only when the KTable is backed by a persistent store.",
+        explanation: "✗ The backing store type (in-memory vs persistent) does not affect which join types are available. Outer join for KStream-to-KTable is not supported regardless of the state store configuration."
+      },
+      {
+        text: "Both are wrong — KStream-to-KTable only supports inner join; left join is also not available.",
+        explanation: "✗ Left join IS supported for KStream-to-KTable. Only outer join is missing from the supported join types for this operand combination."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Join type support in Kafka Streams depends on the operand types: KStream+KStream supports inner/left/outer (windowed); KTable+KTable supports inner/left/outer (non-windowed); KStream+KTable supports inner/left ONLY (no outer, non-windowed); KStream+GlobalKTable supports inner/left ONLY (no outer, no co-partitioning required). The outer join limitation for KStream-KTable is a classic CCDAK exam trap."
+  },
+  {
+    source: "inference",
+    type: "multiple",
+    question: "A Kafka Streams application processes custom Java objects of type `TradeEvent` as record values. The developer observes a SerializationException at runtime. After investigation, they realize the default Kafka Serdes (String, Long, Integer) cannot handle `TradeEvent` objects. Which TWO actions are required to resolve this?",
+    options: [
+      {
+        text: "Implement a custom Serde<TradeEvent> by providing a Serializer and Deserializer for the TradeEvent class.",
+        explanation: "✓ A custom Serde<TradeEvent> must implement the Serde<T> interface, which pairs a Serializer<T> (converts TradeEvent to bytes) and a Deserializer<T> (converts bytes back to TradeEvent). This is the standard extension point for custom types in Kafka Streams."
+      },
+      {
+        text: "Register the custom Serde in the Streams configuration via default.value.serde, or pass it explicitly using Consumed.with() / Produced.with() at the stream source/sink.",
+        explanation: "✓ Once implemented, the custom Serde must be registered. Setting default.value.serde=... in StreamsConfig applies it globally. Alternatively, Consumed.with(Serdes.String(), tradeEventSerde) or Produced.with(...) applies it per-stream operation, allowing different Serdes for different streams."
+      },
+      {
+        text: "Set key.converter=org.apache.kafka.connect.json.JsonConverter in the Streams configuration to enable JSON deserialization.",
+        explanation: "✗ key.converter is a Kafka Connect property, not a Kafka Streams property. Kafka Streams uses Serdes (not converters) for serialization. Setting key.converter in a Streams application has no effect."
+      },
+      {
+        text: "Set serializer.class=TradeEventSerializer in the StreamsConfig — this overrides the default producer serializer.",
+        explanation: "✗ serializer.class is a Kafka Producer API property, not a Kafka Streams property. Kafka Streams manages its own producers internally and uses the Serde system (default.key.serde and default.value.serde) for serialization configuration."
+      }
+    ],
+    answers: [0, 1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Kafka Streams uses the Serde interface for serialization. For custom types, developers must: (1) implement a Serde<T> pairing a Serializer<T> and Deserializer<T>, and (2) register it via default.value.serde in StreamsConfig or per-operation via Consumed.with(), Produced.with(), or Grouped.with(). Kafka Connect converters (key.converter) and Kafka Producer serializer.class are completely unrelated to Kafka Streams Serde configuration."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A Kafka Streams application is deployed with `processing.guarantee=exactly_once`. A downstream team consumes the application's output topic with `isolation.level=read_uncommitted` (the default). They report occasional duplicate records during broker failovers. The Kafka Streams team insists the application is configured correctly. Who is responsible for the duplicate records, and what must be fixed?",
+    options: [
+      {
+        text: "The Kafka Streams team is responsible. They should also set enable.idempotence=true on their internal producer to prevent duplicates.",
+        explanation: "✗ With processing.guarantee=exactly_once, Kafka Streams already enables idempotent producers and transactions internally. The Streams application configuration is correct. The issue is on the CONSUMER side."
+      },
+      {
+        text: "The downstream team is responsible. With isolation.level=read_uncommitted (default), the consumer reads records from BOTH committed and uncommitted/aborted transactions, potentially seeing duplicates from aborted retry attempts. They must set isolation.level=read_committed.",
+        explanation: "✓ isolation.level=read_uncommitted (the Kafka consumer default) reads ALL records including those from uncommitted or aborted transactions. During broker failovers, aborted transactions may produce records that appear as duplicates. Setting isolation.level=read_committed filters out uncommitted/aborted transaction records, completing the exactly-once end-to-end guarantee."
+      },
+      {
+        text: "Both teams are responsible. Exactly-once in Kafka Streams requires setting both processing.guarantee=exactly_once AND acks=all on the output topic.",
+        explanation: "✗ processing.guarantee=exactly_once already configures acks=all internally. The missing piece is exclusively on the consumer side: isolation.level=read_committed. The Streams configuration is complete."
+      },
+      {
+        text: "The Kafka broker is responsible. During failover, the ISR mechanism allows a new leader to serve records from aborted transactions.",
+        explanation: "✗ The Kafka broker correctly marks transactional records. The consumer's isolation.level controls whether it reads committed-only or all records. The broker is not the source of the consumer-side visibility issue."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Achieving end-to-end exactly-once requires BOTH: (1) the producer/Streams application must write transactionally (processing.guarantee=exactly_once), AND (2) downstream consumers must set isolation.level=read_committed to filter out uncommitted or aborted transaction records. The default isolation.level=read_uncommitted exposes consumers to records from aborted transactions, causing apparent duplicates even when the Streams application is correctly configured."
+  }
+];
+
+var qIdx = 0;
+var selected = [];
+var answered = false;
+var score = 0;
+var scoresCours = { correct: 0, total: 0 };
+var scoresInfer = { correct: 0, total: 0 };
+var timerInterval = null;
+var timeLeft = QUESTIONS.length * 90;
+var totalTime = QUESTIONS.length * 90;
+
+function shuffle(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+function shuffleAll() {
+  for (var i = 0; i < QUESTIONS.length; i++) {
+    var q = QUESTIONS[i];
+    var indexed = [];
+    for (var k = 0; k < q.options.length; k++) {
+      indexed.push({ text: q.options[k].text, explanation: q.options[k].explanation, origIdx: k });
+    }
+    indexed = shuffle(indexed);
+    var newOptions = [];
+    var newAnswers = [];
+    for (var j = 0; j < indexed.length; j++) {
+      newOptions.push({ text: indexed[j].text, explanation: indexed[j].explanation });
+      if (q.answers.indexOf(indexed[j].origIdx) !== -1) newAnswers.push(j);
+    }
+    q.options = newOptions;
+    q.answers = newAnswers;
+  }
+}
+
+function startGlobalTimer() {
+  clearInterval(timerInterval);
+  paintGlobalTimer();
+  timerInterval = setInterval(function() {
+    timeLeft--;
+    paintGlobalTimer();
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      forceSubmitCurrent();
+    }
+  }, 1000);
+}
+
+function paintGlobalTimer() {
+  var el = document.getElementById('globalTimer');
+  if (!el) return;
+  var m = Math.floor(timeLeft / 60);
+  var s = timeLeft % 60;
+  el.textContent = '⏱ ' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  var ratio = timeLeft / totalTime;
+  el.className = 'timer-global';
+  if (ratio < 0.1) el.className = 'timer-global danger';
+  else if (ratio < 0.2) el.className = 'timer-global warn';
+}
+
+function forceSubmitCurrent() {
+  if (!answered) {
+    answered = true;
+    var q = QUESTIONS[qIdx];
+    if (q.source === 'cours') scoresCours.total++;
+    else scoresInfer.total++;
+    paintAnswered();
+  }
+  if (qIdx < QUESTIONS.length - 1) {
+    setTimeout(function() { suivante(); }, 1500);
+  } else {
+    setTimeout(function() { showScore(); }, 1500);
+  }
+}
+
+function pickOption(idx) {
+  if (answered) return;
+  var q = QUESTIONS[qIdx];
+  if (q.type === 'multiple') {
+    var pos = selected.indexOf(idx);
+    if (pos === -1) selected.push(idx);
+    else selected.splice(pos, 1);
+  } else {
+    selected = [idx];
+  }
+  paintButtons();
+  document.getElementById('btnValidate').disabled = selected.length === 0;
+}
+
+function valider() {
+  if (answered || selected.length === 0) return;
+  answered = true;
+  recordScore();
+  paintAnswered();
+}
+
+function recordScore() {
+  var q = QUESTIONS[qIdx];
+  var ans = q.answers;
+  var isCorrect = false;
+  if (selected.length === ans.length) {
+    var ok = true;
+    for (var i = 0; i < ans.length; i++) {
+      if (selected.indexOf(ans[i]) === -1) { ok = false; break; }
+    }
+    isCorrect = ok;
+  }
+  if (isCorrect) score++;
+  if (q.source === 'cours') {
+    scoresCours.total++;
+    if (isCorrect) scoresCours.correct++;
+  } else {
+    scoresInfer.total++;
+    if (isCorrect) scoresInfer.correct++;
+  }
+}
+
+function paintButtons() {
+  var q = QUESTIONS[qIdx];
+  for (var i = 0; i < q.options.length; i++) {
+    var btn = document.getElementById('opt_' + i);
+    if (!btn) continue;
+    btn.className = 'option-btn';
+    if (selected.indexOf(i) !== -1) btn.className += ' selected';
+  }
+}
+
+function paintAnswered() {
+  var q = QUESTIONS[qIdx];
+  for (var i = 0; i < q.options.length; i++) {
+    var btn = document.getElementById('opt_' + i);
+    var expl = document.getElementById('expl_' + i);
+    if (!btn) continue;
+    btn.disabled = true;
+    btn.className = 'option-btn';
+    var isAns = q.answers.indexOf(i) !== -1;
+    var isSel = selected.indexOf(i) !== -1;
+    if (isAns && isSel) {
+      btn.className += ' correct';
+      if (expl) expl.className = 'opt-expl show expl-ok';
+    } else if (!isAns && isSel) {
+      btn.className += ' wrong';
+      if (expl) expl.className = 'opt-expl show expl-ko';
+    } else if (isAns && !isSel) {
+      btn.className += ' missed';
+      if (expl) expl.className = 'opt-expl show expl-missed';
+    } else {
+      if (expl) expl.className = 'opt-expl show expl-neutral';
+    }
+  }
+  var ge = document.getElementById('globalExpl');
+  if (ge) ge.className = 'global-expl show';
+  document.getElementById('btnValidate').disabled = true;
+  document.getElementById('btnNext').disabled = false;
+}
+
+function suivante() {
+  qIdx++;
+  if (qIdx >= QUESTIONS.length) { showScore(); return; }
+  selected = [];
+  answered = false;
+  render();
+}
+
+function recommencer() {
+  qIdx = 0; selected = []; answered = false;
+  score = 0;
+  scoresCours = { correct: 0, total: 0 };
+  scoresInfer = { correct: 0, total: 0 };
+  timeLeft = totalTime;
+  shuffleAll();
+  render();
+  startGlobalTimer();
+}
+
+var LETTERS = ['A','B','C','D','E'];
+
+function render() {
+  var q = QUESTIONS[qIdx];
+  var pct = Math.round((qIdx / QUESTIONS.length) * 100);
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('headerSub').textContent = 'Q' + (qIdx + 1) + ' / ' + QUESTIONS.length;
+
+  var srcBadge = q.source === 'cours'
+    ? '<span class="badge badge-cours">📜 From the course</span>'
+    : '<span class="badge badge-inference">🔍 Beyond the course</span>';
+  var typeBadge = q.type === 'multiple'
+    ? '<span class="badge badge-multi">Multiple answers</span>'
+    : '<span class="badge badge-single">Single answer</span>';
+
+  var optHTML = '<ul class="options-list">';
+  for (var i = 0; i < q.options.length; i++) {
+    optHTML += '<li class="option-wrap">'
+      + '<button class="option-btn" id="opt_' + i + '" onclick="pickOption(' + i + ')">'
+      + '<span class="opt-letter">' + LETTERS[i] + '</span>'
+      + '<span>' + q.options[i].text + '</span>'
+      + '</button>'
+      + '<div class="opt-expl" id="expl_' + i + '">' + q.options[i].explanation + '</div>'
+      + '</li>';
+  }
+  optHTML += '</ul>';
+
+  var geHTML = '<div class="global-expl" id="globalExpl">'
+    + '<h4>💡 Key Concept</h4>'
+    + '<p>' + q.globalExplanation + '</p>'
+    + '</div>';
+
+  document.getElementById('quizArea').innerHTML =
+    '<div class="q-meta"><span class="q-num">Question ' + (qIdx+1) + ' of ' + QUESTIONS.length + '</span></div>'
+    + '<div class="badges">' + typeBadge + srcBadge + '</div>'
+    + '<div class="q-text">' + q.question + '</div>'
+    + optHTML
+    + '<div class="actions">'
+    + '<button class="btn-validate" id="btnValidate" onclick="valider()" disabled>Validate</button>'
+    + '<button class="btn-next" id="btnNext" onclick="suivante()" disabled>Next question →</button>'
+    + '</div>'
+    + geHTML;
+}
+
+function showScore() {
+  clearInterval(timerInterval);
+  document.getElementById('progressBar').style.width = '100%';
+  document.getElementById('headerSub').textContent = 'Results';
+  var pct = Math.round((score / QUESTIONS.length) * 100);
+  var color = pct >= 80 ? '#27ae60' : pct >= 60 ? '#f39c12' : '#e74c3c';
+  var msg = pct >= 80
+    ? '🎉 Excellent! You are ready for the CCDAK exam.'
+    : pct >= 60
+    ? '👍 Good work! A few more revision sessions recommended.'
+    : '📚 Keep studying — you are making progress!';
+  var timeUsed = totalTime - timeLeft;
+  var avgTime = QUESTIONS.length > 0 ? Math.round(timeUsed / QUESTIONS.length) : 0;
+
+  document.getElementById('quizArea').innerHTML =
+    '<div class="score-screen">'
+    + '<h2>' + score + ' / ' + QUESTIONS.length + ' &mdash; ' + pct + '%</h2>'
+    + '<p class="score-msg">' + msg + '</p>'
+    + '<div class="score-bar-wrap"><div class="score-bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div>'
+    + '<div class="score-detail">'
+    + '<div class="score-box blue"><div class="lbl">📜 From the course</div><div class="val">' + scoresCours.correct + '/' + scoresCours.total + '</div><div class="sub">Direct course questions</div></div>'
+    + '<div class="score-box purple"><div class="lbl">🔍 Beyond the course</div><div class="val">' + scoresInfer.correct + '/' + scoresInfer.total + '</div><div class="sub">Inferred CCDAK questions</div></div>'
+    + '<div class="score-box"><div class="lbl">Global score</div><div class="val">' + pct + '%</div><div class="sub">CCDAK passing threshold: ~75%</div></div>'
+    + '<div class="score-box orange"><div class="lbl">⏱ Avg time / question</div><div class="val">' + avgTime + 's</div><div class="sub">90s allocated per question</div></div>'
+    + '</div>'
+    + '<button class="btn-restart" onclick="recommencer()">🔄 Restart the test</button>'
+    + '</div>';
+}
+
+shuffleAll();
+render();
+startGlobalTimer();
+</script>
+</body>
+</html>

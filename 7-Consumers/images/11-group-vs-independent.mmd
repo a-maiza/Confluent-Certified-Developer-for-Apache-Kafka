@@ -1,0 +1,29 @@
+flowchart TB
+    subgraph FRAME [" "]
+        direction LR
+        subgraph IND ["🔀 Consumers indépendants"]
+            direction TB
+            TIND["📋 Topic"]
+            TIND --> CA["📱 Consumer A<br/>(lit tout)"]
+            TIND --> CB["📱 Consumer B<br/>(lit tout)"]
+            CA -.-> CAINFO["chacun son offset<br/>même messages"]
+            CB -.-> CAINFO
+        end
+
+        subgraph CG ["👥 Consumer Group"]
+            direction TB
+            TCG["📋 Topic (3 partitions)"]
+            TCG --> CG1["📱 C1"]
+            TCG --> CG2["📱 C2"]
+            TCG --> CG3["📱 C3"]
+            CG1 -.-> CGINFO["partitions partagées<br/>parallélisme"]
+            CG2 -.-> CGINFO
+            CG3 -.-> CGINFO
+        end
+    end
+
+    style IND fill:#fff3e0,stroke:#e65100
+    style CG fill:#e8f5e9,stroke:#2e7d32
+    style CAINFO fill:#ffe0b2
+    style CGINFO fill:#a5d6a7
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

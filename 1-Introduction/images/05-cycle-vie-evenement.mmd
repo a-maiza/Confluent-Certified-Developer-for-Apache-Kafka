@@ -1,0 +1,19 @@
+sequenceDiagram
+    autonumber
+    participant P as 🏭 Producteur
+    participant K as ⚡ Kafka<br/>(Broker)
+    participant M as 💾 Mémoire<br/>(rétention)
+    participant C1 as 📱 Consommateur 1<br/>(temps réel)
+    participant C2 as 🔄 Consommateur 2<br/>(rejeu différé)
+
+    P->>K: Publication événement à T
+    K->>M: Conservation
+    K->>C1: Diffusion immédiate
+    Note over C1: Traitement en temps réel
+
+    Note over M: ⏱️ Temps passe...
+
+    C2->>K: Demande de rejeu
+    M->>K: Récupération événements passés
+    K->>C2: Rejeu d'événements
+    Note over C2: Reconstruction d'état<br/>ou rattrapage

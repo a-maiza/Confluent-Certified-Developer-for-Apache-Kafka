@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CCDAK Prep — Confluent Schema Registry</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #1a1a2e;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 32px 16px;
+  }
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #dde;
+    width: 100%;
+    max-width: 820px;
+    padding: 32px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .ccdak-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #C0392B;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .ccdak-sub {
+    font-size: 0.78rem;
+    color: #666;
+    margin-top: 2px;
+  }
+  .timer-box {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #C0392B;
+    background: #fff5f5;
+    border: 2px solid #C0392B;
+    border-radius: 8px;
+    padding: 6px 16px;
+    min-width: 80px;
+    text-align: center;
+    transition: color 0.3s, border-color 0.3s, background 0.3s;
+  }
+  .timer-box.warn { color: #e67e22; border-color: #e67e22; background: #fff8f0; }
+  .timer-box.danger { color: #C0392B; border-color: #C0392B; background: #fff0f0; animation: pulse 0.8s infinite; }
+  @keyframes pulse {
+    0%,100% { transform: scale(1); }
+    50% { transform: scale(1.07); }
+  }
+  .progress-bar-wrap {
+    background: #eee;
+    border-radius: 8px;
+    height: 8px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #C0392B, #e74c3c);
+    border-radius: 8px;
+    transition: width 0.4s;
+  }
+  .progress-label {
+    font-size: 0.78rem;
+    color: #888;
+    margin-bottom: 6px;
+    text-align: right;
+  }
+  .badge-type {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    border-radius: 20px;
+    padding: 3px 10px;
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+  }
+  .badge-single { background: #eaf4fb; color: #1a6fa8; }
+  .badge-multi  { background: #fef5e4; color: #b7770d; }
+  .badge-source {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    border-radius: 20px;
+    padding: 3px 12px;
+    margin-bottom: 16px;
+    margin-left: 6px;
+  }
+  .badge-cours  { background: #e8f4fd; color: #1a6fa8; }
+  .badge-inference { background: #f0e8fd; color: #6a1ab8; }
+  .question-text {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin-bottom: 18px;
+    line-height: 1.5;
+  }
+  .option {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+    border: 2px solid #dde;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    user-select: none;
+  }
+  .option:hover { border-color: #aac; background: #f7f7ff; }
+  .option.selected { border-color: #1a6fa8; background: #eaf4fb; }
+  .option.correct { border-color: #27ae60; background: #eafaf1; }
+  .option.wrong   { border-color: #C0392B; background: #fff0f0; }
+  .option.missed  { border-color: #27ae60; background: #f0fff4; border-style: dashed; }
+  .option.disabled { cursor: default; }
+  .opt-letter {
+    min-width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #eee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #333;
+    flex-shrink: 0;
+  }
+  .option.selected .opt-letter { background: #1a6fa8; color: #fff; }
+  .option.correct .opt-letter  { background: #27ae60; color: #fff; }
+  .option.wrong .opt-letter    { background: #C0392B; color: #fff; }
+  .option.missed .opt-letter   { background: #27ae60; color: #fff; }
+  .opt-text { font-size: 0.95rem; color: #222; line-height: 1.45; padding-top: 3px; }
+  .btn-validate {
+    display: block;
+    width: 100%;
+    margin-top: 18px;
+    padding: 12px;
+    background: #C0392B;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    letter-spacing: 0.5px;
+  }
+  .btn-validate:hover { background: #a93226; }
+  .btn-validate:active { transform: scale(0.99); }
+  .btn-validate:disabled { background: #ccc; cursor: not-allowed; }
+  .btn-next {
+    display: none;
+    width: 100%;
+    margin-top: 10px;
+    padding: 12px;
+    background: #1a6fa8;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-next:hover { background: #15588a; }
+  .explanation {
+    display: none;
+    margin-top: 20px;
+    border-radius: 8px;
+    border-left: 4px solid #1a6fa8;
+    background: #f4f8fd;
+    padding: 16px 18px;
+    font-size: 0.9rem;
+    color: #222;
+    line-height: 1.6;
+  }
+  .explanation.show { display: block; }
+  .explanation h4 {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+    color: #1a6fa8;
+  }
+  .explanation .section { margin-bottom: 12px; }
+  .explanation .section:last-child { margin-bottom: 0; }
+  .explanation .label {
+    font-weight: 700;
+    color: #1a1a2e;
+  }
+  .timeout-msg {
+    display: none;
+    text-align: center;
+    color: #C0392B;
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-top: 12px;
+  }
+  /* Score screen */
+  .score-screen { display: none; }
+  .score-screen.show { display: block; }
+  .quiz-screen { display: block; }
+  .quiz-screen.hide { display: none; }
+  .score-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #1a1a2e;
+    text-align: center;
+    margin-bottom: 6px;
+  }
+  .score-subtitle {
+    text-align: center;
+    font-size: 0.95rem;
+    color: #555;
+    margin-bottom: 24px;
+  }
+  .score-bar-wrap {
+    background: #eee;
+    border-radius: 10px;
+    height: 22px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .score-bar-fill {
+    height: 100%;
+    border-radius: 10px;
+    transition: width 1s;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #fff;
+  }
+  .score-bar-fill.low    { background: linear-gradient(90deg, #C0392B, #e74c3c); }
+  .score-bar-fill.mid    { background: linear-gradient(90deg, #e67e22, #f39c12); }
+  .score-bar-fill.high   { background: linear-gradient(90deg, #27ae60, #2ecc71); }
+  .score-msg {
+    text-align: center;
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 24px;
+    padding: 12px;
+    border-radius: 8px;
+  }
+  .score-msg.low  { background: #fff0f0; color: #C0392B; }
+  .score-msg.mid  { background: #fff8f0; color: #e67e22; }
+  .score-msg.high { background: #eafaf1; color: #27ae60; }
+  .score-detail {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .score-box {
+    flex: 1;
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+  .score-box.cours     { background: #e8f4fd; border: 1px solid #b3d9f5; }
+  .score-box.inference { background: #f0e8fd; border: 1px solid #d0b3f5; }
+  .score-box .sb-label { font-size: 0.75rem; font-weight: 700; margin-bottom: 6px; color: #555; }
+  .score-box .sb-val   { font-size: 1.7rem; font-weight: 800; }
+  .score-box.cours .sb-val     { color: #1a6fa8; }
+  .score-box.inference .sb-val { color: #6a1ab8; }
+  .score-box .sb-sub   { font-size: 0.75rem; color: #888; margin-top: 4px; }
+  .score-meta {
+    text-align: center;
+    font-size: 0.85rem;
+    color: #666;
+    margin-bottom: 24px;
+  }
+  .btn-restart {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    background: #C0392B;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+    letter-spacing: 0.5px;
+  }
+  .btn-restart:hover { background: #a93226; }
+</style>
+</head>
+<body>
+<div class="card">
+  <!-- Quiz Screen -->
+  <div class="quiz-screen" id="quizScreen">
+    <div class="card-header">
+      <div>
+        <div class="ccdak-title">CCDAK Prep</div>
+        <div class="ccdak-sub">Confluent Schema Registry</div>
+      </div>
+      <div class="timer-box" id="timerBox">01:30</div>
+    </div>
+    <div class="progress-label" id="progressLabel">Question 1 / 20</div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progressBar" style="width:5%"></div>
+    </div>
+    <div id="qContent"></div>
+    <div class="timeout-msg" id="timeoutMsg">⏱ Time's up! Auto-validated.</div>
+    <button class="btn-validate" id="btnValidate" onclick="valider()">Validate</button>
+    <button class="btn-next" id="btnNext" onclick="suivante()">Next question →</button>
+    <div class="explanation" id="explanation"></div>
+  </div>
+
+  <!-- Score Screen -->
+  <div class="score-screen" id="scoreScreen">
+    <div class="score-title">🎓 Quiz Complete!</div>
+    <div class="score-subtitle" id="scoreSubtitle"></div>
+    <div class="score-bar-wrap">
+      <div class="score-bar-fill" id="scoreBarFill" style="width:0%"></div>
+    </div>
+    <div class="score-msg" id="scoreMsg"></div>
+    <div class="score-detail">
+      <div class="score-box cours">
+        <div class="sb-label">📘 From Course</div>
+        <div class="sb-val" id="scoreCours">—</div>
+        <div class="sb-sub" id="scoreCoursTotal"></div>
+      </div>
+      <div class="score-box inference">
+        <div class="sb-label">🔍 Beyond Course</div>
+        <div class="sb-val" id="scoreInference">—</div>
+        <div class="sb-sub" id="scoreInferenceTotal"></div>
+      </div>
+    </div>
+    <div class="score-meta" id="scoreMeta"></div>
+    <button class="btn-restart" onclick="recommencer()">🔄 Restart Quiz</button>
+  </div>
+</div>
+
+<script>
+var QUESTIONS_RAW = [
+  {
+    source: "cours",
+    q: "What is the primary role of Confluent Schema Registry in a Kafka ecosystem?",
+    multi: false,
+    options: [
+      { text: "Act as a broker load balancer to route messages between producers and consumers", correct: false },
+      { text: "Maintain a database of all schemas used to produce messages in the cluster, and enforce schema compatibility", correct: true },
+      { text: "Compress Kafka messages at rest to reduce storage footprint", correct: false },
+      { text: "Provide a dedicated topic storage engine replacing standard Kafka logs", correct: false }
+    ],
+    explanation: {
+      concept: "The Confluent Schema Registry is a standalone server that acts as a central repository for all schemas used in a Kafka cluster. It enforces compatibility rules to prevent breaking changes during schema evolution.",
+      correct: "Option B is correct: Schema Registry maintains a schema database (persisted in an internal Kafka topic) and validates that new schemas conform to the configured compatibility mode before accepting them.",
+      wrong: "Option A is wrong: Schema Registry has no load-balancing role. Option C is wrong: Schema Registry does not handle message compression. Option D is wrong: Schema Registry uses a standard Kafka topic internally but is not a storage engine.",
+      exam: "Remember: Schema Registry is NOT part of Apache Kafka open source — it is a Confluent community-licensed component. It runs as a separate process outside Kafka brokers."
+    }
+  },
+  {
+    source: "cours",
+    q: "Where does Confluent Schema Registry persist its schema database?",
+    multi: false,
+    options: [
+      { text: "In a relational database (PostgreSQL or MySQL) configured at startup", correct: false },
+      { text: "In the ZooKeeper ensemble alongside Kafka metadata", correct: false },
+      { text: "In a dedicated internal Kafka topic", correct: true },
+      { text: "In an in-memory store that is lost on restart", correct: false }
+    ],
+    explanation: {
+      concept: "Schema Registry stores all registered schemas durably inside a special internal Kafka topic, making it resilient and consistent with Kafka's own storage model.",
+      correct: "Option C is correct: The schemas are persisted in an internal Kafka topic (by default named `_schemas`). Schema Registry also maintains an in-memory cache of this data for low-latency lookups.",
+      wrong: "Option A is wrong: No external relational DB is required. Option B is wrong: ZooKeeper (or KRaft) stores Kafka cluster metadata, not Schema Registry schemas. Option D is wrong: The schema store is durable, not in-memory only.",
+      exam: "Key distinction: Schema Registry caches schemas in memory for performance, but the source of truth is the `_schemas` Kafka topic. The cache avoids round-trips on every produce/consume."
+    }
+  },
+  {
+    source: "cours",
+    q: "A team is planning to add a new field 'email' to an existing Avro schema. They want to deploy the new consumer BEFORE the producer. Which compatibility mode should be configured on the topic?",
+    multi: false,
+    options: [
+      { text: "FORWARD", correct: false },
+      { text: "BACKWARD", correct: true },
+      { text: "FULL", correct: false },
+      { text: "NONE", correct: false }
+    ],
+    explanation: {
+      concept: "BACKWARD compatibility means new consumers (with the newer schema) can read messages produced by old producers (with the older schema). This is the correct choice when you deploy consumers first.",
+      correct: "Option B is correct: BACKWARD compatibility ensures that the new consumer schema can process messages still being produced with the old schema. The new 'email' field would have a default value (null) when absent.",
+      wrong: "Option A (FORWARD): Deploy producers first — old consumers can read new-schema messages. Option C (FULL): Both directions, more restrictive. Option D (NONE): No validation, risky in production.",
+      exam: "Memory trick — BACKWARD = deploy consumer first (consumer is 'ahead', must be able to read 'backward' from old producers). FORWARD = deploy producer first."
+    }
+  },
+  {
+    source: "cours",
+    q: "Which of the following serialization formats are natively supported by Confluent Schema Registry? (Select all that apply)",
+    multi: true,
+    options: [
+      { text: "Apache Avro", correct: true },
+      { text: "JSON Schema", correct: true },
+      { text: "Protocol Buffers (Protobuf)", correct: true },
+      { text: "Apache Thrift", correct: false },
+      { text: "MessagePack", correct: false }
+    ],
+    explanation: {
+      concept: "Confluent Schema Registry supports three major schema formats: Avro, JSON Schema, and Protobuf. Each has its own serializer/deserializer implementation.",
+      correct: "Options A, B, C are correct: Avro (.avsc), JSON Schema, and Protobuf (.proto) are all first-class citizens in Confluent Schema Registry.",
+      wrong: "Apache Thrift and MessagePack are NOT supported by Confluent Schema Registry natively.",
+      exam: "The CCDAK exam frequently tests knowledge of all three supported formats. Avro is historically most common in Confluent ecosystems, but Protobuf is increasingly popular for polyglot architectures."
+    }
+  },
+  {
+    source: "cours",
+    q: "What happens when a producer attempts to publish a message with a schema that is incompatible with the topic's configured compatibility rule?",
+    multi: false,
+    options: [
+      { text: "The message is silently dropped by the Schema Registry", correct: false },
+      { text: "The broker rejects the message and logs a warning", correct: false },
+      { text: "The Schema Registry raises a predictable exception on the producer side before the message is published", correct: true },
+      { text: "The message is published but flagged with an error marker in the topic", correct: false }
+    ],
+    explanation: {
+      concept: "Schema Registry enforces compatibility rules proactively: it blocks incompatible schemas before any message reaches the broker, providing fail-fast behavior.",
+      correct: "Option C is correct: The Schema Registry raises an exception on the producer side. This is a key design goal — surfacing the incompatibility before it causes unpredictable runtime errors in consumers.",
+      wrong: "Option A is wrong: Messages are not silently dropped; an exception is thrown. Option B is wrong: Brokers have no schema awareness. Option D is wrong: Messages with incompatible schemas never reach the topic.",
+      exam: "This is a classic CCDAK scenario: Schema Registry prevents issues at the source (producer), not after the fact. This is why it is considered 'non-negotiable' for serious Kafka systems."
+    }
+  },
+  {
+    source: "cours",
+    q: "Which statement best describes the relationship between Confluent Schema Registry and Apache Kafka brokers?",
+    multi: false,
+    options: [
+      { text: "Schema Registry is embedded inside each Kafka broker and starts automatically", correct: false },
+      { text: "Schema Registry is a separate standalone process that acts as a Kafka client (producer/consumer) to the cluster", correct: true },
+      { text: "Schema Registry replaces ZooKeeper in modern Kafka deployments", correct: false },
+      { text: "Schema Registry is a plugin installed directly into the Kafka broker JAR", correct: false }
+    ],
+    explanation: {
+      concept: "Schema Registry is completely decoupled from the Kafka broker. It runs as an independent JVM process and communicates with Kafka like any other client application.",
+      correct: "Option B is correct: From the Kafka cluster's perspective, Schema Registry is just another client. It produces schema records to the `_schemas` topic and consumes them to rebuild its cache.",
+      wrong: "Options A, C, D are all wrong: Schema Registry is never embedded in brokers, does not replace ZooKeeper/KRaft, and is not a broker plugin.",
+      exam: "Since Schema Registry is a separate service, it must be independently deployed, monitored, and made highly available. Its unavailability can block producers and consumers from resolving schemas."
+    }
+  },
+  {
+    source: "cours",
+    q: "In the FORWARD compatibility mode, a new field 'email' is added to the schema. Which deployment sequence is correct?",
+    multi: false,
+    options: [
+      { text: "Deploy new consumers first, then new producers", correct: false },
+      { text: "Deploy new producers first, then new consumers", correct: true },
+      { text: "Both producers and consumers must be deployed simultaneously", correct: false },
+      { text: "Only producers need to be updated; consumers are unaffected", correct: false }
+    ],
+    explanation: {
+      concept: "FORWARD compatibility means new producers can produce new-schema messages that old consumers can still read. Deploy producers first, and old consumers continue working by ignoring unknown fields.",
+      correct: "Option B is correct: With FORWARD compatibility, the new producer (with the new schema) is deployed first. Old consumers can still process messages because they ignore the unknown 'email' field.",
+      wrong: "Option A describes BACKWARD compatibility. Option C (simultaneous) eliminates the benefit of rolling deployments. Option D is incomplete — consumers will eventually need upgrading too.",
+      exam: "FORWARD = Producer leads the upgrade. BACKWARD = Consumer leads the upgrade. FULL = Either order is safe."
+    }
+  },
+  {
+    source: "cours",
+    q: "What is the purpose of a `.avsc` file in an Avro-based Schema Registry workflow?",
+    multi: false,
+    options: [
+      { text: "A runtime configuration file that sets Schema Registry connection parameters", correct: false },
+      { text: "The Avro IDL source-of-truth file from which Java POJOs are auto-generated at compile time", correct: true },
+      { text: "A binary file containing the serialized schema metadata sent to the Schema Registry REST API", correct: false },
+      { text: "A file that stores the schema compatibility rules for a specific Kafka topic", correct: false }
+    ],
+    explanation: {
+      concept: "An `.avsc` file is an Avro Schema Definition file (IDL). In a build-tool workflow (Gradle/Maven), this file is the contract between teams — it is compiled into Java POJOs automatically.",
+      correct: "Option B is correct: The `.avsc` file is the shared source of truth for schema definitions. A Gradle or Maven plugin reads it during compilation and generates strongly-typed Java classes.",
+      wrong: "Option A is wrong: `.avsc` has nothing to do with runtime connection config. Option C is wrong: The binary representation is handled internally by serializers. Option D is wrong: Compatibility rules are configured in the Schema Registry itself.",
+      exam: "A major advantage: compile-time verification is possible — you can query the Schema Registry BEFORE deployment to check if a new schema version is compatible, avoiding surprises in production."
+    }
+  },
+  {
+    source: "cours",
+    q: "What does a Kafka producer embed in each message when using Confluent Schema Registry with Avro serialization?",
+    multi: false,
+    options: [
+      { text: "The full Avro schema definition as a JSON string prepended to the payload", correct: false },
+      { text: "The schema ID returned by the Schema Registry REST API", correct: true },
+      { text: "The topic name and partition number for routing purposes", correct: false },
+      { text: "A SHA-256 hash of the schema for integrity verification", correct: false }
+    ],
+    explanation: {
+      concept: "Instead of embedding the full schema with every message (which would be extremely wasteful), Schema Registry assigns a compact integer ID to each schema. Only this ID is included in messages.",
+      correct: "Option B is correct: The producer registers the schema with Schema Registry (or confirms it is already registered) and receives a schema ID. This ID is then embedded in the serialized message for consumers to look up.",
+      wrong: "Option A is wrong: Embedding the full schema in every message would be a massive overhead. Option C is wrong: Routing metadata is not part of Schema Registry logic. Option D is wrong: No hash is used for schema identification.",
+      exam: "The message wire format is: Magic Byte (0x00) + 4-byte Schema ID + Avro payload. Consumers extract the schema ID and query Schema Registry to retrieve the full schema for deserialization."
+    }
+  },
+  {
+    source: "cours",
+    q: "Which compatibility mode ensures that schema changes are compatible in BOTH directions — new consumers can read old messages AND old consumers can read new messages?",
+    multi: false,
+    options: [
+      { text: "FORWARD", correct: false },
+      { text: "BACKWARD", correct: false },
+      { text: "FULL", correct: true },
+      { text: "NONE", correct: false }
+    ],
+    explanation: {
+      concept: "FULL compatibility is the most restrictive standard mode — it requires that schema changes are both backward-compatible AND forward-compatible simultaneously.",
+      correct: "Option C is correct: FULL compatibility guarantees that any new schema version can be processed by all existing consumers, and existing producers' messages can be processed by all new consumers.",
+      wrong: "FORWARD only guarantees old consumers can read new messages. BACKWARD only guarantees new consumers can read old messages. NONE provides no guarantees.",
+      exam: "FULL compatibility is the safest but most restrictive. It typically means you can only add optional fields (with defaults) or remove fields that have defaults. In practice, FULL_TRANSITIVE is often preferred for long-term safety."
+    }
+  },
+  {
+    source: "inference",
+    q: "What is the name of the internal Kafka topic used by Schema Registry to persist schema data, and what is its key characteristic?",
+    multi: false,
+    options: [
+      { text: "__consumer_offsets, configured with a short retention period", correct: false },
+      { text: "_schemas, configured as a compacted topic with a single partition", correct: true },
+      { text: "_schema_registry, partitioned like a normal Kafka topic with 8 partitions", correct: false },
+      { text: "__schemas_metadata, a replicated topic with cleanup.policy=delete", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested on the CCDAK exam. Schema Registry uses a well-known internal topic with specific configuration.",
+      correct: "Option B is correct: The `_schemas` topic is a compacted Kafka topic with exactly 1 partition. Compaction ensures the latest version of each schema is always retained. The single partition guarantees global ordering of schema registrations.",
+      wrong: "Option A describes `__consumer_offsets`. Option C uses wrong name and partition count. Option D has wrong name and wrong cleanup policy (must be compact, not delete).",
+      exam: "Remember: `_schemas` = 1 partition + compacted. These properties are testable. The single partition ensures total ordering, which is critical for schema version management."
+    }
+  },
+  {
+    source: "inference",
+    q: "Which configuration property must be set in a Kafka producer's properties to enable Confluent Schema Registry integration?",
+    multi: false,
+    options: [
+      { text: "schema.registry.endpoint", correct: false },
+      { text: "confluent.schema.url", correct: false },
+      { text: "schema.registry.url", correct: true },
+      { text: "registry.server.address", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested on the CCDAK exam. The exact property name is required knowledge for using Schema Registry serializers.",
+      correct: "Option C is correct: `schema.registry.url` is the exact configuration key used by Confluent's Avro (and JSON/Protobuf) serializers to locate the Schema Registry REST endpoint.",
+      wrong: "The other options are all incorrect property names. The CCDAK exam often presents near-miss variants to test precise knowledge of property names.",
+      exam: "Common CCDAK trap: the property is `schema.registry.url` (not `schema.registry.endpoint` or similar). This must be set in both producer AND consumer properties when using Schema Registry serializers."
+    }
+  },
+  {
+    source: "inference",
+    q: "A developer serializes Kafka messages with Confluent's KafkaAvroSerializer. What is the exact byte structure of the resulting serialized message?",
+    multi: false,
+    options: [
+      { text: "4-byte schema ID + raw Avro binary payload", correct: false },
+      { text: "Magic byte (0x00) + 4-byte schema ID (big-endian) + Avro binary payload", correct: true },
+      { text: "Schema ID as UTF-8 string + separator byte + Avro binary payload", correct: false },
+      { text: "Avro binary payload only — schema metadata is stored separately in a header topic", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested on the CCDAK exam. The Confluent wire format has a specific binary structure.",
+      correct: "Option B is correct: Confluent's wire format is: 1 magic byte (always 0x00) + 4-byte big-endian schema ID integer + Avro (or Protobuf/JSON Schema) serialized payload.",
+      wrong: "Option A is missing the magic byte. Option C incorrectly uses UTF-8 string for the schema ID. Option D is wrong — metadata is embedded in the message, not a separate topic.",
+      exam: "The magic byte 0x00 is a version indicator for the Confluent wire format. Its presence helps consumers detect Schema Registry-encoded messages vs. plain Avro. The schema ID is 4 bytes (max ~2 billion schemas)."
+    }
+  },
+  {
+    source: "inference",
+    q: "What is the default subject naming strategy used by Confluent Schema Registry when a producer registers a schema?",
+    multi: false,
+    options: [
+      { text: "RecordNameStrategy — uses the full Avro record name as the subject", correct: false },
+      { text: "TopicRecordNameStrategy — combines topic name and record name", correct: false },
+      { text: "TopicNameStrategy — appends '-key' or '-value' to the topic name", correct: true },
+      { text: "SchemaIdStrategy — uses the numeric schema ID directly as the subject", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested on the CCDAK exam. Subjects define how schemas are grouped and versioned in Schema Registry.",
+      correct: "Option C is correct: The default TopicNameStrategy creates subjects named `<topic-name>-key` and `<topic-name>-value`. Compatibility rules are enforced within each subject.",
+      wrong: "RecordNameStrategy uses the Avro record's fully-qualified name (allows reusing schema types across topics). TopicRecordNameStrategy combines both. SchemaIdStrategy does not exist.",
+      exam: "Strategies: TopicNameStrategy (default, 1 schema per topic key/value), RecordNameStrategy (1 schema per record type, reusable across topics), TopicRecordNameStrategy (most granular, 1 schema per topic+record combo)."
+    }
+  },
+  {
+    source: "inference",
+    q: "When using KafkaAvroDeserializer in a consumer, what does the `specific.avro.reader` property control?",
+    multi: false,
+    options: [
+      { text: "Whether the consumer reads schemas from a specific Schema Registry subject instead of the default", correct: false },
+      { text: "Whether deserialization produces a specific generated Java POJO class (true) or a generic Avro record (false)", correct: true },
+      { text: "Whether the consumer uses a specific Avro codec (snappy, deflate, etc.) for decompression", correct: false },
+      { text: "Whether schema compatibility checks are applied before or after deserialization", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested on the CCDAK exam. The `specific.avro.reader` property controls the deserialization output type.",
+      correct: "Option B is correct: When `specific.avro.reader=true`, the deserializer returns the generated POJO class (specific record). When false (default), it returns a `GenericRecord` object that requires field access by name.",
+      wrong: "Option A is wrong: this property has nothing to do with subject selection. Option C is wrong: compression codecs are a separate concern. Option D is wrong: this does not affect when compatibility is checked.",
+      exam: "Use `specific.avro.reader=true` when you have auto-generated POJO classes (from .avsc files via Gradle/Maven plugin) and want type-safe access. Use `false` when working with dynamic/unknown schemas."
+    }
+  },
+  {
+    source: "inference",
+    q: "Which of the following Avro schema changes maintain BACKWARD compatibility? (Select all that apply)",
+    multi: true,
+    options: [
+      { text: "Adding a new optional field with a default value", correct: true },
+      { text: "Removing a field that has a default value", correct: true },
+      { text: "Renaming an existing required field", correct: false },
+      { text: "Changing a field type from int to string", correct: false },
+      { text: "Adding a new required field without a default value", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested on the CCDAK exam. Knowing which Avro changes are safe under each compatibility mode is essential.",
+      correct: "Options A and B are correct: Adding a field WITH a default value is backward-compatible (old messages without this field get the default). Removing a field WITH a default is backward-compatible (new consumer uses the default when field is missing from old messages).",
+      wrong: "Renaming a field breaks backward compatibility — it's treated as deleting one field and adding another. Changing field type (int to string) is almost always incompatible. Adding a required field without a default breaks backward compatibility because old messages lack this field.",
+      exam: "Golden rule for BACKWARD compatibility in Avro: you can ADD fields (with defaults) or REMOVE fields (with defaults). Any rename, type change, or adding required fields without defaults breaks compatibility."
+    }
+  },
+  {
+    source: "inference",
+    q: "BACKWARD_TRANSITIVE differs from BACKWARD compatibility in which important way?",
+    multi: false,
+    options: [
+      { text: "BACKWARD_TRANSITIVE also validates compatibility with all previous schema versions, not just the latest", correct: true },
+      { text: "BACKWARD_TRANSITIVE applies only to key schemas, while BACKWARD applies to value schemas", correct: false },
+      { text: "BACKWARD_TRANSITIVE allows schema deletions without compatibility checks", correct: false },
+      { text: "BACKWARD_TRANSITIVE is identical to BACKWARD but applies to Protobuf schemas only", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested on the CCDAK exam. Transitive compatibility modes check against the ENTIRE history of schemas, not just the previous version.",
+      correct: "Option A is correct: BACKWARD_TRANSITIVE requires the new schema to be backward-compatible with ALL registered schema versions, not just version N-1. This provides stronger guarantees across long-running topics.",
+      wrong: "Options B, C, D are all incorrect descriptions with no basis in Schema Registry's behavior.",
+      exam: "Non-transitive (BACKWARD) = compatible with v(N-1) only. Transitive (BACKWARD_TRANSITIVE) = compatible with v1, v2, ..., v(N-1) all. Use transitive modes for long-lived topics where consumers may be behind by many schema versions."
+    }
+  },
+  {
+    source: "inference",
+    q: "In a high-availability Schema Registry deployment with multiple instances, how is schema registration coordinated to ensure consistency?",
+    multi: false,
+    options: [
+      { text: "All instances write simultaneously to the `_schemas` topic using multi-leader replication", correct: false },
+      { text: "One instance is elected as the primary (leader) and handles all write operations; replicas handle reads", correct: true },
+      { text: "A ZooKeeper ensemble acts as the coordinator for all schema write operations", correct: false },
+      { text: "Consistency is not guaranteed — Schema Registry relies on eventual consistency across instances", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested on the CCDAK exam. Schema Registry HA uses a primary/secondary (leader/follower) model.",
+      correct: "Option B is correct: In multi-instance Schema Registry deployments, one instance is elected as the primary/leader and handles all schema registration (write) requests. Other instances can serve read (lookup) requests. Schema Registry uses Kafka-backed leader election.",
+      wrong: "Option A is wrong: multi-leader would cause split-brain. Option C is wrong: Schema Registry uses Kafka for leader election, not ZooKeeper directly. Option D is wrong: writes are strongly consistent via the single leader.",
+      exam: "Schema Registry HA: leader election via Kafka (using Kafka's own consumer group mechanism). All writes go to the leader. Reads can be served by any replica that has the local cache. This is why caching is important for performance."
+    }
+  },
+  {
+    source: "inference",
+    q: "A developer uses RecordNameStrategy instead of the default TopicNameStrategy. What is the main use case for this choice?",
+    multi: false,
+    options: [
+      { text: "To enforce stricter compatibility rules on a per-topic basis", correct: false },
+      { text: "To allow the same Avro schema type to be reused and versioned consistently across multiple Kafka topics", correct: true },
+      { text: "To automatically delete schema versions when a topic is deleted", correct: false },
+      { text: "To namespace schema IDs to avoid conflicts between different Kafka clusters", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested on the CCDAK exam. Subject naming strategy determines how schema versioning is scoped.",
+      correct: "Option B is correct: RecordNameStrategy uses the Avro record's fully-qualified name (e.g., `com.example.User`) as the Schema Registry subject. This means the same `User` schema is versioned consistently whether it appears in `topic-A` or `topic-B`.",
+      wrong: "Option A is wrong: compatibility rules are per-subject, regardless of strategy. Option C is wrong: topic deletion does not trigger schema deletion. Option D is wrong: subject naming does not handle cross-cluster isolation.",
+      exam: "TopicNameStrategy (default): strict topic isolation, 1 schema type per topic. RecordNameStrategy: schema-type isolation, same type reused across topics. TopicRecordNameStrategy: most granular, unique subject per topic+record combination."
+    }
+  },
+  {
+    source: "inference",
+    q: "When Kafka Streams uses Schema Registry for Avro serialization, which approach is correct for configuring the Serde?",
+    multi: false,
+    options: [
+      { text: "Kafka Streams automatically detects Schema Registry — no configuration is needed beyond broker settings", correct: false },
+      { text: "Use SpecificAvroSerde or GenericAvroSerde from the Confluent library and configure `schema.registry.url` in the Streams properties", correct: true },
+      { text: "Kafka Streams has its own built-in Schema Registry client that bypasses the external Schema Registry", correct: false },
+      { text: "Schema Registry cannot be used with Kafka Streams — only Kafka Connect supports it", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested on the CCDAK exam. Kafka Streams requires explicit Serde configuration to integrate with Schema Registry.",
+      correct: "Option B is correct: Confluent provides `SpecificAvroSerde<T>` (for generated POJOs) and `GenericAvroSerde` (for dynamic schemas) in the `kafka-streams-avro-serde` library. You must configure `schema.registry.url` in the StreamsConfig properties.",
+      wrong: "Option A is wrong: there is no auto-detection. Option C is wrong: Kafka Streams uses the same external Schema Registry client library. Option D is wrong: Kafka Streams fully supports Schema Registry for both serialization and deserialization.",
+      exam: "For Kafka Streams + Avro: add `kafka-streams-avro-serde` dependency, create `SpecificAvroSerde<YourClass>`, call `serde.configure(Map.of(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, url), isKey)`, then use as your Serde."
+    }
+  }
+];
+
+var QUESTIONS = [];
+var qIdx = 0;
+var selected = [];
+var answered = false;
+var score = 0;
+var scoreCours = 0;
+var scoreInference = 0;
+var totalCours = 0;
+var totalInference = 0;
+var timeLeft = 90;
+var timerInterval = null;
+var totalTimeUsed = 0;
+var timePerQuestion = [];
+
+function fisherYates(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+function shuffleQuestions() {
+  QUESTIONS = fisherYates(QUESTIONS_RAW).map(function(q) {
+    var shuffled = fisherYates(q.options);
+    return { q: q.q, multi: q.multi, options: shuffled, explanation: q.explanation, source: q.source };
+  });
+}
+
+function paint() {
+  var q = QUESTIONS[qIdx];
+  var total = QUESTIONS.length;
+  document.getElementById('progressLabel').textContent = 'Question ' + (qIdx + 1) + ' / ' + total;
+  document.getElementById('progressBar').style.width = Math.round(((qIdx + 1) / total) * 100) + '%';
+
+  var letters = ['A','B','C','D','E'];
+  var typeBadge = q.multi
+    ? '<span class="badge-type badge-multi">Multiple answers</span>'
+    : '<span class="badge-type badge-single">Single answer</span>';
+  var sourceBadge = q.source === 'cours'
+    ? '<span class="badge-source badge-cours">📘 From Course</span>'
+    : '<span class="badge-source badge-inference">🔍 Beyond Course</span>';
+
+  var html = '<div class="question-text">' + typeBadge + sourceBadge + '<br>' + q.q + '</div>';
+  for (var i = 0; i < q.options.length; i++) {
+    html += '<div class="option" id="opt_' + i + '" onclick="pickOption(' + i + ')">';
+    html += '<div class="opt-letter">' + letters[i] + '</div>';
+    html += '<div class="opt-text">' + q.options[i].text + '</div>';
+    html += '</div>';
+  }
+  document.getElementById('qContent').innerHTML = html;
+  document.getElementById('explanation').className = 'explanation';
+  document.getElementById('explanation').innerHTML = '';
+  document.getElementById('btnValidate').style.display = 'block';
+  document.getElementById('btnValidate').disabled = false;
+  document.getElementById('btnNext').style.display = 'none';
+  document.getElementById('timeoutMsg').style.display = 'none';
+  selected = [];
+  answered = false;
+  startTimer();
+}
+
+function pickOption(i) {
+  if (answered) return;
+  var q = QUESTIONS[qIdx];
+  if (q.multi) {
+    var idx2 = selected.indexOf(i);
+    if (idx2 === -1) {
+      selected.push(i);
+      document.getElementById('opt_' + i).className = 'option selected';
+    } else {
+      selected.splice(idx2, 1);
+      document.getElementById('opt_' + i).className = 'option';
+    }
+  } else {
+    if (selected.length > 0) {
+      document.getElementById('opt_' + selected[0]).className = 'option';
+    }
+    selected = [i];
+    document.getElementById('opt_' + i).className = 'option selected';
+  }
+}
+
+function valider() {
+  if (answered) return;
+  clearInterval(timerInterval);
+  var elapsed = 90 - timeLeft;
+  totalTimeUsed += elapsed;
+  timePerQuestion.push(elapsed);
+  answered = true;
+
+  var q = QUESTIONS[qIdx];
+  var correctIndices = [];
+  for (var i = 0; i < q.options.length; i++) {
+    if (q.options[i].correct) correctIndices.push(i);
+  }
+
+  var isCorrect = false;
+  if (q.multi) {
+    var sel = selected.slice().sort();
+    var cor = correctIndices.slice().sort();
+    isCorrect = (sel.length === cor.length && sel.every(function(v, i2) { return v === cor[i2]; }));
+  } else {
+    isCorrect = (selected.length === 1 && selected[0] === correctIndices[0]);
+  }
+
+  if (isCorrect) {
+    score++;
+    if (q.source === 'cours') scoreCours++;
+    else scoreInference++;
+  }
+
+  for (var j = 0; j < q.options.length; j++) {
+    var el = document.getElementById('opt_' + j);
+    el.className = 'option disabled';
+    if (correctIndices.indexOf(j) !== -1) {
+      if (selected.indexOf(j) !== -1) el.className = 'option correct disabled';
+      else el.className = 'option missed disabled';
+    } else {
+      if (selected.indexOf(j) !== -1) el.className = 'option wrong disabled';
+    }
+  }
+
+  showExplanation(q, isCorrect);
+  document.getElementById('btnValidate').style.display = 'none';
+  document.getElementById('btnNext').style.display = 'block';
+}
+
+function showExplanation(q, isCorrect) {
+  var e = q.explanation;
+  var html = '';
+  html += '<div class="section"><h4>🔑 Key Concept</h4><span>' + e.concept + '</span></div>';
+  html += '<div class="section"><h4>✅ Why Correct</h4><span>' + e.correct + '</span></div>';
+  html += '<div class="section"><h4>❌ Why Incorrect</h4><span>' + e.wrong + '</span></div>';
+  html += '<div class="section"><h4>📌 Exam Tip</h4><span>' + e.exam + '</span></div>';
+  var el = document.getElementById('explanation');
+  el.innerHTML = html;
+  el.className = 'explanation show';
+}
+
+function suivante() {
+  qIdx++;
+  if (qIdx >= QUESTIONS.length) {
+    paintScore();
+  } else {
+    paint();
+  }
+}
+
+function paintScore() {
+  clearInterval(timerInterval);
+  document.getElementById('quizScreen').className = 'quiz-screen hide';
+  document.getElementById('scoreScreen').className = 'score-screen show';
+
+  var total = QUESTIONS.length;
+  var pct = Math.round((score / total) * 100);
+  var coTotal = 0; var infTotal = 0;
+  for (var i = 0; i < QUESTIONS.length; i++) {
+    if (QUESTIONS[i].source === 'cours') coTotal++;
+    else infTotal++;
+  }
+  document.getElementById('scoreSubtitle').textContent = 'Score: ' + score + ' / ' + total + ' (' + pct + '%)';
+
+  var fill = document.getElementById('scoreBarFill');
+  fill.style.width = pct + '%';
+  fill.textContent = pct + '%';
+  fill.className = 'score-bar-fill ' + (pct >= 75 ? 'high' : pct >= 50 ? 'mid' : 'low');
+
+  var msg = document.getElementById('scoreMsg');
+  if (pct >= 75) {
+    msg.textContent = '🎉 Excellent! You are well prepared for the CCDAK exam on Schema Registry.';
+    msg.className = 'score-msg high';
+  } else if (pct >= 50) {
+    msg.textContent = '📈 Good effort! Review the explanations above and try again.';
+    msg.className = 'score-msg mid';
+  } else {
+    msg.textContent = '📚 Keep studying! Re-read the course and review each explanation carefully.';
+    msg.className = 'score-msg low';
+  }
+
+  document.getElementById('scoreCours').textContent = scoreCours + '/' + coTotal;
+  document.getElementById('scoreCoursTotal').textContent = Math.round((scoreCours / (coTotal || 1)) * 100) + '% success';
+  document.getElementById('scoreInference').textContent = scoreInference + '/' + infTotal;
+  document.getElementById('scoreInferenceTotal').textContent = Math.round((scoreInference / (infTotal || 1)) * 100) + '% success';
+
+  var avgTime = total > 0 ? Math.round(totalTimeUsed / total) : 0;
+  document.getElementById('scoreMeta').textContent = 'Average time per question: ' + avgTime + ' seconds';
+}
+
+function recommencer() {
+  score = 0; scoreCours = 0; scoreInference = 0;
+  qIdx = 0; selected = []; answered = false;
+  totalTimeUsed = 0; timePerQuestion = [];
+  clearInterval(timerInterval);
+  shuffleQuestions();
+
+  for (var i = 0; i < QUESTIONS.length; i++) {
+    if (QUESTIONS[i].source === 'cours') totalCours++;
+    else totalInference++;
+  }
+
+  document.getElementById('scoreScreen').className = 'score-screen';
+  document.getElementById('quizScreen').className = 'quiz-screen';
+  paint();
+}
+
+function startTimer() {
+  clearInterval(timerInterval);
+  timeLeft = 90;
+  updateTimerDisplay();
+  timerInterval = setInterval(function() {
+    timeLeft--;
+    updateTimerDisplay();
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      document.getElementById('timeoutMsg').style.display = 'block';
+      valider();
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  var m = Math.floor(timeLeft / 60);
+  var s = timeLeft % 60;
+  var txt = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  document.getElementById('timerBox').textContent = txt;
+  var box = document.getElementById('timerBox');
+  if (timeLeft <= 15) box.className = 'timer-box danger';
+  else if (timeLeft <= 30) box.className = 'timer-box warn';
+  else box.className = 'timer-box';
+}
+
+// Init
+shuffleQuestions();
+totalCours = 0; totalInference = 0;
+for (var _i = 0; _i < QUESTIONS.length; _i++) {
+  if (QUESTIONS[_i].source === 'cours') totalCours++;
+  else totalInference++;
+}
+paint();
+</script>
+</body>
+</html>

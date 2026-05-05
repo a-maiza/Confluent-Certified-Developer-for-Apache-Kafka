@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CCDAK Prep — Level 2 | Kafka Brokers</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #1a1a2e;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 36px 16px 60px;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      border: 1px solid #e0e0e0;
+      max-width: 800px;
+      width: 100%;
+      padding: 32px 36px;
+      position: relative;
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+    }
+    .title-block .title {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      color: #C0392B;
+    }
+    .title-block .subtitle {
+      font-size: 12px;
+      color: #888;
+      margin-top: 3px;
+    }
+    .timer {
+      font-size: 19px;
+      font-weight: 700;
+      color: #1a1a2e;
+      background: #f5f5f5;
+      border-radius: 8px;
+      padding: 8px 18px;
+      min-width: 110px;
+      text-align: center;
+      border: 2px solid transparent;
+      transition: all 0.3s;
+    }
+    .timer.orange { color: #e65100; background: #fff3e0; border-color: #e65100; }
+    .timer.red { color: #b71c1c; background: #ffebee; border-color: #b71c1c; animation: blink 1s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+    .progress-bar-outer {
+      height: 7px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+    .progress-bar-inner {
+      height: 7px;
+      background: linear-gradient(90deg, #C0392B, #e74c3c);
+      border-radius: 4px;
+      transition: width 0.4s ease;
+    }
+    .q-counter {
+      font-size: 12px;
+      color: #9e9e9e;
+      margin-bottom: 6px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .badges-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .badge-type {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 11px;
+      border-radius: 20px;
+      background: #1a1a2e;
+      color: #fff;
+      letter-spacing: 0.3px;
+    }
+    .badge-source {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 11px;
+      border-radius: 20px;
+    }
+    .badge-source.cours { background: #e8f4fd; color: #1a6fa8; }
+    .badge-source.inference { background: #f0e8fd; color: #6a1ab8; }
+    .question-text {
+      font-size: 15.5px;
+      font-weight: 600;
+      color: #1a1a2e;
+      margin-bottom: 22px;
+      line-height: 1.65;
+    }
+    .options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+    .option {
+      border: 2px solid #e0e0e0;
+      border-radius: 9px;
+      padding: 13px 16px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      background: #fff;
+    }
+    .option:hover:not(.disabled) { border-color: #C0392B; background: #fff5f5; }
+    .option.selected { border-color: #1565c0; background: #e3f2fd; }
+    .option.correct  { border-color: #2e7d32 !important; background: #e8f5e9 !important; }
+    .option.wrong    { border-color: #c62828 !important; background: #ffebee !important; }
+    .option.missed   { border-color: #2e7d32 !important; background: #f9fbe7 !important; border-style: dashed !important; }
+    .option.disabled { cursor: default; }
+    .option-row { display: flex; align-items: flex-start; gap: 11px; }
+    .option-letter {
+      font-weight: 800;
+      font-size: 13px;
+      color: #9e9e9e;
+      min-width: 20px;
+      padding-top: 2px;
+    }
+    .option-text { font-size: 14px; color: #212121; line-height: 1.55; flex: 1; }
+    .option-explanation {
+      font-size: 12.5px;
+      color: #555;
+      margin-top: 8px;
+      padding-left: 31px;
+      line-height: 1.55;
+      display: none;
+      border-left: 3px solid transparent;
+      padding-left: 10px;
+      margin-left: 31px;
+    }
+    .option-explanation.show { display: block; }
+    .option-explanation .icon { margin-right: 5px; font-style: normal; }
+    .option.correct  .option-explanation { border-left-color: #2e7d32; background: #f1f8e9; padding: 5px 8px; border-radius: 4px; }
+    .option.wrong    .option-explanation { border-left-color: #c62828; background: #fff0f0; padding: 5px 8px; border-radius: 4px; }
+    .option.missed   .option-explanation { border-left-color: #2e7d32; background: #f9fbe7; padding: 5px 8px; border-radius: 4px; }
+
+    .global-explanation {
+      background: #12122a;
+      border-left: 4px solid #C0392B;
+      border-radius: 7px;
+      padding: 15px 18px;
+      margin-bottom: 20px;
+      color: #e8e8f0;
+      font-size: 13px;
+      line-height: 1.65;
+      display: none;
+    }
+    .global-explanation.show { display: block; }
+    .global-explanation .ge-title { color: #fff; font-weight: 700; font-size: 13.5px; margin-bottom: 7px; display: block; }
+
+    .btn-row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .btn {
+      background: #C0392B;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 26px;
+      font-size: 14.5px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+      letter-spacing: 0.2px;
+    }
+    .btn:hover:not(:disabled) { background: #a93226; }
+    .btn:disabled { background: #bdbdbd; cursor: default; }
+    .btn-outline {
+      background: transparent;
+      color: #C0392B;
+      border: 2px solid #C0392B;
+      border-radius: 8px;
+      padding: 11px 24px;
+      font-size: 14.5px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-outline:hover:not(:disabled) { background: #C0392B; color: #fff; }
+    .btn-outline:disabled { border-color: #bdbdbd; color: #bdbdbd; cursor: default; }
+
+    /* Score Screen */
+    .score-screen { text-align: center; padding: 10px 0; }
+    .score-icon { font-size: 56px; margin-bottom: 12px; }
+    .score-title { font-size: 26px; font-weight: 800; color: #1a1a2e; margin-bottom: 6px; }
+    .score-fraction { font-size: 17px; color: #555; margin-bottom: 18px; }
+    .score-fraction strong { color: #1a1a2e; font-size: 20px; }
+    .score-bar-outer {
+      height: 16px;
+      background: #e8e8e8;
+      border-radius: 8px;
+      margin: 0 auto 20px;
+      max-width: 480px;
+      overflow: hidden;
+    }
+    .score-bar-inner { height: 16px; border-radius: 8px; transition: width 0.7s ease; }
+    .score-bar-inner.low  { background: linear-gradient(90deg, #c62828, #e53935); }
+    .score-bar-inner.mid  { background: linear-gradient(90deg, #e65100, #ff6d00); }
+    .score-bar-inner.high { background: linear-gradient(90deg, #2e7d32, #43a047); }
+    .score-message { font-size: 17px; font-weight: 700; margin-bottom: 28px; }
+    .score-breakdown { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-bottom: 32px; }
+    .score-badge {
+      border-radius: 10px;
+      padding: 14px 22px;
+      font-size: 14px;
+      font-weight: 700;
+      min-width: 210px;
+      line-height: 1.6;
+    }
+    .score-badge.cours { background: #e8f4fd; color: #1a6fa8; }
+    .score-badge.inference { background: #f0e8fd; color: #6a1ab8; }
+    .score-badge .bd-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.75; }
+    .score-badge .bd-num { font-size: 22px; font-weight: 800; margin-top: 2px; }
+  </style>
+</head>
+<body>
+<div class="card" id="mainCard">
+  <div class="card-header">
+    <div class="title-block">
+      <div class="title">CCDAK Prep — Level 2</div>
+      <div class="subtitle">Module: Kafka Brokers</div>
+    </div>
+    <div class="timer" id="timerDisplay">⏱ --:--</div>
+  </div>
+  <div class="progress-bar-outer">
+    <div class="progress-bar-inner" id="progressBar" style="width:0%"></div>
+  </div>
+  <div id="quizArea"></div>
+</div>
+
+<script>
+var QUESTIONS_MASTER = [
+  /* ===== 1 — COURS ===== */
+  {
+    question: "A startup is building a proof-of-concept event streaming pipeline. Their operations team proposes deploying three Kafka broker instances on three Raspberry Pi 4 devices (4GB RAM) connected over a local network. A junior developer objects, claiming Kafka brokers require enterprise-grade server hardware. Which statement most accurately describes the physical requirements for running a Kafka broker?",
+    type: "single",
+    source: "cours",
+    options: [
+      { text: "A Kafka broker requires a dedicated bare-metal server with at least 32 GB of RAM and NVMe SSDs, making a Raspberry Pi unsuitable.", explanation: "Kafka imposes no minimum hardware specification. While high-throughput production clusters benefit from powerful hardware, the course explicitly states that any machine — including a Raspberry Pi — can run the Kafka JVM process and serve as a broker." },
+      { text: "A Kafka broker is any machine — physical server, VM, cloud instance, or even a Raspberry Pi — running the Kafka JVM server process with access to local storage.", explanation: "Correct. The course defines a broker as any machine executing the Kafka JVM process. Hardware requirements depend on workload, not on architectural constraints. A Raspberry Pi is fully valid for development or PoC purposes." },
+      { text: "A Kafka broker must run on the same machine as a ZooKeeper node to ensure low-latency metadata coordination.", explanation: "ZooKeeper has been completely removed since Apache Kafka 4.0. Even in older versions, ZooKeeper and brokers were separate processes and did not need to share the same machine." },
+      { text: "A Kafka broker requires a minimum of 8 CPU cores and hardware RAID storage to handle concurrent partition I/O across topics.", explanation: "These are sizing guidelines for high-throughput production deployments, not hard requirements. There is no architectural minimum CPU or storage configuration specified for running a Kafka broker." }
+    ],
+    answers: [1],
+    globalExplanation: "A Kafka broker is fundamentally defined as any machine running the Kafka JVM server process. The course makes this explicit with the Raspberry Pi example to show that hardware flexibility is a feature of the architecture, not a weakness. For development, testing, or learning, modest hardware is perfectly suitable. Production sizing depends on throughput, retention, and replication needs."
+  },
+  /* ===== 2 — COURS ===== */
+  {
+    question: "An operations team manages a Kafka 3.7 cluster that still uses a 3-node ZooKeeper ensemble for metadata coordination. They are planning a migration to Apache Kafka 4.0. A team member asks whether the ZooKeeper ensemble must be maintained after the upgrade, since several internal wikis still reference it. What is the definitive answer?",
+    type: "single",
+    source: "cours",
+    options: [
+      { text: "ZooKeeper must remain running after the Kafka 4.0 upgrade for backward compatibility with producers and consumers using older client libraries.", explanation: "ZooKeeper is not used by producers or consumers — it was only an internal coordination component for brokers. In Kafka 4.0, it is entirely removed. Client compatibility is unaffected by this change." },
+      { text: "ZooKeeper can be kept optionally in Kafka 4.0 as a fallback metadata store; KRaft is just the recommended default.", explanation: "This is incorrect. ZooKeeper support was completely removed in Apache Kafka 4.0. There is no optional or hybrid mode — the migration to KRaft-only is mandatory." },
+      { text: "The ZooKeeper ensemble can be fully decommissioned after upgrading to Kafka 4.0, because KRaft — Kafka's built-in Raft-based protocol — now handles all cluster metadata management internally.", explanation: "Correct. Since Kafka 4.0, KRaft replaces ZooKeeper entirely. All metadata (topics, partitions, leaders, ISR) is managed by the brokers themselves through the KRaft protocol. The ZooKeeper ensemble has no role and should be decommissioned." },
+      { text: "ZooKeeper is still required in Kafka 4.0 for MirrorMaker 2 cross-datacenter replication and Schema Registry coordination.", explanation: "Neither MirrorMaker 2 nor Schema Registry require ZooKeeper. They communicate through the standard Kafka protocol. ZooKeeper has zero involvement in Kafka 4.0." }
+    ],
+    answers: [2],
+    globalExplanation: "Apache Kafka 4.0 marks the complete and final removal of ZooKeeper. KRaft (Kafka Raft) is Kafka's own implementation of the Raft consensus algorithm that replaces ZooKeeper for all metadata management. The course stresses this as a key architectural evolution: any documentation still referencing ZooKeeper is obsolete for Kafka 4.0+ deployments."
+  },
+  /* ===== 3 — COURS ===== */
+  {
+    question: "A data engineering team creates a Kafka topic named 'clickstream' with 2 partitions on a 3-broker cluster. After creation, they observe via monitoring that Broker 3 has zero partition assignments for this topic, while Brokers 1 and 2 each host one partition. The team's SRE raises an alert, suspecting Broker 3 is malfunctioning. Is this concern warranted?",
+    type: "single",
+    source: "cours",
+    options: [
+      { text: "Yes — all brokers must hold at least one partition for every topic in the cluster; zero assignments on Broker 3 indicates a failure or misconfiguration.", explanation: "This is a misconception. Kafka distributes partitions across brokers according to the partition count, not across all available brokers. With 2 partitions, only 2 brokers receive assignments for this topic." },
+      { text: "No — this is expected behavior. The number of partitions determines how many brokers are used for that topic. With 2 partitions, exactly 2 brokers host partitions; the third broker has no assignment for this specific topic and is working correctly.", explanation: "Correct. The course explicitly covers this case: if a topic has 2 partitions on a 3-broker cluster, only 2 brokers hold a partition for that topic. The third broker is healthy — it simply has no partition assignment for this topic." },
+      { text: "Yes — this indicates the replication factor is misconfigured. Setting replication.factor=3 would force Broker 3 to receive a replica.", explanation: "While setting replication.factor=3 would cause all three brokers to hold a replica of each partition, this is a configuration choice — not evidence of broker failure. The current observation with 2 partitions and 2 assignments is entirely normal." },
+      { text: "No — Kafka uses consistent hashing for partition assignment, which may intentionally skip some brokers to balance hash ring distribution.", explanation: "Kafka does not use consistent hashing for partition assignment. It uses a round-robin-based algorithm. The result here simply reflects that 2 partitions were distributed to 2 of the 3 available brokers." }
+    ],
+    answers: [1],
+    globalExplanation: "This is a fundamental Kafka partitioning concept from the course: the number of partitions in a topic determines how many brokers are actively used for that topic. With 2 partitions on a 3-broker cluster, only 2 brokers receive partition assignments. This is by design — Kafka's scalability mechanism allows topic-level control over how many brokers are utilized. The third broker remains healthy and available for other topics."
+  },
+  /* ===== 4 — COURS ===== */
+  {
+    question: "A developer wants to quickly spin up a local Kafka development environment with 3 isolated broker instances without manually configuring Java, setting distinct port numbers, or managing separate log directories. Which approach does Apache Kafka documentation recommend for this scenario?",
+    type: "single",
+    source: "cours",
+    options: [
+      { text: "Download the Kafka tarball, extract it, and launch three separate JVM processes by running the startup script three times with different configuration files.", explanation: "This approach works but requires manually creating three distinct configuration files (different broker IDs, listeners, log directories). It is functional but error-prone and not the recommended approach for quick isolation." },
+      { text: "Use Docker Compose, where each container in the compose file runs a Kafka JVM instance and automatically constitutes a separate, isolated broker.", explanation: "Correct. The course describes Docker Compose as the straightforward approach for running multiple isolated Kafka brokers locally. Each container is a distinct broker. Networking, port isolation, and configuration are handled declaratively through the compose file." },
+      { text: "Use Confluent Cloud's free tier and configure 3 compute units, each representing one broker instance.", explanation: "Confluent Cloud is a managed cloud service, not a local development environment. The course notes that brokers are fully abstracted in Confluent Cloud — users cannot configure individual broker instances there." },
+      { text: "Set num.partitions=3 on a single Kafka instance to simulate the effect of 3 separate brokers for development purposes.", explanation: "num.partitions sets the default partition count for auto-created topics, not the number of brokers. A single JVM process is a single broker. You cannot simulate multiple brokers with this configuration." }
+    ],
+    answers: [1],
+    globalExplanation: "The course describes two startup approaches: (1) the tarball method — download, extract, run the startup script → one JVM process = one broker; and (2) Docker Compose — each container = one isolated broker. For a multi-broker local setup, Docker Compose is the preferred method because it handles isolation, networking, and per-container configuration declaratively without manual port/log management."
+  },
+  /* ===== 5 — COURS ===== */
+  {
+    question: "A company runs Apache Kafka self-managed on AWS EC2 instances. They are debating migrating to Confluent Cloud. A senior engineer argues: 'On Confluent Cloud, you never see brokers — so understanding them is a waste of time for our developers.' A junior architect disagrees. Which argument best supports the junior architect's position?",
+    type: "single",
+    source: "cours",
+    options: [
+      { text: "The senior engineer is correct — in Confluent Cloud, broker internals are irrelevant because everything is auto-managed and conceptually replaced by serverless abstractions.", explanation: "This is incorrect per the course. While Confluent Cloud abstracts broker operations, the underlying Kafka concepts (partitions, replication, ISR, leaders, read/write paths) still directly govern how topics, producers, and consumers must be configured. Ignorance of these concepts leads to misconfigured systems." },
+      { text: "Understanding broker fundamentals — how partitions are hosted, how read/write requests are handled, how replication works — is essential for correctly configuring Kafka even when brokers are operationally invisible in managed services.", explanation: "Correct. The course explicitly states that even in managed services like Confluent Cloud, understanding broker abstractions remains necessary. Partition count, replication factor, producer acks, and consumer lag are all broker-derived concepts that impact every Kafka application." },
+      { text: "Broker knowledge is only useful for setting replication factor and partition count; all other parameters are irrelevant in Confluent Cloud.", explanation: "This understates the scope. Broker mechanics affect producer acks settings, consumer group behavior, ISR-dependent durability guarantees, and operational troubleshooting (consumer lag, partition leadership). The knowledge is broadly applicable, not limited to two parameters." },
+      { text: "Confluent Cloud uses a fundamentally different architecture from Apache Kafka, so broker knowledge from Kafka OSS does not apply.", explanation: "Confluent Cloud is built on Apache Kafka. The same partitioning, replication, and messaging model applies. Only the operational management layer is abstracted — the conceptual and logical model is identical." }
+    ],
+    answers: [1],
+    globalExplanation: "The course makes a clear pedagogical point: broker knowledge is essential regardless of deployment model. Confluent Cloud hides operational complexity (no broker sizing, no storage management) but the logical behavior — partition distribution, replication, read/write paths — is identical to self-managed Kafka. Developers who understand brokers make better decisions about topic design, producer configuration, and consumer architecture."
+  },
+  /* ===== 6 — COURS ===== */
+  {
+    question: "A Kafka 4.0 cluster uses KRaft mode. The 3-node cluster has two brokers acting as 'controller candidates' and one as the 'controller leader'. The team asks: what specific responsibility distinguishes the controller leader from the other brokers in the KRaft quorum?",
+    type: "single",
+    source: "cours",
+    options: [
+      { text: "The controller leader handles all producer Produce requests and delegates consumer Fetch requests to candidate brokers for load balancing.", explanation: "The KRaft controller leader manages metadata, not client I/O. Produce and Fetch requests go directly to partition leaders, which are separate from the KRaft controller role." },
+      { text: "The controller leader holds the active write lease for the Raft metadata log and is the authoritative source for all cluster metadata — topic configurations, partition assignments, broker states, and ISR lists.", explanation: "Correct. In KRaft mode, the controller leader owns the active log position in the Raft quorum. It processes all metadata changes (topic creation, partition leadership changes, ISR updates) and propagates them to follower controllers and brokers." },
+      { text: "The controller leader stores all partition data for the cluster and coordinates replication across replica sets.", explanation: "The controller leader manages metadata, not partition data. Data storage and replication happen at the partition level, independently of the KRaft controller role." },
+      { text: "The controller leader manages client authentication and authorization for all incoming broker connections.", explanation: "Authentication and authorization (ACLs) are handled by each individual broker's security subsystem (e.g., via SASL/SSL and an Authorizer), not by the KRaft controller leader." }
+    ],
+    answers: [1],
+    globalExplanation: "In KRaft mode, the cluster forms a Raft quorum for metadata management. The controller leader holds the active Raft write lease and processes all metadata mutations: topic creation/deletion, partition leadership changes, ISR updates, and broker registrations. Controller candidates participate in voting and can take over leadership if the current leader fails. This architecture, described in the course via the quorum diagram, entirely replaces ZooKeeper's role."
+  },
+  /* ===== 7 — COURS ===== */
+  {
+    question: "An infrastructure architect proposes replacing the local NVMe SSDs on each Kafka broker with a centralized NAS (Network Attached Storage) array to simplify storage management and reduce hardware costs. A Kafka performance engineer strongly objects. Which concern most accurately reflects Apache Kafka's open-source storage architecture?",
+    type: "single",
+    source: "cours",
+    options: [
+      { text: "Kafka requires SSDs to be formatted with XFS, which NAS devices do not support.", explanation: "Kafka works with standard Linux filesystems including XFS and ext4. Filesystem format compatibility is not the architectural concern here — performance and coupling are." },
+      { text: "Apache Kafka open-source is architecturally designed around tight coupling between the broker process and local storage. NAS introduces network latency and I/O jitter that fundamentally conflicts with Kafka's high-throughput, low-latency local disk design.", explanation: "Correct. The course explicitly identifies local storage coupling as a defining architectural characteristic of Apache Kafka OSS. The broker's high-performance design relies on fast local disk I/O with minimal latency. Network storage introduces unpredictable latency spikes and shared bandwidth contention." },
+      { text: "NAS devices have a 2TB volume limit, which is insufficient for high-retention Kafka topics.", explanation: "Modern NAS systems support petabyte-scale storage. Capacity is not the concern. The architectural concern is latency and the tight coupling between the Kafka process and its storage." },
+      { text: "Kafka requires SCSI protocol for partition I/O, which is incompatible with NFS-based NAS systems.", explanation: "Kafka does not require SCSI. It writes to standard OS file system paths. While NFS-based NAS can cause issues (file locking semantics), the primary architectural objection is performance degradation from network I/O, not a protocol incompatibility." }
+    ],
+    answers: [1],
+    globalExplanation: "The course identifies local storage coupling as a key characteristic of Apache Kafka open-source: brokers are designed to store partition logs on physically local, fast SSDs. This tight coupling enables the high-throughput, sequential I/O performance that Kafka is known for. Introducing network storage breaks this model by adding latency and jitter. Note: Confluent's Tiered Storage feature explicitly decouples storage from compute, but this is a Confluent Platform extension, not part of Apache Kafka OSS."
+  },
+  /* ===== 8 — COURS ===== */
+  {
+    question: "During a CCDAK exam preparation session, a trainer asks: 'Name the three primary operational roles of a Kafka broker as described in the broker architecture.' A candidate provides four options — which one correctly identifies all three core broker responsibilities from the course?",
+    type: "single",
+    source: "cours",
+    options: [
+      { text: "Partition producers, message compressor, consumer group coordinator.", explanation: "None of these are core broker responsibilities. Producers are client applications, not broker functions. Message compression is an optional feature done by producers or storage — not a primary role. Consumer group coordination is a broker function but is not one of the three core roles described in the course." },
+      { text: "Hosting partition data on local storage, handling client read/write requests (producer Produce + consumer Fetch), and replicating partition data between brokers for fault tolerance.", explanation: "Correct. The course explicitly identifies these three roles: (1) hosting partitions with local SSD storage, (2) processing producer write requests and consumer fetch requests (real I/O on partition logs), and (3) replicating partition data to follower replicas on other brokers. KRaft adds metadata management as a fourth role since Kafka 4.0." },
+      { text: "Topic creation, consumer group offset management, and schema registry synchronization.", explanation: "Topic creation is a metadata operation, not a primary broker role. Offset management is a broker sub-function but not a primary architectural role. Schema Registry is a separate Confluent component, not part of the broker." },
+      { text: "Partition balancing, leader election arbitration, and producer quota enforcement.", explanation: "While brokers participate in leader elections and quota enforcement, these are secondary functions. The three primary roles per the course are storage, request handling, and replication." }
+    ],
+    answers: [1],
+    globalExplanation: "The course enumerates three core broker responsibilities: (1) Storage — hosting partition logs on local SSDs; (2) Request handling — processing Produce requests from producers (write I/O) and Fetch requests from consumers (read I/O); (3) Replication — replicating partition data to follower brokers to ensure fault tolerance. These three roles form the functional foundation of every Kafka broker, whether self-managed or in a managed service."
+  },
+  /* ===== 9 — COURS ===== */
+  {
+    question: "A platform team is preparing a Kafka cluster migration plan for a client currently on Kafka 3.5 with an external 5-node ZooKeeper ensemble. The target is Kafka 4.0. The client's operations team asks: 'After upgrading, where will metadata like topic configurations, partition assignments, and broker states be stored?' What is the correct answer?",
+    type: "single",
+    source: "cours",
+    options: [
+      { text: "In a dedicated metadata topic stored on the broker with the highest broker.id value.", explanation: "While KRaft does use an internal topic-like mechanism (__cluster_metadata) for the Raft log, metadata is not stored on a single broker. The KRaft quorum (all controller-eligible brokers) collectively maintains this log through Raft consensus." },
+      { text: "In the existing ZooKeeper ensemble, which must be maintained in read-only mode after the Kafka 4.0 upgrade for audit trail purposes.", explanation: "ZooKeeper is completely removed in Kafka 4.0. There is no 'read-only' ZooKeeper mode. The ZooKeeper ensemble should be fully decommissioned after migrating to Kafka 4.0 with KRaft." },
+      { text: "In Kafka's internal KRaft metadata log, maintained by the brokers themselves through the Raft consensus algorithm — replacing the external ZooKeeper ensemble entirely.", explanation: "Correct. KRaft stores all cluster metadata — topics, partitions, leaders, ISR, broker registrations — in an internal Raft-replicated log maintained by the controller-eligible brokers. This is the direct replacement for ZooKeeper." },
+      { text: "In an etcd cluster that Kafka 4.0 uses as a cloud-native metadata store, compatible with Kubernetes deployments.", explanation: "Kafka 4.0 uses KRaft — its own internal Raft implementation. It does not use etcd or any other external coordination system. This is a common misconception given Kubernetes' use of etcd." }
+    ],
+    answers: [2],
+    globalExplanation: "Since Apache Kafka 4.0, the KRaft protocol fully replaces ZooKeeper for metadata management. All cluster state — topic configurations, partition-to-broker mappings, partition leadership, ISR lists, broker registrations — is stored in an internal Raft-replicated log (the __cluster_metadata topic) maintained by controller-eligible brokers. The external ZooKeeper ensemble is entirely obsolete and should be decommissioned."
+  },
+  /* ===== 10 — COURS ===== */
+  {
+    question: "A new engineer joining a fintech company asks their tech lead why they need to understand Kafka broker internals when the company exclusively uses Confluent Cloud, where 'brokers are completely hidden from users.' Which response from the tech lead best reflects what the course teaches?",
+    type: "single",
+    source: "cours",
+    options: [
+      { text: "The engineer is right — in Confluent Cloud, Kafka has been re-architected so broker concepts like partitions, replication, and ISR no longer apply.", explanation: "This is false. Confluent Cloud is built on Apache Kafka. Partitions, replication, and ISR are fundamental concepts that apply identically in Confluent Cloud. Only their operational management is abstracted." },
+      { text: "Even though brokers are invisible in Confluent Cloud, understanding that brokers host partitions, handle I/O, and replicate data is essential for making correct decisions about topic partitioning, producer durability settings, and consumer design.", explanation: "Correct. The course explicitly warns against ignoring broker concepts just because they are managed. Decisions like partition count (scalability), acks=all (durability), replication factor (fault tolerance), and consumer fetch behavior all stem from how brokers work internally." },
+      { text: "Broker knowledge is only needed for passing the CCDAK exam; it has no practical application when using Confluent Cloud.", explanation: "The course contradicts this. Broker knowledge enables better architectural decisions in any Kafka deployment, including Confluent Cloud. It is directly applicable, not just exam-relevant." },
+      { text: "Broker knowledge applies only to on-premise deployments; cloud-managed Kafka is entirely different and requires learning cloud-specific abstractions instead.", explanation: "Confluent Cloud uses the same Apache Kafka architecture. The cloud-specific aspects (provisioning, scaling) are additional layers, not replacements. The foundational broker model is identical." }
+    ],
+    answers: [1],
+    globalExplanation: "A key pedagogical point from the course: even when using fully managed Kafka services like Confluent Cloud, understanding broker fundamentals is essential for practical Kafka development. Partition design, producer configuration (acks, retries), consumer behavior (offset management, rebalancing), and fault tolerance reasoning all require knowledge of how brokers work. The course explicitly states this to prevent developers from treating managed Kafka as a black box."
+  },
+
+  /* ===== 11 — INFERENCE ===== */
+  {
+    question: "A financial services company runs a 3-broker Kafka cluster. Their 'transactions' topic has a replication factor of 3. Broker 2 suffers a hardware failure and goes offline permanently. The operations team confirms that producers continue writing and consumers continue reading with no interruption. What Kafka mechanism enables this continued availability?",
+    type: "single",
+    source: "inference",
+    options: [
+      { text: "Kafka's log compaction feature automatically reconstructs missing partition data by merging the remaining replicas into a new consolidated partition on the surviving brokers.", explanation: "Log compaction is a retention policy (keep latest value per key) — it has no role in broker failure recovery or partition availability. It does not reconstruct data from multiple replicas." },
+      { text: "With replication factor 3, each partition has an up-to-date replica on each of the three brokers. When Broker 2 fails, Kafka's controller automatically promotes an in-sync replica (ISR member) on one of the remaining brokers to leader for the affected partitions, maintaining full read/write availability.", explanation: "Correct. Replication ensures each partition has copies on multiple brokers. The ISR (In-Sync Replicas) set tracks replicas fully caught up with the leader. On broker failure, the Kafka controller automatically elects a new partition leader from the ISR, restoring availability transparently." },
+      { text: "Kafka buffers all writes in the producer's local memory during the broker outage and replays them once the broker comes back online.", explanation: "Producers have a limited in-memory buffer (controlled by buffer.memory). They do not indefinitely buffer messages during extended broker outages. This is not how Kafka handles broker failures — replication and ISR-based leader election is the correct mechanism." },
+      { text: "Confluent's multi-region replication (MirrorMaker 2) kicks in and routes traffic to a standby cluster when a broker fails.", explanation: "MirrorMaker 2 is for cross-cluster replication (e.g., disaster recovery across data centers). It does not activate automatically on a single broker failure within a cluster." }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Kafka's fault tolerance is built on partition replication. With replication factor N, each partition has N replicas distributed across N different brokers. The ISR (In-Sync Replicas) set tracks which replicas are fully caught up. When a broker fails, the controller (now managed by KRaft in Kafka 4.0) automatically elects a new leader from the ISR, ensuring producers and consumers experience only a brief metadata refresh before operations resume normally."
+  },
+  /* ===== 12 — INFERENCE ===== */
+  {
+    question: "A payments platform requires that every write to the 'payments' topic is guaranteed to be persisted on at least 2 brokers before the producer receives a success acknowledgment. The topic has a replication factor of 3. Which combination of settings correctly enforces this guarantee? (Choose TWO)",
+    type: "multiple",
+    source: "inference",
+    options: [
+      { text: "Set acks=all (equivalently acks=-1) on the producer configuration.", explanation: "Required. acks=all instructs the producer to wait for acknowledgment from all current in-sync replicas (ISR), not just the partition leader. Without this, the producer may receive an ack before followers have persisted the message." },
+      { text: "Set min.insync.replicas=2 on the topic or at the broker level.", explanation: "Required. min.insync.replicas=2 enforces that at least 2 replicas must be in the ISR for a write to be accepted. Combined with acks=all, this guarantees the message is durable on 2+ brokers before the producer receives acknowledgment." },
+      { text: "Set acks=1 on the producer configuration.", explanation: "Insufficient. acks=1 only waits for the partition leader to acknowledge the write. Followers may not yet have replicated the message. This does not guarantee durability on 2 brokers." },
+      { text: "Set replication.factor=2 on the topic.", explanation: "Irrelevant to fixing the guarantee — the topic already has replication.factor=3. Replication factor determines how many replicas exist, not how many must acknowledge writes. The acknowledgment guarantee requires acks and min.insync.replicas." },
+      { text: "Set min.insync.replicas=1 on the topic.", explanation: "Insufficient. min.insync.replicas=1 only requires the leader itself to be in-sync, providing no additional durability beyond acks=leader. This does not guarantee 2-broker persistence." }
+    ],
+    answers: [0, 1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. The combination acks=all + min.insync.replicas=2 is the standard Kafka pattern for strong write durability. acks=all alone is insufficient: if the ISR shrinks to 1 (only the leader), a write can still succeed. min.insync.replicas=2 adds the floor constraint that at least 2 ISR members must exist. Together, they create the 2-broker durability guarantee required for critical data like payments."
+  },
+  /* ===== 13 — INFERENCE ===== */
+  {
+    question: "A Kafka cluster has a topic with replication factor 2 on a 3-broker cluster. During a network partition event, the leader replica crashes and the only remaining replica is out of sync (not in the ISR). The operations team needs to restore topic availability immediately, even at the risk of losing some messages. Which configuration enables this?",
+    type: "single",
+    source: "inference",
+    options: [
+      { text: "Set min.insync.replicas=0 to bypass ISR requirements and allow writes with no in-sync replicas.", explanation: "min.insync.replicas=0 is not a valid Kafka configuration. The minimum allowed value is 1. This setting cannot be used to resolve the out-of-sync leader election problem." },
+      { text: "Set unclean.leader.election.enable=true to allow an out-of-sync replica to be elected as leader, restoring availability at the potential cost of data loss.", explanation: "Correct. unclean.leader.election.enable=true permits a replica that is NOT in the ISR to become the new partition leader. This is called an 'unclean' election because the new leader may be missing messages that the previous leader had already acknowledged. It prioritizes availability over consistency." },
+      { text: "Set acks=0 on all producers to bypass ISR validation and force the topic to accept writes from the available replica.", explanation: "acks=0 is a producer-side configuration that disables acknowledgments entirely. It has no effect on which replica can be elected as partition leader. It does not resolve the leader election issue caused by all ISR members being unavailable." },
+      { text: "Trigger a preferred leader election using kafka-leader-election.sh to restore the original partition leader from the replica list.", explanation: "Preferred leader election promotes the first replica in the replica list as leader — but only if it is in the ISR. If the preferred replica is out of sync, preferred leader election will not help; an unclean election is needed." }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. unclean.leader.election.enable is a critical availability vs. durability trade-off parameter. When false (default in modern Kafka), partitions become unavailable if all ISR members are gone — preserving data consistency. When true, an out-of-sync replica can lead, restoring availability but potentially losing messages between the out-of-sync replica's last offset and the crashed leader's last offset. This is a classic CAP theorem trade-off in Kafka."
+  },
+  /* ===== 14 — INFERENCE ===== */
+  {
+    question: "A developer is configuring a Kafka producer to connect to a 5-broker production cluster. He sets bootstrap.servers to only one of the five broker addresses, claiming 'one is enough to get started.' His colleague argues that multiple brokers should be listed. Who is correct, and what is the actual behavior of bootstrap.servers?",
+    type: "single",
+    source: "inference",
+    options: [
+      { text: "The developer is correct — Kafka uses a leader broker that all clients must connect to, and any single broker address is sufficient as it proxies connections to all other brokers.", explanation: "Kafka does not have a universal leader broker that proxies all connections. After the bootstrap phase, clients connect directly to partition leaders, which may be distributed across all 5 brokers." },
+      { text: "Listing one broker is technically sufficient for the initial bootstrap (the client fetches full cluster metadata from it), but best practice is to list multiple brokers so that the client can connect successfully even if one bootstrap broker is unavailable at startup.", explanation: "Correct. bootstrap.servers is only used for the initial metadata fetch. The client connects to any listed broker to discover the full cluster topology. Listing 2-3 brokers is best practice: if the single listed broker is temporarily down at client startup, the client has no fallback and will fail to connect." },
+      { text: "All 5 brokers must be listed in bootstrap.servers; otherwise the producer cannot send to partitions hosted on unlisted brokers.", explanation: "After the initial bootstrap, the client communicates directly with partition leaders regardless of whether they appear in bootstrap.servers. The bootstrap list is only for the initial metadata discovery step." },
+      { text: "bootstrap.servers must contain at least as many entries as the topic's replication factor to guarantee write durability.", explanation: "bootstrap.servers has no relationship to replication factor or write durability. It is purely a connection bootstrap mechanism." }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. bootstrap.servers serves only one purpose: providing the initial contact points for metadata discovery. After bootstrap, the Kafka client has the full cluster topology and communicates directly with partition leaders. Listing only one broker works technically but is fragile — if that broker is down at startup, the client fails to initialize. Best practice is to list 2-3 brokers for bootstrap resilience."
+  },
+  /* ===== 15 — INFERENCE ===== */
+  {
+    question: "A high-throughput Kafka broker currently has a single SSD with write throughput becoming a bottleneck. An engineer adds three additional SSDs to the broker's server. To enable Kafka to leverage all four SSDs for parallel partition I/O, which configuration change is required?",
+    type: "single",
+    source: "inference",
+    options: [
+      { text: "Set num.io.threads=4 to match the number of SSDs, enabling Kafka to parallelize disk writes across all drives.", explanation: "num.io.threads controls the number of I/O threads in Kafka's network layer for handling disk operations, but it does not distribute partition data across multiple physical disks. All data would still write to the single configured log directory." },
+      { text: "Set num.partitions=4 to create four partitions per topic, which Kafka distributes one-per-SSD.", explanation: "num.partitions sets the default partition count for new topics. Kafka does not automatically map partitions to specific SSDs based on partition count — all partitions still write to the configured log directory/directories." },
+      { text: "Update log.dirs (plural) to a comma-separated list of mount points for each SSD (e.g., /data/ssd1,/data/ssd2,/data/ssd3,/data/ssd4), allowing Kafka to distribute partition logs across all four drives.", explanation: "Correct. log.dirs accepts multiple directory paths. Kafka distributes partition log directories across all specified paths using a least-used assignment strategy. With four SSDs mounted at separate paths, Kafka will spread partition logs across all four, enabling parallel I/O and quadrupling potential disk throughput." },
+      { text: "Configure a software RAID-0 array across the four SSDs and point log.dir (singular) to the RAID mount point.", explanation: "RAID-0 can improve throughput, but it requires OS-level setup and loses redundancy. log.dirs (the plural Kafka configuration) is the native Kafka approach for multi-disk utilization and is preferred over RAID-0 for Kafka deployments." }
+    ],
+    answers: [2],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Kafka supports multi-disk I/O natively through the log.dirs configuration (note: plural, not log.dir). When multiple directory paths are specified — each on a separate physical SSD — Kafka distributes partition logs across these directories. New partitions are assigned to the directory with the fewest existing partitions. This is a key performance optimization for high-throughput brokers and avoids single-disk I/O saturation."
+  },
+  /* ===== 16 — INFERENCE ===== */
+  {
+    question: "A company expands their 4-broker Kafka cluster by adding a fifth broker to increase capacity. After the broker joins the cluster and is visible in the metadata, the operations team notices it receives no traffic and handles zero partitions. They expect it to automatically receive some of the partitions from the existing brokers. What is the issue and how should it be resolved?",
+    type: "single",
+    source: "inference",
+    options: [
+      { text: "The new broker is in standby mode by default and needs to be activated using the kafka-broker-api-versions.sh command.", explanation: "There is no 'standby mode' for Kafka brokers. Once a broker joins the cluster and registers with the KRaft controller, it is immediately eligible to receive partition assignments. The issue is not activation." },
+      { text: "Kafka automatically rebalances all existing partitions across all brokers when a new broker joins; the delay is normal and will resolve within a few minutes.", explanation: "Kafka does NOT automatically rebalance existing partitions when a new broker joins. This is a common misconception. Existing partition assignments are static unless explicitly changed." },
+      { text: "Existing partitions are not automatically reassigned when a new broker is added. An administrator must manually trigger partition reassignment using kafka-reassign-partitions.sh (or Confluent's tooling) to redistribute partitions to the new broker.", explanation: "Correct. Kafka only uses the new broker for partitions of newly created topics (where it can include the broker in the initial assignment). For existing topics, partitions stay where they are until reassignment is explicitly triggered with kafka-reassign-partitions.sh or equivalent tooling." },
+      { text: "The new broker needs to be added to the bootstrap.servers configuration of all existing clients before it can receive partition assignments.", explanation: "bootstrap.servers is a client configuration for initial metadata discovery, not a requirement for broker-side partition assignment. The controller assigns partitions to brokers independently of client bootstrap configuration." }
+    ],
+    answers: [2],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Adding a broker to a Kafka cluster does not trigger automatic partition rebalancing. The new broker is visible to the controller and eligible for new topic assignments, but existing partitions remain on their current brokers until an administrator explicitly runs kafka-reassign-partitions.sh (Apache Kafka) or uses Confluent Control Center / Confluent CLI to generate and execute a reassignment plan."
+  },
+  /* ===== 17 — INFERENCE ===== */
+  {
+    question: "A Kafka cluster is deployed across two server racks in a data center (Rack A and Rack B). Each rack has 2 brokers (total: 4 brokers). The team wants to ensure that for any partition with replication factor 2, the leader and its follower are always on different racks — so a single rack power failure cannot cause data unavailability. Which configuration achieves this?",
+    type: "single",
+    source: "inference",
+    options: [
+      { text: "Set replication.factor=4 to force replicas across all 4 brokers, which inherently distributes them across both racks.", explanation: "Setting replication.factor=4 would place a replica on every broker including both racks, but with replication.factor=2 this does not guarantee cross-rack placement. Without rack awareness, Kafka might still assign both replicas to brokers in the same rack." },
+      { text: "Configure broker.rack on each broker with its rack identifier (e.g., rack-a or rack-b). Kafka's rack-aware replica assignment algorithm will then distribute replicas across racks.", explanation: "Correct. Setting broker.rack on each broker tells Kafka the physical topology. When creating topics or reassigning partitions, Kafka's rack-aware algorithm ensures that successive replicas are placed on brokers in different racks, providing protection against rack-level failures." },
+      { text: "Deploy separate Kafka clusters per rack and use MirrorMaker 2 to replicate between them for cross-rack redundancy.", explanation: "This approach works for disaster recovery scenarios but is operationally complex and expensive for in-datacenter rack redundancy. Kafka's built-in broker.rack configuration achieves the same fault tolerance within a single cluster without requiring MirrorMaker 2." },
+      { text: "Set min.insync.replicas=2 with replication.factor=2; Kafka will automatically place replicas on different racks to satisfy this requirement.", explanation: "min.insync.replicas ensures a minimum number of ISR members for write acceptance but has no influence on where replicas are physically placed. Only broker.rack enables topology-aware replica placement." }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Kafka's rack awareness feature is activated by setting broker.rack on each broker with a rack identifier. When configured, Kafka's partition assignment algorithm ensures that consecutive replicas of the same partition are placed on brokers in different racks. This provides resilience against rack-level failures (PDU, ToR switch, cooling) without needing separate clusters or MirrorMaker 2."
+  },
+  /* ===== 18 — INFERENCE ===== */
+  {
+    question: "A producer application sends messages to a Kafka topic with replication.factor=3 and min.insync.replicas=3. During routine maintenance, one broker is taken offline. The producer, configured with acks=all, starts throwing NotEnoughReplicasException. Which analysis correctly identifies the root cause and the best fix?",
+    type: "multiple",
+    source: "inference",
+    options: [
+      { text: "Root cause: with one broker offline, only 2 replicas remain in the ISR, falling below the required min.insync.replicas=3, causing the broker to reject writes.", explanation: "Correct root cause. min.insync.replicas=3 requires all 3 replicas to be in-sync. With 1 broker down, only 2 replicas remain — the write is rejected. This configuration leaves zero fault tolerance margin." },
+      { text: "Fix: reduce min.insync.replicas to 2, so one broker can be taken offline during maintenance while maintaining write availability with 2 in-sync replicas.", explanation: "Correct fix. Changing min.insync.replicas to 2 (with replication.factor=3) allows one broker to be offline while still satisfying the minimum ISR requirement. The general rule is: min.insync.replicas ≤ replication.factor - 1 for operational fault tolerance." },
+      { text: "Root cause: the producer's acks setting must be changed to acks=1 to bypass the ISR check during maintenance.", explanation: "Changing acks=1 would make the producer ignore ISR requirements, but this reduces durability guarantees. It is a workaround that trades away the safety guarantees, not a proper fix to the root cause." },
+      { text: "Fix: increase replication.factor to 4 on the topic so that losing one broker still leaves 3 in-sync replicas to satisfy min.insync.replicas=3.", explanation: "This would work but requires a topic replication factor change (only possible with partition reassignment in Kafka) and increases storage costs. It is less efficient than simply adjusting min.insync.replicas to a value that allows broker maintenance." }
+    ],
+    answers: [0, 1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. The critical formula is: for N-fault-tolerant writes, set min.insync.replicas = replication.factor - N. Setting min.insync.replicas equal to replication.factor creates a zero-tolerance configuration — any single broker outage (including planned maintenance) blocks all writes. Best practice is min.insync.replicas = replication.factor - 1 to allow one broker to be offline without impacting write availability."
+  },
+  /* ===== 19 — INFERENCE ===== */
+  {
+    question: "A new Kafka consumer group 'analytics-v2' is starting for the first time on a topic that has been receiving messages for 6 months. The team wants to process ALL historical messages from the beginning, not just new ones. The consumer has never committed any offsets. Which configuration achieves this?",
+    type: "single",
+    source: "inference",
+    options: [
+      { text: "Set enable.auto.commit=false to prevent any offset commits, which forces the consumer to restart from the beginning on every restart.", explanation: "enable.auto.commit controls whether offsets are periodically committed automatically. Disabling it prevents automatic commits but does not determine the starting offset for a new consumer group with no prior committed offsets. The starting position is controlled by auto.offset.reset." },
+      { text: "Set auto.offset.reset=earliest so that when no committed offset exists for the consumer group, the consumer starts from the earliest available offset in each partition.", explanation: "Correct. auto.offset.reset=earliest instructs the consumer to start from the beginning of the partition (the earliest retained offset) when no prior committed offset exists for the consumer group. This is the standard setting for processing all historical messages with a new group." },
+      { text: "Set auto.offset.reset=latest to consume all messages including those produced before the consumer started.", explanation: "auto.offset.reset=latest starts the consumer at the end of the partition — only messages produced after the consumer started will be consumed. This is the opposite of the requirement." },
+      { text: "Set fetch.max.bytes to a very large value so the consumer can fetch all historical messages in a single request.", explanation: "fetch.max.bytes controls the maximum amount of data per fetch request for throughput tuning. It has no effect on which offset the consumer begins reading from — that is controlled by auto.offset.reset." }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. auto.offset.reset determines the starting position for a consumer group when no committed offset exists. 'earliest' means start from the oldest retained message; 'latest' (default) means start from the newest messages only; 'none' throws an exception if no offset is found. For processing all historical data with a new consumer group, auto.offset.reset=earliest is the required setting."
+  },
+  /* ===== 20 — INFERENCE ===== */
+  {
+    question: "A Kafka cluster operations team notices that after recovering from a broker crash and restart cycle last week, one broker consistently handles 70% of all partition leader traffic while the other two brokers are relatively idle. The cluster is healthy and all brokers are online with correct replication. What is the most likely cause and the recommended corrective action?",
+    type: "single",
+    source: "inference",
+    options: [
+      { text: "The overloaded broker has a faster CPU, so Kafka's dynamic load balancer automatically routes more leader traffic to it. Downgrading its hardware will rebalance the load.", explanation: "Kafka does not have a CPU-based dynamic load balancer for partition leadership. Leadership assignment is based on the original replica assignment plan and preferred leader election, not real-time hardware performance metrics." },
+      { text: "After broker failures and restarts, partition leadership may have migrated away from the preferred leaders. Running kafka-leader-election.sh with --election-type PREFERRED restores the original leader assignment, redistributing the load.", explanation: "Correct. When a broker restarts after failure, it rejoins as a follower for its partitions — another broker that became leader during the outage retains leadership. Over time, this concentrates leaders on a few brokers. Preferred leader election restores each partition's first ISR replica (the preferred leader) as leader, rebalancing the distribution." },
+      { text: "The overloaded broker has a higher replication factor set on its partitions. Reducing its replication factor to match the other brokers will equalize leader traffic.", explanation: "Replication factor affects how many replicas exist, not leader distribution. You cannot set different replication factors per broker — it is a per-topic-partition configuration. This is not the cause of leadership concentration." },
+      { text: "Set num.replica.fetchers=1 on the overloaded broker to throttle its replication and force Kafka to rebalance leaders to other brokers.", explanation: "num.replica.fetchers controls how many threads a broker uses to fetch data from leaders for its follower partitions. Reducing it throttles replication catch-up but does not trigger leader redistribution. It would actually worsen the situation by slowing the overloaded broker's ability to stay in ISR." }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Partition leadership imbalance is a common post-incident operational issue. Kafka assigns a 'preferred leader' (the first replica in the replica list) for each partition at creation time. After broker failures and restarts, leadership migrates but doesn't auto-return. The fix: run kafka-leader-election.sh --election-type PREFERRED (or enable auto.leader.rebalance.enable=true with leader.imbalance.check.interval.seconds) to restore the original preferred leader distribution."
+  }
+];
+
+var QUESTIONS = [];
+var qIdx = 0;
+var selected = [];
+var answered = false;
+var score = 0;
+var questionResults = [];
+var timerInterval = null;
+var timeLeft = 0;
+var TOTAL_SECONDS = 0;
+
+function shuffleArray(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+function prepareQuestions() {
+  QUESTIONS = [];
+  for (var i = 0; i < QUESTIONS_MASTER.length; i++) {
+    var q = JSON.parse(JSON.stringify(QUESTIONS_MASTER[i]));
+    var indexed = [];
+    for (var k = 0; k < q.options.length; k++) {
+      indexed.push({ text: q.options[k].text, explanation: q.options[k].explanation, isCorrect: q.answers.indexOf(k) !== -1 });
+    }
+    indexed = shuffleArray(indexed);
+    q.options = [];
+    q.answers = [];
+    for (var j = 0; j < indexed.length; j++) {
+      q.options.push({ text: indexed[j].text, explanation: indexed[j].explanation });
+      if (indexed[j].isCorrect) q.answers.push(j);
+    }
+    QUESTIONS.push(q);
+  }
+}
+
+function startTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  TOTAL_SECONDS = QUESTIONS.length * 90;
+  timeLeft = TOTAL_SECONDS;
+  updateTimerDisplay();
+  timerInterval = setInterval(function() {
+    timeLeft--;
+    updateTimerDisplay();
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      autoSubmitAndAdvance();
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  var el = document.getElementById('timerDisplay');
+  if (!el) return;
+  var pct = (TOTAL_SECONDS > 0) ? timeLeft / TOTAL_SECONDS : 1;
+  var mins = Math.floor(Math.abs(timeLeft) / 60);
+  var secs = Math.abs(timeLeft) % 60;
+  el.textContent = '⏱ ' + (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
+  el.className = 'timer';
+  if (pct <= 0.1) el.className = 'timer red';
+  else if (pct <= 0.2) el.className = 'timer orange';
+}
+
+function autoSubmitAndAdvance() {
+  if (!answered) {
+    doValidate();
+  }
+  setTimeout(function() {
+    if (qIdx < QUESTIONS.length - 1) {
+      suivante();
+    } else {
+      showScore();
+    }
+  }, 2000);
+}
+
+function paint() {
+  var q = QUESTIONS[qIdx];
+  var pct = (qIdx / QUESTIONS.length) * 100;
+  document.getElementById('progressBar').style.width = pct + '%';
+
+  var sourceCls = (q.source === 'cours') ? 'cours' : 'inference';
+  var sourceTxt = (q.source === 'cours') ? '📘 From the course' : '🔍 Beyond the course';
+  var typeTxt   = (q.type === 'multiple') ? '✦ Multiple answers' : '◉ Single answer';
+
+  var html = '<div class="q-counter">Question ' + (qIdx + 1) + ' of ' + QUESTIONS.length + '</div>';
+  html += '<div class="badges-row">';
+  html += '<span class="badge-type">' + typeTxt + '</span>';
+  html += '<span class="badge-source ' + sourceCls + '">' + sourceTxt + '</span>';
+  html += '</div>';
+  html += '<div class="question-text">' + q.question + '</div>';
+  html += '<div class="options" id="optionsContainer">';
+
+  var letters = ['A','B','C','D','E'];
+  for (var i = 0; i < q.options.length; i++) {
+    html += '<div class="option" id="opt_' + i + '" onclick="pickOption(' + i + ')">';
+    html += '<div class="option-row">';
+    html += '<span class="option-letter">' + letters[i] + '</span>';
+    html += '<span class="option-text">' + q.options[i].text + '</span>';
+    html += '</div>';
+    html += '<div class="option-explanation" id="exp_' + i + '"></div>';
+    html += '</div>';
+  }
+  html += '</div>';
+
+  html += '<div class="global-explanation" id="globalExp">';
+  html += '<span class="ge-title">💡 Key Concept</span>';
+  html += '<span id="globalExpText"></span>';
+  html += '</div>';
+
+  html += '<div class="btn-row">';
+  html += '<button class="btn" id="btnValidate" onclick="valider()">Validate</button>';
+  html += '<button class="btn-outline" id="btnNext" onclick="suivante()" disabled>Next question →</button>';
+  html += '</div>';
+
+  document.getElementById('quizArea').innerHTML = html;
+}
+
+function pickOption(idx) {
+  if (answered) return;
+  var q = QUESTIONS[qIdx];
+  if (q.type === 'single') {
+    selected = [idx];
+    for (var i = 0; i < q.options.length; i++) {
+      var el = document.getElementById('opt_' + i);
+      el.className = 'option' + (i === idx ? ' selected' : '');
+    }
+  } else {
+    var pos = selected.indexOf(idx);
+    if (pos === -1) selected.push(idx);
+    else selected.splice(pos, 1);
+    for (var j = 0; j < q.options.length; j++) {
+      var oel = document.getElementById('opt_' + j);
+      oel.className = 'option' + (selected.indexOf(j) !== -1 ? ' selected' : '');
+    }
+  }
+}
+
+function doValidate() {
+  if (answered) return;
+  var q = QUESTIONS[qIdx];
+  answered = true;
+
+  var correctSorted = q.answers.slice().sort(function(a,b){return a-b;}).join(',');
+  var selectedSorted = selected.slice().sort(function(a,b){return a-b;}).join(',');
+  var isCorrect = (correctSorted === selectedSorted && selected.length > 0);
+  if (isCorrect) score++;
+  questionResults.push({ source: q.source, correct: isCorrect });
+
+  var letters = ['A','B','C','D','E'];
+  for (var i = 0; i < q.options.length; i++) {
+    var el = document.getElementById('opt_' + i);
+    var isAns = (q.answers.indexOf(i) !== -1);
+    var isSel = (selected.indexOf(i) !== -1);
+    var cls = 'option disabled';
+    if (isAns && isSel)       cls += ' correct';
+    else if (!isAns && isSel) cls += ' wrong';
+    else if (isAns && !isSel) cls += ' missed';
+
+    el.className = cls;
+    el.onclick = null;
+
+    var expEl = document.getElementById('exp_' + i);
+    expEl.className = 'option-explanation show';
+    var icon = isAns
+      ? '<em class="icon" style="color:#2e7d32;font-style:normal">✓</em>'
+      : '<em class="icon" style="color:#c62828;font-style:normal">✗</em>';
+    expEl.innerHTML = icon + q.options[i].explanation;
+  }
+
+  var gEl = document.getElementById('globalExp');
+  gEl.className = 'global-explanation show';
+  document.getElementById('globalExpText').textContent = q.globalExplanation;
+
+  document.getElementById('btnValidate').disabled = true;
+  document.getElementById('btnNext').disabled = false;
+}
+
+function valider() {
+  doValidate();
+}
+
+function suivante() {
+  if (qIdx < QUESTIONS.length - 1) {
+    qIdx++;
+    selected = [];
+    answered = false;
+    paint();
+  } else {
+    showScore();
+  }
+}
+
+function showScore() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  document.getElementById('progressBar').style.width = '100%';
+
+  var pct = Math.round((score / QUESTIONS.length) * 100);
+  var barClass = pct >= 70 ? 'high' : (pct >= 50 ? 'mid' : 'low');
+  var icon, msg;
+  if (pct >= 80) { icon = '🏆'; msg = 'Excellent! CCDAK-ready performance!'; }
+  else if (pct >= 65) { icon = '👍'; msg = 'Good work — review the flagged topics.'; }
+  else if (pct >= 50) { icon = '📚'; msg = "You're halfway there — keep practicing!"; }
+  else { icon = '🔁'; msg = 'More practice needed. Revisit the course content.'; }
+
+  var coursTotal = 0, coursRight = 0, inferTotal = 0, inferRight = 0;
+  for (var i = 0; i < questionResults.length; i++) {
+    if (questionResults[i].source === 'cours') {
+      coursTotal++;
+      if (questionResults[i].correct) coursRight++;
+    } else {
+      inferTotal++;
+      if (questionResults[i].correct) inferRight++;
+    }
+  }
+  // Fill in unanswered questions from QUESTIONS array
+  if (questionResults.length < QUESTIONS.length) {
+    for (var j = questionResults.length; j < QUESTIONS.length; j++) {
+      if (QUESTIONS[j].source === 'cours') coursTotal++;
+      else inferTotal++;
+    }
+  }
+
+  var html = '<div class="score-screen">';
+  html += '<div class="score-icon">' + icon + '</div>';
+  html += '<div class="score-title">Quiz Complete!</div>';
+  html += '<div class="score-fraction">You scored <strong>' + score + ' / ' + QUESTIONS.length + '</strong> &nbsp;(' + pct + '%)</div>';
+  html += '<div class="score-bar-outer"><div class="score-bar-inner ' + barClass + '" style="width:' + pct + '%"></div></div>';
+  html += '<div class="score-message">' + msg + '</div>';
+  html += '<div class="score-breakdown">';
+  html += '<div class="score-badge cours"><div class="bd-label">📘 From the course</div><div class="bd-num">' + coursRight + ' / ' + coursTotal + '</div></div>';
+  html += '<div class="score-badge inference"><div class="bd-label">🔍 Beyond the course</div><div class="bd-num">' + inferRight + ' / ' + inferTotal + '</div></div>';
+  html += '</div>';
+  html += '<button class="btn" onclick="recommencer()">🔁 Restart the test</button>';
+  html += '</div>';
+
+  document.getElementById('quizArea').innerHTML = html;
+}
+
+function recommencer() {
+  qIdx = 0;
+  selected = [];
+  answered = false;
+  score = 0;
+  questionResults = [];
+  prepareQuestions();
+  paint();
+  startTimer();
+}
+
+// Initialize
+prepareQuestions();
+paint();
+startTimer();
+</script>
+</body>
+</html>

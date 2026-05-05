@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CCDAK Prep — Level 2 · Kafka Topics</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,sans-serif;background:#1a1a2e;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:32px 16px}
+  .card{background:#fff;border-radius:12px;border:1px solid #dde1e9;width:100%;max-width:840px;overflow:hidden}
+  .card-header{background:#1a1a2e;padding:16px 26px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .card-header h1{color:#fff;font-size:1.1rem;letter-spacing:.8px;white-space:nowrap}
+  .header-right{display:flex;align-items:center;gap:16px}
+  .timer-global{font-size:1rem;font-weight:700;color:#fff;background:rgba(255,255,255,.1);border-radius:7px;padding:5px 12px;white-space:nowrap}
+  .timer-global.warn{color:#f39c12;background:rgba(243,156,18,.15)}
+  .timer-global.danger{color:#e74c3c;background:rgba(231,76,60,.18);animation:pulse .8s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+  .q-count-header{color:#aab;font-size:.82rem;white-space:nowrap}
+  .progress-bar-wrap{height:5px;background:#e9ecef}
+  .progress-bar-fill{height:5px;background:#C0392B;transition:width .4s}
+  .card-body{padding:26px}
+  .q-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .q-num{font-size:.8rem;color:#888}
+  .badges{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .badge{display:inline-block;font-size:.72rem;font-weight:600;border-radius:4px;padding:2px 9px}
+  .badge-single{background:#eaf4fb;color:#1a6fa8}
+  .badge-multi{background:#fef3e2;color:#b05f00}
+  .badge-cours{background:#e8f4fd;color:#1a6fa8}
+  .badge-inference{background:#f0e8fd;color:#6a1ab8}
+  .q-text{font-size:1rem;color:#1a1a2e;font-weight:600;line-height:1.6;margin-bottom:18px}
+  .options-list{list-style:none;display:flex;flex-direction:column;gap:8px}
+  .option-wrap{display:flex;flex-direction:column}
+  .option-btn{width:100%;background:#f8f9fb;border:1.5px solid #dde1e9;border-radius:8px;padding:11px 14px;text-align:left;cursor:pointer;font-size:.93rem;color:#2d3748;display:flex;align-items:flex-start;gap:11px;transition:background .15s,border-color .15s}
+  .option-btn:hover:not([disabled]){background:#eef1f7;border-color:#b0b8cc}
+  .option-btn.selected{background:#e8f0fe;border-color:#3a6fd8}
+  .option-btn.correct{background:#e6f9f0;border-color:#27ae60;color:#145c35}
+  .option-btn.wrong{background:#fdecea;border-color:#e74c3c;color:#7b1a1a}
+  .option-btn.missed{background:#e6f9f0;border-color:#27ae60;border-style:dashed;color:#145c35}
+  .option-btn[disabled]{cursor:default}
+  .opt-letter{font-weight:700;font-size:.88rem;min-width:24px;height:24px;border-radius:50%;background:#dde1e9;display:flex;align-items:center;justify-content:center;color:#555;flex-shrink:0;margin-top:1px}
+  .option-btn.selected .opt-letter{background:#3a6fd8;color:#fff}
+  .option-btn.correct  .opt-letter{background:#27ae60;color:#fff}
+  .option-btn.wrong    .opt-letter{background:#e74c3c;color:#fff}
+  .option-btn.missed   .opt-letter{background:#27ae60;color:#fff}
+  .opt-expl{display:none;font-size:.82rem;padding:6px 14px 6px 49px;line-height:1.55;border-left:2px solid #dde1e9;margin-top:2px;border-radius:0 0 6px 6px}
+  .opt-expl.show{display:block}
+  .opt-expl.expl-ok{border-left-color:#27ae60;color:#1a5c38}
+  .opt-expl.expl-ko{border-left-color:#e74c3c;color:#7b1a1a}
+  .opt-expl.expl-missed{border-left-color:#27ae60;color:#1a5c38}
+  .opt-expl.expl-neutral{border-left-color:#ccc;color:#777}
+  .global-expl{display:none;margin-top:18px;background:#12102a;border-left:4px solid #C0392B;border-radius:0 8px 8px 0;padding:14px 16px;color:#e0e0f0;font-size:.88rem;line-height:1.65}
+  .global-expl.show{display:block}
+  .global-expl h4{font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;color:#C0392B;margin-bottom:7px}
+  .actions{margin-top:20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .btn-validate,.btn-next,.btn-restart{border:none;border-radius:7px;padding:10px 24px;font-size:.93rem;font-weight:600;cursor:pointer;transition:opacity .15s}
+  .btn-validate{background:#C0392B;color:#fff}
+  .btn-validate:disabled{opacity:.38;cursor:default}
+  .btn-next{background:#1a1a2e;color:#fff}
+  .btn-next:disabled{opacity:.32;cursor:default}
+  .btn-restart{background:#C0392B;color:#fff}
+  .score-screen{padding:30px 26px;text-align:center}
+  .score-screen h2{font-size:1.55rem;color:#1a1a2e;margin-bottom:7px}
+  .score-msg{font-size:.97rem;color:#555;margin-bottom:22px}
+  .score-bar-wrap{background:#e9ecef;border-radius:999px;height:16px;margin-bottom:22px;overflow:hidden}
+  .score-bar-fill{height:16px;border-radius:999px;transition:width .8s}
+  .score-detail{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px;text-align:left}
+  .score-box{background:#f7f8fc;border-radius:8px;padding:13px 15px;border:1px solid #dde1e9}
+  .score-box .lbl{font-size:.75rem;color:#888;margin-bottom:3px}
+  .score-box .val{font-size:1.35rem;font-weight:700;color:#1a1a2e}
+  .score-box .sub{font-size:.78rem;color:#555;margin-top:2px}
+  .score-box.blue .val{color:#1a6fa8}
+  .score-box.purple .val{color:#6a1ab8}
+  .score-box.orange .val{color:#b05f00}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="card-header">
+    <h1>CCDAK Prep &mdash; Level 2 &middot; Kafka Topics</h1>
+    <div class="header-right">
+      <span class="timer-global" id="globalTimer">⏱ 30:00</span>
+      <span class="q-count-header" id="headerSub">Module 2</span>
+    </div>
+  </div>
+  <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBar" style="width:0%"></div></div>
+  <div id="quizArea" class="card-body"></div>
+</div>
+<script>
+var QUESTIONS = [
+  {
+    source: "cours",
+    type: "single",
+    question: "An IoT platform collects temperature readings from 10,000 smart thermostats every 5 seconds. The operations team wants to answer questions like: 'How quickly did the kitchen warm up between 8am and 9am on Monday?' and 'What was the average temperature last Tuesday?' A junior developer suggests storing thermostat readings in a relational database and updating each thermostat's row with the latest temperature. A senior architect rejects this approach. What is the fundamental problem with the relational UPDATE approach, and what does Kafka offer instead?",
+    options: [
+      {
+        text: "Relational databases cannot handle the write throughput of 10,000 thermostats at 5-second intervals. Kafka provides higher write throughput.",
+        explanation: "✗ While Kafka does offer high write throughput, this is not the FUNDAMENTAL problem described. The core issue is about historical data preservation, not raw throughput. Many databases can handle this write rate."
+      },
+      {
+        text: "The UPDATE approach destroys historical state: once a row is updated to 24°C, the previous 22°C reading is permanently lost, making historical analysis (rate of warming, averages over time) impossible. Kafka's append-only log preserves every reading as a new immutable event.",
+        explanation: "✓ This is the fundamental architectural difference. A relational UPDATE overwrites the previous value, losing all historical context. Kafka's append-only log model stores every new reading as a new event at the end of the topic — preserving the complete history and enabling all time-based analytics."
+      },
+      {
+        text: "Relational databases do not support timestamps on rows. Kafka's message timestamp field fills this gap.",
+        explanation: "✗ Relational databases support timestamps natively (TIMESTAMP columns, created_at, updated_at fields). The problem is not timestamp support — it is the loss of historical state when rows are overwritten."
+      },
+      {
+        text: "Relational databases cannot handle millions of concurrent readers. Kafka's log allows multiple consumers to read simultaneously.",
+        explanation: "✗ Fan-out (multiple consumers) is indeed an advantage of Kafka over queues, but it is not the fundamental reason the UPDATE approach fails for historical analysis. The problem is the destruction of historical state, not read concurrency."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "The fundamental difference between a relational table and a Kafka topic is that tables use UPDATE semantics (overwrite current state, lose history) while Kafka uses append-only log semantics (every change is a new event, full history is preserved). This makes Kafka ideal for any use case requiring historical analysis, audit trails, or time-series processing — all of which would be impossible with a pure UPDATE-based relational model."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A financial services company stores transaction records in a Kafka topic called `transactions`. A compliance engineer discovers that a transaction record with offset 1042 was logged with an incorrect merchant ID due to a data quality issue at the source system. The engineer asks the Kafka administrator to correct the value in the existing message at offset 1042. What will happen when the administrator attempts this?",
+    options: [
+      {
+        text: "The administrator can update the message value using the Kafka AdminClient's alterRecords() method.",
+        explanation: "✗ No such method exists in the Kafka AdminClient API. Kafka does not provide any API to modify the content of existing messages. The AdminClient can manage topics, configs, and offsets — but not message content."
+      },
+      {
+        text: "The message cannot be modified. Kafka messages are immutable once written. The correct approach is to produce a new corrective event to the topic and handle the correction in downstream consumers.",
+        explanation: "✓ Kafka's immutability is absolute: once written, a message cannot be changed. The standard correction pattern is to produce a new compensating event (e.g., a message with the corrected merchant ID and a flag indicating it supersedes offset 1042), and handle the correction logic in consuming applications."
+      },
+      {
+        text: "The administrator can overwrite the message by producing a new message to the same offset position.",
+        explanation: "✗ Kafka does not allow producers to target specific offsets. Offsets are assigned sequentially by the broker as messages are appended. There is no mechanism to write to a pre-existing offset."
+      },
+      {
+        text: "The message can be modified if the topic has cleanup.policy=compact, which allows overwriting values for existing keys.",
+        explanation: "✗ Log compaction retains the latest message per key by discarding OLDER messages — it does not allow modifying the content of existing messages. Compaction is a retention mechanism, not an update mechanism. The latest message per key remains immutable."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "Kafka's immutability guarantee is one of its core design principles. Once a message is written to a topic at a given offset, its content cannot be modified by any Kafka API. This is intentional: immutability enables replay, audit trails, and deterministic reprocessing. The standard correction pattern is to produce a new compensating event and handle corrections at the application layer."
+  },
+  {
+    source: "cours",
+    type: "multiple",
+    question: "An architecture team is evaluating Kafka to replace an existing RabbitMQ message queue. A key requirement is that multiple downstream services — analytics, archiving, notifications, and billing — must all independently process every order event from the `orders` topic without interfering with each other. Which TWO properties of Kafka topics make this fan-out pattern possible?",
+    options: [
+      {
+        text: "Messages in a Kafka topic are NOT deleted after being read — they remain available for all consumers to read independently.",
+        explanation: "✓ Unlike a message queue (RabbitMQ, SQS) where a message is consumed and removed, Kafka messages remain in the topic log until expiration. This means all four services (analytics, archiving, notifications, billing) can read the same message independently at their own pace."
+      },
+      {
+        text: "Each consumer (or consumer group) maintains its own independent offset position within the topic.",
+        explanation: "✓ Each consumer group maintains its own committed offset. The analytics service may be at offset 1000 while billing is at offset 950 — they are completely independent. No consumer's progress affects another consumer's offset."
+      },
+      {
+        text: "Kafka automatically copies messages to a separate topic for each consumer, ensuring isolation.",
+        explanation: "✗ Kafka does NOT copy messages per consumer. All consumers read from the SAME topic log. The fan-out pattern works because Kafka's log is non-destructive upon reading and each consumer tracks its own offset independently."
+      },
+      {
+        text: "Kafka's replication factor ensures each consumer receives its own replica of each message.",
+        explanation: "✗ Replication factor is for fault tolerance (multiple broker copies for availability), not for fan-out to multiple consumers. All consumers read from the leader replica; replication is a durability mechanism, not a message distribution mechanism."
+      }
+    ],
+    answers: [0, 1],
+    globalExplanation: "Kafka enables fan-out because its log is non-destructive (reading does not remove messages) and each consumer group maintains its own independent offset. This is fundamentally different from traditional message queues where consuming a message removes it. In Kafka, thousands of independent consumers can read the same topic simultaneously without interfering with each other."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A developer is producing events to a Kafka topic `user-actions` where the key is set to the user's session_id. After 3 months of operation, the business grows and the platform team increases the topic's partition count from 6 to 12 to handle higher throughput. A consumer team immediately reports that events for the same user_session now appear on different partitions, breaking their session-level ordering guarantees. What is the root cause?",
+    options: [
+      {
+        text: "The default partitioner uses the record value (not the key) for partitioning, so partition counts never affected key-based routing.",
+        explanation: "✗ The default Kafka partitioner uses a hash of the key (when a key is provided) to determine the partition. When a key is provided, partitioning IS key-based, and changing the partition count changes the hash result."
+      },
+      {
+        text: "Increasing the partition count changes the modulo of the key hash calculation (hash(key) % numPartitions), causing keys that previously mapped to partition 3 to now map to a different partition. Pre-existing messages with the same key stay in their original partition.",
+        explanation: "✓ Kafka's default partitioner assigns a record to partition = murmur2(key) % numPartitions. Changing numPartitions from 6 to 12 changes the modulo, meaning the same key now maps to a different partition number. Old messages remain on their original partitions, while new messages go to the new partition — breaking per-key ordering."
+      },
+      {
+        text: "Consumer group rebalancing after the partition count change incorrectly redistributes existing partition assignments.",
+        explanation: "✗ Consumer group rebalancing reassigns partitions to consumers — it does not move messages between partitions. The root cause is the hash(key) % numPartitions calculation, not consumer rebalancing."
+      },
+      {
+        text: "Kafka automatically repartitions existing messages when the partition count is increased, causing ordering issues.",
+        explanation: "✗ Kafka does NOT move or repartition existing messages when the partition count is increased. Existing messages remain on their original partitions forever. Only new messages are assigned to partitions based on the new partition count."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "Key-based partitioning in Kafka uses hash(key) % numPartitions. Increasing the partition count changes this calculation, causing the same key to be routed to a different partition for new messages, while old messages remain on their original partition. This breaks per-key ordering guarantees. The course explicitly warns: 'After adding partitions later, it cannot be guaranteed that old messages will be on the same partition as new messages with the same key.'"
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A data platform team produces user profile updates to a Kafka topic. Each update contains a full user profile snapshot (value = complete JSON profile, key = user_id). The team needs to ensure that consumers can always retrieve the LATEST profile for any given user_id, even if the topic is compacted, without consuming the entire topic history. What cleanup.policy should they configure for this topic?",
+    options: [
+      {
+        text: "cleanup.policy=delete (the default) — messages are deleted after retention.ms, keeping the most recent messages.",
+        explanation: "✗ cleanup.policy=delete removes messages based on age (retention.ms) or size — not by key. After retention, old profile updates are deleted including potentially the ONLY record of a user's profile if the user was inactive. There is no guarantee the latest profile per user_id is preserved."
+      },
+      {
+        text: "cleanup.policy=compact — Kafka compaction retains at least the last known value for each key (user_id), ensuring the latest profile is always available regardless of retention period.",
+        explanation: "✓ Log compaction with cleanup.policy=compact guarantees that for each key (user_id), at least the most recent message is retained indefinitely. Consumers subscribing from the beginning of a compacted topic receive the current state of every user profile — the foundation for building materialized views and KTables."
+      },
+      {
+        text: "cleanup.policy=compact,delete — combines compaction with time-based deletion, ensuring the latest profile is kept but eventually deleted after expiration.",
+        explanation: "✗ compact,delete retains the latest value per key BUT allows it to be deleted after the retention period. If a user profile is not updated for a long time, their profile record could be purged. This does not guarantee permanent latest-value availability."
+      },
+      {
+        text: "Set min.cleanable.dirty.ratio=0.1 to trigger compaction more aggressively and retain only recent records.",
+        explanation: "✗ min.cleanable.dirty.ratio controls how soon compaction is triggered (a lower value triggers compaction sooner), but does not change the retention semantics. Without cleanup.policy=compact, compaction does not run at all."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "cleanup.policy=compact enables log compaction, which guarantees that for each key, at least the most recent record is retained indefinitely. This makes compacted topics ideal for storing the latest state per entity (user profiles, product prices, configuration values). Kafka Streams' KTable uses compacted topics as changelog topics for exactly this reason — to recover the latest state after a restart."
+  },
+  {
+    source: "cours",
+    type: "multiple",
+    question: "A payment processing platform needs to configure a Kafka producer to maximize data durability: every payment event must survive the failure of up to 2 brokers simultaneously. The cluster has a replication.factor=3. Which TWO configurations must be applied to achieve this durability guarantee?",
+    options: [
+      {
+        text: "Set acks=all on the producer — the broker only acknowledges the write after ALL in-sync replicas have persisted the record.",
+        explanation: "✓ acks=all (equivalent to acks=-1) requires the leader to wait for acknowledgment from all In-Sync Replicas (ISR) before confirming the write to the producer. With replication.factor=3, this means the record is on 3 replicas before acknowledgment — surviving up to 2 broker failures."
+      },
+      {
+        text: "Set replication.factor=3 on the topic — data is replicated to 3 brokers, so 2 can fail while the data remains available.",
+        explanation: "✓ replication.factor=3 ensures the topic data is stored on 3 separate brokers. Even if 2 brokers fail simultaneously, the 3rd broker retains the data. Combined with acks=all, this guarantees both durability (replication) and confirmation (acknowledgment from all replicas)."
+      },
+      {
+        text: "Set acks=1 — only leader acknowledgment is needed, which is sufficient when replication.factor=3.",
+        explanation: "✗ acks=1 means only the leader acknowledges the write. If the leader fails BEFORE the replicas have synced, the record is lost — even with replication.factor=3. acks=all is required to guarantee the record is on all replicas before acknowledgment."
+      },
+      {
+        text: "Set acks=0 — fire-and-forget mode maximizes throughput and the replication factor handles durability.",
+        explanation: "✗ acks=0 means the producer receives NO acknowledgment. The record is sent over the network and if the leader fails before writing to disk, the record is permanently lost. acks=0 is the most dangerous setting for durability-sensitive workloads."
+      }
+    ],
+    answers: [0, 1],
+    globalExplanation: "Maximum durability in Kafka requires BOTH replication.factor=3 (data survives broker failures via copies) AND acks=all (producer waits for ALL in-sync replicas to confirm before proceeding). With acks=1, a leader failure immediately after acknowledgment but before replica sync can lose the record. The combination of high replication factor + acks=all is the standard pattern for mission-critical data."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A streaming analytics team builds a pipeline where raw sensor events are stored in a topic called `sensor-raw`. They need to apply a filter to keep only readings where temperature > 28°C and store the results in a new topic `sensor-hot`. A developer proposes modifying the existing messages in `sensor-raw` to add a 'hot' flag. The architect rejects this and proposes a pipeline approach instead. Why is the pipeline approach correct?",
+    options: [
+      {
+        text: "Modifying messages in sensor-raw requires a schema change, which would break existing consumers. A new topic avoids schema conflicts.",
+        explanation: "✗ While schema compatibility is a valid concern, it is not the FUNDAMENTAL reason. The core reason is that Kafka messages are immutable — they CANNOT be modified regardless of schema considerations."
+      },
+      {
+        text: "Kafka messages are immutable. The correct transformation pattern is to create a new topic containing the filtered results, produced by a stream processor that reads from sensor-raw. This preserves the original data and enables chained transformations.",
+        explanation: "✓ Since Kafka messages cannot be modified after writing, the correct approach for any transformation is to create a new downstream topic. A stream processor reads from sensor-raw, applies the filter (temp > 28°C), and produces to sensor-hot. This pattern — creating new topics for transformed data — is the foundation of Kafka-based data pipelines."
+      },
+      {
+        text: "Modifying sensor-raw would require downtime for the entire Kafka cluster. A new topic is created without downtime.",
+        explanation: "✗ Kafka does not support modifying messages, period — not even with downtime. There is no mechanism for offline batch editing of Kafka message content. The immutability is a fundamental design constraint, not a concurrency limitation."
+      },
+      {
+        text: "A new topic is preferred because it allows the team to set different replication.factor and retention policies for hot sensor data.",
+        explanation: "✗ While different topic configurations are a valid benefit, they are not the primary reason for the pipeline approach. The primary reason is immutability: messages in sensor-raw cannot be modified. Different configurations are a secondary benefit."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "Kafka's immutability makes the pipeline pattern (read → transform → write to new topic) the standard way to work with streaming data. Raw data is preserved in its original topic, and each transformation creates a new topic. This enables: multiple independent transformations from the same source, full reprocessing from the original data, and an auditable chain of topics representing each transformation stage."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A developer produces messages to a Kafka topic without providing a key (key=null). The topic has 6 partitions. Which partitioning behavior should the developer expect?",
+    options: [
+      {
+        text: "All messages without a key are sent to partition 0 by default, as the first partition is the fallback for null keys.",
+        explanation: "✗ Partition 0 is not the default for null keys. Kafka uses a round-robin or sticky partitioning strategy (not always partition 0) for keyless messages, distributing them across all partitions."
+      },
+      {
+        text: "Messages with key=null are distributed across partitions using a round-robin or sticky strategy, with no ordering guarantee across partitions.",
+        explanation: "✓ When no key is provided, Kafka's default partitioner distributes messages across all available partitions (round-robin or sticky algorithm depending on Kafka version). This maximizes throughput and load distribution, but provides NO per-key ordering guarantee — since there is no key to group related messages."
+      },
+      {
+        text: "Messages with key=null are always rejected by the broker and a NullPointerException is thrown.",
+        explanation: "✗ A null key is perfectly valid in Kafka. The broker accepts and stores messages with null keys. The key is optional — the value is the only mandatory field."
+      },
+      {
+        text: "Messages with key=null use a hash of the message value to determine the partition, preserving ordering by value.",
+        explanation: "✗ Kafka does not hash the message value for partitioning. When key=null, partitioning uses round-robin or sticky (not value-based hashing). Value-based partitioning does not exist in Kafka's default partitioner."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "When a message is produced without a key (key=null), Kafka's default partitioner distributes it across partitions without guaranteed ordering. Messages with the same logical entity may land on different partitions, making ordering across messages impossible. The course explicitly states: 'Data is assigned randomly to a partition unless a key is provided.' For ordering guarantees per entity, a meaningful key must always be set."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A developer needs to attach tracing metadata (correlation_id, source_system, trace_id) to every Kafka message for distributed tracing purposes, without including this metadata in the business payload (the message value). The metadata must not affect partitioning. Which Kafka message field is designed for this purpose?",
+    options: [
+      {
+        text: "Use the message key to embed all tracing metadata as a JSON string.",
+        explanation: "✗ The key is used for partitioning — encoding tracing metadata in the key would change the partition assignment behavior, potentially breaking key-based ordering guarantees. Keys should represent the logical entity identifier (e.g., user_id), not operational metadata."
+      },
+      {
+        text: "Create a wrapper JSON object in the message value that contains both the business payload and the tracing metadata.",
+        explanation: "✗ Embedding metadata in the value is technically possible but not recommended for operational concerns. It couples business schema with operational metadata, requires all consumers to parse and strip the metadata wrapper, and complicates schema management."
+      },
+      {
+        text: "Use Kafka message headers — a map of key-value string pairs designed for lightweight metadata that does not affect partitioning or the message value.",
+        explanation: "✓ Headers are specifically designed for attaching metadata to Kafka messages without affecting the value, key, or partitioning. They are the correct place for cross-cutting concerns like correlation IDs, trace IDs, source system identifiers, and content-type annotations."
+      },
+      {
+        text: "Use a dedicated metadata topic alongside the main topic, correlating messages via offset.",
+        explanation: "✗ Using a separate metadata topic is a complex, error-prone workaround. It requires correlating messages by offset across two topics, adding complexity for producers and consumers. Headers exist precisely to avoid this pattern."
+      }
+    ],
+    answers: [2],
+    globalExplanation: "Kafka message headers are the correct field for lightweight operational metadata such as tracing IDs, source system tags, content-type annotations, or correlation IDs. The course explicitly states: 'Headers: map of key-value string pairs. Used for lightweight metadata on the message. Do not use as a business data vehicle.' Headers do not affect partitioning, are not indexed, and are transparent to the Kafka broker."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A team is designing a new Kafka producer that will serialize Java objects as message values. The architect asks the team to choose a serialization format. One developer argues for a custom binary format. Another argues for Avro with Schema Registry. A third suggests JSON. What does Kafka impose regarding the serialization format, and what are the implications of choosing poorly?",
+    options: [
+      {
+        text: "Kafka only supports JSON natively. Other formats require custom plugins and additional configuration.",
+        explanation: "✗ Kafka is completely format-agnostic. It stores all message values as raw byte arrays and imposes no format requirement. JSON, Avro, Protobuf, and any custom binary format are all equally valid at the Kafka broker level."
+      },
+      {
+        text: "Kafka is schema-less and stores messages as raw byte arrays, agnostic to format. This means producers and consumers must agree on the serialization format out-of-band. Without a schema management tool like Schema Registry, format incompatibilities between producers and consumers can occur silently.",
+        explanation: "✓ Kafka stores every message value as bytes and has no knowledge of the data schema. This gives flexibility (any format works) but creates a risk: if a producer changes the message format without coordinating with consumers, consumers will silently receive bytes they cannot deserialize — leading to data processing failures without a clear error from Kafka itself."
+      },
+      {
+        text: "Kafka enforces Avro as the standard serialization format for all production clusters.",
+        explanation: "✗ Kafka has absolutely no serialization format enforcement. Avro with Schema Registry is a popular choice for its schema evolution features, but it is not mandated by Kafka. Many Kafka deployments use JSON, Protobuf, or custom formats."
+      },
+      {
+        text: "Kafka validates message formats against a pre-configured schema at ingestion time and rejects non-conforming messages.",
+        explanation: "✗ Kafka does NOT validate message content at the broker level. Schema validation, if desired, must be implemented at the producer or via a Schema Registry with schema validation enforcement. Without this, any byte sequence is accepted."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "Kafka is completely format-agnostic — it stores messages as raw byte arrays and has no schema awareness. This provides flexibility but also risk: format incompatibilities between producers and consumers fail silently at the Kafka layer (the broker still stores the bytes). Schema management tools like Confluent Schema Registry address this by providing a centralized schema repository and enabling compatibility validation at produce time."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A high-throughput trading platform produces 500,000 price update messages per second to a Kafka topic. Each price update for the same instrument_id must be processed in strict order by downstream risk management systems. The cluster has replication.factor=3. A developer sets acks=1 to reduce latency. A senior engineer raises a concern. What risk does acks=1 introduce that could violate the ordering guarantee?",
+    options: [
+      {
+        text: "With acks=1, the producer may send messages to the wrong partition, breaking instrument_id-based ordering.",
+        explanation: "✗ acks controls acknowledgment semantics, not partitioning logic. The partition assignment is determined by the partitioner (based on the key), not by the acks setting. acks=1 does not affect which partition a message goes to."
+      },
+      {
+        text: "With acks=1, only the partition leader acknowledges the write. If the leader fails before replication, the message is lost. On retry, the producer sends a duplicate or out-of-order message — violating the strict ordering guarantee.",
+        explanation: "✓ acks=1 means the leader acknowledges after writing to its local log but before all replicas have synced. If the leader fails at that moment, the follower that becomes the new leader does not have the message. The producer retries, potentially introducing a gap or duplicate. Without enable.idempotence=true, this can cause out-of-order delivery."
+      },
+      {
+        text: "acks=1 reduces the replication factor to 1 during high load, making the topic vulnerable to data loss.",
+        explanation: "✗ acks=1 does not change the replication factor. The topic remains replicated to 3 brokers. acks controls acknowledgment behavior (when the producer considers a send 'done'), not how many replicas are maintained."
+      },
+      {
+        text: "acks=1 causes messages to be buffered at the leader and sent in bulk, potentially changing the delivery order.",
+        explanation: "✗ acks=1 does not buffer messages differently. The issue is about replica synchronization before acknowledgment, not message buffering. Batching behavior is controlled by linger.ms and batch.size, not acks."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. acks=1 (leader-only acknowledgment) creates a durability window: if the leader fails between acknowledgment and replica sync, the message is lost. The producer's retry mechanism then sends the message again — potentially out of order relative to messages that were successfully delivered. For strict ordering with retries, use acks=all + enable.idempotence=true."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A Kafka cluster runs with replication.factor=3 and min.insync.replicas=2. A producer sends payment messages with acks=all. During a maintenance window, 2 of the 3 brokers go offline simultaneously for a partition. What happens to produce requests for this partition?",
+    options: [
+      {
+        text: "The producer successfully writes to the 1 remaining broker since it is the leader and acks=all only requires leader acknowledgment.",
+        explanation: "✗ acks=all requires the leader to wait for ALL in-sync replicas (ISR) to acknowledge. With min.insync.replicas=2, at least 2 replicas must be in the ISR for the write to proceed. With only 1 replica available, the ISR size (1) is below min.insync.replicas (2), so the write is rejected."
+      },
+      {
+        text: "The produce request fails with a NotEnoughReplicasException because the available ISR size (1) is below min.insync.replicas (2), preventing the write from completing.",
+        explanation: "✓ min.insync.replicas=2 defines the MINIMUM number of in-sync replicas that must acknowledge a write (when acks=all) for it to succeed. With 2 out of 3 brokers down, only 1 replica remains in the ISR — below the minimum of 2. Kafka rejects the produce request with NotEnoughReplicasException to protect data durability."
+      },
+      {
+        text: "The producer falls back to acks=1 automatically and continues writing to the single remaining broker.",
+        explanation: "✗ Kafka does not automatically downgrade acks settings. The producer's configured acks value is enforced for every send. If the ISR is below min.insync.replicas and acks=all, the write fails — there is no automatic fallback."
+      },
+      {
+        text: "Kafka elects the single remaining replica as the unclean leader and accepts writes with acks=all.",
+        explanation: "✗ Unclean leader election (unclean.leader.election.enable=true) allows a follower that is not fully in-sync to become leader, risking data loss. However, even with an unclean leader, if the ISR has only 1 member and min.insync.replicas=2, acks=all writes are still rejected."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. min.insync.replicas (broker/topic config) works in conjunction with acks=all (producer config) to enforce a minimum durability floor. If the number of in-sync replicas drops below min.insync.replicas, produce requests with acks=all fail with NotEnoughReplicasException. This protects against accepting writes that cannot be durably replicated, at the cost of availability."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A Kafka consumer application processes financial settlement records from a topic with 8 partitions. The development team reports that messages are being processed OUT of order for the same account_id. The producer uses account_id as the message key and acks=all. Upon investigation, the team finds that max.in.flight.requests.per.connection=5 and enable.idempotence=false. What is causing the ordering violation?",
+    options: [
+      {
+        text: "acks=all is causing the broker to reorder messages to optimize replica synchronization throughput.",
+        explanation: "✗ acks=all does not cause message reordering. It is an acknowledgment policy that waits for ISR confirmation. The ordering within a partition is maintained by the broker regardless of the acks setting."
+      },
+      {
+        text: "With max.in.flight.requests.per.connection=5 and idempotence disabled, if a batch fails and is retried, later batches (which succeeded) may have already been written, causing the retried batch to arrive out of sequence.",
+        explanation: "✓ With max.in.flight.requests.per.connection > 1 and no idempotence, multiple batches are in-flight simultaneously. If batch #2 fails and is retried but batch #3 already succeeded, the retry of batch #2 arrives after batch #3 — creating out-of-order records for the same key/partition. Enabling idempotence (enable.idempotence=true) prevents this by assigning sequence numbers that Kafka uses to reject out-of-order duplicates."
+      },
+      {
+        text: "8 partitions are too many for a single consumer. The ordering violation is caused by consumer group rebalancing between partitions.",
+        explanation: "✗ Kafka only guarantees ordering WITHIN a partition. Since account_id is the key, all records for the same account go to the same partition. Ordering within that partition should be maintained unless the producer creates duplicates/reorders via retry scenarios."
+      },
+      {
+        text: "The producer's batch.size is too small, causing individual messages to be sent one at a time, which creates ordering races between concurrent requests.",
+        explanation: "✗ batch.size affects how many records are grouped per batch, not whether ordering is maintained. The ordering issue is specifically caused by the combination of multiple in-flight requests (max.in.flight.requests.per.connection > 1) with retries and no idempotence."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. The course notes: 'If maintaining strict order within a partition is critical, set max.in.flight.requests.per.connection to 1. Unless enable.idempotence is enabled.' With max.in.flight.requests.per.connection > 1 and no idempotence, failed batch retries can arrive after later batches, creating out-of-order delivery. The solution is either max.in.flight.requests.per.connection=1 OR enable.idempotence=true (which implicitly sets max in-flight to 5 with ordering preserved)."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A producer application attempts to send a 2MB message to a Kafka topic. The broker's default configuration is in place (message.max.bytes=1048576, which is 1MB). What exception will the producer receive, and which configuration parameters must be adjusted to support large messages?",
+    options: [
+      {
+        text: "The producer receives a RecordTooLargeException. Only message.max.bytes on the broker needs to be increased.",
+        explanation: "✗ While message.max.bytes must be increased, this alone is insufficient. replica.fetch.max.bytes (broker) must also be increased so follower replicas can fetch large messages, and fetch.message.max.bytes (consumer) must be increased so consumers can fetch them. Changing only one parameter causes failures at other stages."
+      },
+      {
+        text: "The producer receives a MessageSizeTooLargeException. To support 2MB messages, message.max.bytes (broker), replica.fetch.max.bytes (broker), and fetch.message.max.bytes (consumer) must all be increased consistently.",
+        explanation: "✓ Large message support requires coordinated configuration at three levels: (1) message.max.bytes on the broker/topic (max message size accepted), (2) replica.fetch.max.bytes on the broker (max size replicas can fetch from the leader), and (3) fetch.message.max.bytes on consumers (max size consumers can fetch). All three must exceed the message size."
+      },
+      {
+        text: "Kafka automatically chunks messages larger than 1MB into multiple smaller messages, so no configuration change is needed.",
+        explanation: "✗ Kafka does NOT automatically chunk large messages. The producer is responsible for splitting large payloads before producing. If a message exceeds the configured limit, the produce request is rejected with an error."
+      },
+      {
+        text: "The producer receives a KafkaException. Only the topic-level max.message.bytes property needs to be increased to override the broker default.",
+        explanation: "✗ While max.message.bytes can be set at the topic level to override the broker default, this is only one of three required configuration changes. Without also updating replica.fetch.max.bytes and consumer-side fetch.message.max.bytes, the large message will fail at replication or consumption."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. The course explicitly mentions: 'Exceeding [the 1MB limit] without proper configuration adjustments (message.max.bytes, replica.fetch.max.bytes, fetch.message.max.bytes) will result in a MessageSizeTooLargeException.' Large message support requires CONSISTENT configuration across: broker acceptance, replica fetch capacity, and consumer fetch capacity. Missing any one of these three creates a bottleneck."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A data engineering team realizes that messages in a Kafka topic `audit-events` are being deleted after 7 days. They need audit events to be retained for 13 months for regulatory compliance. What is the default retention period and which configuration must they change?",
+    options: [
+      {
+        text: "The default retention period is 24 hours. Set retention.ms=39312000000 (approximately 13 months in milliseconds).",
+        explanation: "✗ The default Kafka retention period is 7 days (604800000 ms), not 24 hours. The retention.ms value for 13 months is correct, but the stated default is wrong."
+      },
+      {
+        text: "The default retention period is 7 days (retention.ms=604800000). To retain audit events for 13 months, set retention.ms=34128000000 (approximately 13 months in milliseconds) at the topic or broker level.",
+        explanation: "✓ The course states 'Messages are kept only for a limited time in Kafka, with the default being one week.' One week = 7 days = 604,800,000 ms. To extend to 13 months, set retention.ms to approximately 13 × 30 × 24 × 3600 × 1000 ms, or set retention.ms=-1 for infinite retention."
+      },
+      {
+        text: "The default retention period is 30 days. Set cleanup.policy=compact to retain audit events indefinitely.",
+        explanation: "✗ The default is 7 days (not 30 days). cleanup.policy=compact retains the LATEST value per key — not all historical records. For an immutable audit log, compaction is inappropriate because it discards older records with the same key."
+      },
+      {
+        text: "The default retention period is 7 days. Set log.retention.bytes=-1 to retain messages regardless of age.",
+        explanation: "✗ log.retention.bytes controls size-based retention (delete when the topic exceeds a certain total size). Setting it to -1 disables size-based retention but does NOT affect time-based retention. retention.ms must be changed to control time-based retention."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. The default Kafka message retention is 7 days (retention.ms=604800000). To retain messages longer, increase retention.ms at the topic level (kafka-topics.sh --alter) or broker level (log.retention.ms in server.properties). For infinite retention, set retention.ms=-1. For audit log use cases, time-based retention with a long period (or infinite) + cleanup.policy=delete is appropriate."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A developer writes a consumer application to track user sessions. They need to resume processing from exactly where they left off after a restart. They observe that Consumer A is at offset 150 on partition 0, and Consumer B is at offset 80 on partition 2, for the same topic. Consumer A asks: 'What is the meaning of offset 150 on partition 2?' What is the correct answer?",
+    options: [
+      {
+        text: "Offset 150 on partition 2 refers to the same message as offset 150 on partition 0 — offsets are global identifiers across all partitions.",
+        explanation: "✗ Offsets are NOT global. They are local to each partition. Offset 150 on partition 0 and offset 150 on partition 2 are DIFFERENT messages in DIFFERENT partitions. They have no relationship to each other."
+      },
+      {
+        text: "Offsets only have meaning within a specific partition. Offset 150 on partition 2 is a completely independent position from offset 150 on partition 0 — they refer to different messages in different partitions.",
+        explanation: "✓ The course explicitly states: 'Offsets only have meaning within a specific partition.' An offset identifies a message's position WITHIN a partition. The same offset number in different partitions refers to entirely different messages with no relationship."
+      },
+      {
+        text: "Offset 150 on partition 2 means the consumer has processed 150 more messages than Consumer B, who is at offset 80.",
+        explanation: "✗ Comparing offsets across partitions is meaningless. Offset 150 on partition 0 and offset 80 on partition 2 represent positions within SEPARATE, independent logs. The difference (70) has no meaningful interpretation."
+      },
+      {
+        text: "Offset 150 is a global counter maintained by the broker across all partitions of the topic.",
+        explanation: "✗ There is no global offset counter in Kafka. Each partition maintains its own independent, monotonically increasing offset sequence starting at 0. Partition 0 and partition 2 each have their own offset 0, 1, 2, ... independently."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. The course states: 'Partition-Specific Offsets: Offsets only have meaning within a specific partition.' An offset is a sequential integer that identifies a message's position within a single partition. Comparing offsets across partitions is meaningless. Consumer commit progress is always stored as (topic, partition, offset) triplets — never as a single global offset."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "An IoT company stores device shadow records (the latest known state of each IoT device) in a Kafka topic. They configure cleanup.policy=compact,delete with retention.ms=2592000000 (30 days). A device goes offline and sends no updates for 31 days. What happens to the device's last known state record in the topic?",
+    options: [
+      {
+        text: "The record is guaranteed to be retained forever because cleanup.policy=compact always preserves the latest value for each key.",
+        explanation: "✗ cleanup.policy=compact ALONE guarantees indefinite retention of the latest value per key. But with compact,delete, the delete policy applies a time-based TTL. After retention.ms expires, even the latest value for a key can be deleted."
+      },
+      {
+        text: "The device's last known state record can be deleted after 31 days, because compact,delete allows the latest value of a key to be purged after the retention period expires.",
+        explanation: "✓ cleanup.policy=compact,delete combines two retention strategies: compaction (keep latest per key) AND time-based deletion (delete after retention.ms). If a device sends no updates, its latest record ages and can be deleted after the retention period — even if it is the only record for that device_id. This is the key difference from pure compact."
+      },
+      {
+        text: "The record is moved to a dead letter topic after 30 days to prevent data loss for inactive devices.",
+        explanation: "✗ Kafka has no concept of automatic message migration to a dead letter topic. When retention policy expires, records are permanently deleted, not moved."
+      },
+      {
+        text: "The record is kept for exactly 30 more days after the device reconnects, resetting the retention timer on reconnection.",
+        explanation: "✗ Kafka's retention clock is based on the message timestamp (or log append time), not on consumer activity. There is no mechanism that resets the retention timer based on device reconnection events."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. The course states that compact,delete 'combines both strategies.' cleanup.policy=compact guarantees indefinite retention of the latest value per key. cleanup.policy=compact,delete allows Kafka to delete even the latest value for a key after the retention period expires. This is explicitly noted in the course: 'Yes, the latest value of a key can be deleted.' Use pure compact when the latest value must be preserved forever (critical state, config). Use compact,delete for temporary state (sessions, IoT shadows, cache) to control storage growth."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A Kafka topic stores events from a distributed payment system. The producer sets message.timestamp.type=LogAppendTime on the topic. A consumer application uses the message timestamp to determine event ordering and detect late payments. A senior engineer warns that using LogAppendTime for business event ordering is incorrect. Why?",
+    options: [
+      {
+        text: "LogAppendTime is set by the producer and may be in the future relative to broker time, causing ordering issues.",
+        explanation: "✗ LogAppendTime is set by the BROKER at the time the message is appended to the log — not by the producer. CreateTime is set by the producer. The confusion between these two is a common exam trap."
+      },
+      {
+        text: "LogAppendTime records the broker's local clock time when the message was appended, which may differ significantly from the actual event time (when the payment occurred). Two payments that happened at 10:00:01 may arrive at the broker at 10:00:10 and 10:00:11 — their LogAppendTime reflects broker ingestion order, not event occurrence order.",
+        explanation: "✓ LogAppendTime is the broker's system clock at log append time. For distributed payment systems, a payment that occurred at 10:00:01 may arrive at the broker after a payment that occurred at 10:00:05 due to network delays or producer buffering. Using LogAppendTime reflects ingestion order, not business event order — making it unsuitable for ordering business events."
+      },
+      {
+        text: "LogAppendTime causes increased broker load because the broker must generate timestamps for every message.",
+        explanation: "✗ Timestamp generation is a trivial operation with negligible performance impact. The concern with LogAppendTime is SEMANTIC correctness (event order vs. ingestion order), not performance."
+      },
+      {
+        text: "LogAppendTime is deprecated in recent Kafka versions and should not be used in production.",
+        explanation: "✗ LogAppendTime is not deprecated. It is a valid, supported configuration option used specifically when producer-provided timestamps are not trusted or when ingest time is the relevant business dimension."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. The course mentions message.timestamp.type as LogAppendTime (broker sets timestamp at ingestion) vs CreateTime (producer sets timestamp at event creation). For business event ordering — especially for detecting late events in stream processing — CreateTime (event time) is the correct choice. LogAppendTime only reflects when the broker received the message, which can diverge significantly from actual event occurrence time in distributed systems."
+  },
+  {
+    source: "inference",
+    type: "multiple",
+    question: "A developer is designing a Kafka topic schema for a user activity tracking system. Messages use user_id as the key. The business has two competing requirements: (1) keep the LATEST activity record per user for fast lookups, AND (2) delete records for users who have been inactive for more than 90 days to comply with GDPR's right to be forgotten. Which TWO configurations satisfy BOTH requirements simultaneously?",
+    options: [
+      {
+        text: "Set cleanup.policy=compact,delete — compaction keeps the latest record per user_id, while delete removes records (including the latest) after the retention period.",
+        explanation: "✓ compact,delete satisfies BOTH requirements: compaction ensures only the latest record per user_id is retained (requirement 1), and the delete component removes records after retention.ms expires (requirement 2 — GDPR compliance by removing inactive users after 90 days)."
+      },
+      {
+        text: "Set retention.ms=7776000000 (90 days in milliseconds) — after 90 days of inactivity, the user's records expire.",
+        explanation: "✓ retention.ms=90 days (90 × 24 × 3600 × 1000 ms) configures the time-based deletion component. Combined with cleanup.policy=compact,delete, records older than 90 days (including the latest record for inactive users) are deleted — satisfying the GDPR requirement."
+      },
+      {
+        text: "Set cleanup.policy=compact only — compaction retains the latest record per user forever, satisfying requirement 1 and 2.",
+        explanation: "✗ cleanup.policy=compact ALONE satisfies requirement 1 (latest record per user) but FAILS requirement 2 (GDPR deletion after 90 days). With pure compact, the latest record per user is retained INDEFINITELY — a GDPR violation for inactive users."
+      },
+      {
+        text: "Set cleanup.policy=delete with retention.ms=90 days — all messages older than 90 days are deleted, satisfying GDPR.",
+        explanation: "✗ cleanup.policy=delete satisfies GDPR (requirement 2) but fails requirement 1: all old records are deleted, including intermediate records, leaving no guaranteed 'latest record' per user. If a user's most recent record is from 91 days ago, it is deleted — with no lookup capability."
+      }
+    ],
+    answers: [0, 1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. cleanup.policy=compact,delete combined with an appropriate retention.ms is the only configuration that satisfies both requirements simultaneously: compaction ensures the latest record per key is kept (for fast lookups), while the delete component enforces a time-based expiry (for GDPR compliance). The course notes this use case: 'compact,delete → combine both strategies' for 'temporary data with TTL' like 'user sessions, cache, ephemeral state.'"
+  }
+];
+
+var qIdx = 0;
+var selected = [];
+var answered = false;
+var score = 0;
+var scoresCours = { correct: 0, total: 0 };
+var scoresInfer = { correct: 0, total: 0 };
+var timerInterval = null;
+var timeLeft = QUESTIONS.length * 90;
+var totalTime = QUESTIONS.length * 90;
+
+function shuffle(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+function shuffleAll() {
+  for (var i = 0; i < QUESTIONS.length; i++) {
+    var q = QUESTIONS[i];
+    var indexed = [];
+    for (var k = 0; k < q.options.length; k++) {
+      indexed.push({ text: q.options[k].text, explanation: q.options[k].explanation, origIdx: k });
+    }
+    indexed = shuffle(indexed);
+    var newOptions = [];
+    var newAnswers = [];
+    for (var j = 0; j < indexed.length; j++) {
+      newOptions.push({ text: indexed[j].text, explanation: indexed[j].explanation });
+      if (q.answers.indexOf(indexed[j].origIdx) !== -1) newAnswers.push(j);
+    }
+    q.options = newOptions;
+    q.answers = newAnswers;
+  }
+}
+
+function startGlobalTimer() {
+  clearInterval(timerInterval);
+  paintGlobalTimer();
+  timerInterval = setInterval(function() {
+    timeLeft--;
+    paintGlobalTimer();
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      forceSubmitCurrent();
+    }
+  }, 1000);
+}
+
+function paintGlobalTimer() {
+  var el = document.getElementById('globalTimer');
+  if (!el) return;
+  var m = Math.floor(timeLeft / 60);
+  var s = timeLeft % 60;
+  el.textContent = '⏱ ' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  var ratio = timeLeft / totalTime;
+  el.className = 'timer-global';
+  if (ratio < 0.1) el.className = 'timer-global danger';
+  else if (ratio < 0.2) el.className = 'timer-global warn';
+}
+
+function forceSubmitCurrent() {
+  if (!answered) {
+    answered = true;
+    var q = QUESTIONS[qIdx];
+    if (q.source === 'cours') scoresCours.total++;
+    else scoresInfer.total++;
+    paintAnswered();
+  }
+  if (qIdx < QUESTIONS.length - 1) {
+    setTimeout(function() { suivante(); }, 1500);
+  } else {
+    setTimeout(function() { showScore(); }, 1500);
+  }
+}
+
+function pickOption(idx) {
+  if (answered) return;
+  var q = QUESTIONS[qIdx];
+  if (q.type === 'multiple') {
+    var pos = selected.indexOf(idx);
+    if (pos === -1) selected.push(idx);
+    else selected.splice(pos, 1);
+  } else {
+    selected = [idx];
+  }
+  paintButtons();
+  document.getElementById('btnValidate').disabled = selected.length === 0;
+}
+
+function valider() {
+  if (answered || selected.length === 0) return;
+  answered = true;
+  recordScore();
+  paintAnswered();
+}
+
+function recordScore() {
+  var q = QUESTIONS[qIdx];
+  var ans = q.answers;
+  var isCorrect = false;
+  if (selected.length === ans.length) {
+    var ok = true;
+    for (var i = 0; i < ans.length; i++) {
+      if (selected.indexOf(ans[i]) === -1) { ok = false; break; }
+    }
+    isCorrect = ok;
+  }
+  if (isCorrect) score++;
+  if (q.source === 'cours') {
+    scoresCours.total++;
+    if (isCorrect) scoresCours.correct++;
+  } else {
+    scoresInfer.total++;
+    if (isCorrect) scoresInfer.correct++;
+  }
+}
+
+function paintButtons() {
+  var q = QUESTIONS[qIdx];
+  for (var i = 0; i < q.options.length; i++) {
+    var btn = document.getElementById('opt_' + i);
+    if (!btn) continue;
+    btn.className = 'option-btn';
+    if (selected.indexOf(i) !== -1) btn.className += ' selected';
+  }
+}
+
+function paintAnswered() {
+  var q = QUESTIONS[qIdx];
+  for (var i = 0; i < q.options.length; i++) {
+    var btn = document.getElementById('opt_' + i);
+    var expl = document.getElementById('expl_' + i);
+    if (!btn) continue;
+    btn.disabled = true;
+    btn.className = 'option-btn';
+    var isAns = q.answers.indexOf(i) !== -1;
+    var isSel = selected.indexOf(i) !== -1;
+    if (isAns && isSel) {
+      btn.className += ' correct';
+      if (expl) expl.className = 'opt-expl show expl-ok';
+    } else if (!isAns && isSel) {
+      btn.className += ' wrong';
+      if (expl) expl.className = 'opt-expl show expl-ko';
+    } else if (isAns && !isSel) {
+      btn.className += ' missed';
+      if (expl) expl.className = 'opt-expl show expl-missed';
+    } else {
+      if (expl) expl.className = 'opt-expl show expl-neutral';
+    }
+  }
+  var ge = document.getElementById('globalExpl');
+  if (ge) ge.className = 'global-expl show';
+  document.getElementById('btnValidate').disabled = true;
+  document.getElementById('btnNext').disabled = false;
+}
+
+function suivante() {
+  qIdx++;
+  if (qIdx >= QUESTIONS.length) { showScore(); return; }
+  selected = [];
+  answered = false;
+  render();
+}
+
+function recommencer() {
+  qIdx = 0; selected = []; answered = false;
+  score = 0;
+  scoresCours = { correct: 0, total: 0 };
+  scoresInfer = { correct: 0, total: 0 };
+  timeLeft = totalTime;
+  shuffleAll();
+  render();
+  startGlobalTimer();
+}
+
+var LETTERS = ['A','B','C','D','E'];
+
+function render() {
+  var q = QUESTIONS[qIdx];
+  var pct = Math.round((qIdx / QUESTIONS.length) * 100);
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('headerSub').textContent = 'Q' + (qIdx + 1) + ' / ' + QUESTIONS.length;
+
+  var srcBadge = q.source === 'cours'
+    ? '<span class="badge badge-cours">📘 From the course</span>'
+    : '<span class="badge badge-inference">🔍 Beyond the course</span>';
+  var typeBadge = q.type === 'multiple'
+    ? '<span class="badge badge-multi">Multiple answers</span>'
+    : '<span class="badge badge-single">Single answer</span>';
+
+  var optHTML = '<ul class="options-list">';
+  for (var i = 0; i < q.options.length; i++) {
+    optHTML += '<li class="option-wrap">'
+      + '<button class="option-btn" id="opt_' + i + '" onclick="pickOption(' + i + ')">'
+      + '<span class="opt-letter">' + LETTERS[i] + '</span>'
+      + '<span>' + q.options[i].text + '</span>'
+      + '</button>'
+      + '<div class="opt-expl" id="expl_' + i + '">' + q.options[i].explanation + '</div>'
+      + '</li>';
+  }
+  optHTML += '</ul>';
+
+  var geHTML = '<div class="global-expl" id="globalExpl">'
+    + '<h4>💡 Key Concept</h4>'
+    + '<p>' + q.globalExplanation + '</p>'
+    + '</div>';
+
+  document.getElementById('quizArea').innerHTML =
+    '<div class="q-meta"><span class="q-num">Question ' + (qIdx+1) + ' of ' + QUESTIONS.length + '</span></div>'
+    + '<div class="badges">' + typeBadge + srcBadge + '</div>'
+    + '<div class="q-text">' + q.question + '</div>'
+    + optHTML
+    + '<div class="actions">'
+    + '<button class="btn-validate" id="btnValidate" onclick="valider()" disabled>Validate</button>'
+    + '<button class="btn-next" id="btnNext" onclick="suivante()" disabled>Next question →</button>'
+    + '</div>'
+    + geHTML;
+}
+
+function showScore() {
+  clearInterval(timerInterval);
+  document.getElementById('progressBar').style.width = '100%';
+  document.getElementById('headerSub').textContent = 'Results';
+  var pct = Math.round((score / QUESTIONS.length) * 100);
+  var color = pct >= 80 ? '#27ae60' : pct >= 60 ? '#f39c12' : '#e74c3c';
+  var msg = pct >= 80 ? '🎉 Excellent! You are ready for the CCDAK exam.'
+    : pct >= 60 ? '👍 Good work! A few more revision sessions recommended.'
+    : '📚 Keep studying — you are making progress!';
+  var timeUsed = totalTime - timeLeft;
+  var avgTime = QUESTIONS.length > 0 ? Math.round(timeUsed / QUESTIONS.length) : 0;
+
+  document.getElementById('quizArea').innerHTML =
+    '<div class="score-screen">'
+    + '<h2>' + score + ' / ' + QUESTIONS.length + ' &mdash; ' + pct + '%</h2>'
+    + '<p class="score-msg">' + msg + '</p>'
+    + '<div class="score-bar-wrap"><div class="score-bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div>'
+    + '<div class="score-detail">'
+    + '<div class="score-box blue"><div class="lbl">📘 From the course</div><div class="val">' + scoresCours.correct + '/' + scoresCours.total + '</div><div class="sub">Direct course questions</div></div>'
+    + '<div class="score-box purple"><div class="lbl">🔍 Beyond the course</div><div class="val">' + scoresInfer.correct + '/' + scoresInfer.total + '</div><div class="sub">Inferred CCDAK questions</div></div>'
+    + '<div class="score-box"><div class="lbl">Global score</div><div class="val">' + pct + '%</div><div class="sub">CCDAK passing threshold: ~75%</div></div>'
+    + '<div class="score-box orange"><div class="lbl">⏱ Avg time / question</div><div class="val">' + avgTime + 's</div><div class="sub">90s allocated per question</div></div>'
+    + '</div>'
+    + '<button class="btn-restart" onclick="recommencer()">🔄 Restart the test</button>'
+    + '</div>';
+}
+
+shuffleAll();
+render();
+startGlobalTimer();
+</script>
+</body>
+</html>

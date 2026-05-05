@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CCDAK Prep — Level 2 — Confluent Schema Registry</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #1a1a2e;
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 32px 16px 64px;
+}
+.card {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #dde3f0;
+  width: 100%;
+  max-width: 860px;
+  padding: 32px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+}
+/* Header */
+.card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 22px;
+  gap: 16px;
+}
+.header-left .ccdak-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #C0392B;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.header-left .ccdak-sub {
+  font-size: 0.78rem;
+  color: #666;
+  margin-top: 3px;
+}
+.timer-wrap {
+  text-align: right;
+  flex-shrink: 0;
+}
+.timer-label {
+  font-size: 0.68rem;
+  color: #888;
+  margin-bottom: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.timer-box {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #1a6fa8;
+  background: #eaf4fb;
+  border: 2px solid #1a6fa8;
+  border-radius: 8px;
+  padding: 6px 18px;
+  min-width: 90px;
+  text-align: center;
+  transition: color 0.4s, border-color 0.4s, background 0.4s;
+  letter-spacing: 1px;
+}
+.timer-box.warn  { color: #e67e22; border-color: #e67e22; background: #fff8f0; }
+.timer-box.danger{ color: #C0392B; border-color: #C0392B; background: #fff0f0; animation: pulse 0.7s infinite; }
+@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+/* Progress */
+.progress-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #888;
+  margin-bottom: 6px;
+}
+.progress-bar-wrap {
+  background: #eee;
+  border-radius: 8px;
+  height: 7px;
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #C0392B, #e74c3c);
+  border-radius: 8px;
+  transition: width 0.4s ease;
+}
+/* Badges */
+.badges-row { margin-bottom: 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 20px;
+  padding: 3px 11px;
+  letter-spacing: 0.4px;
+}
+.badge-single   { background: #eaf4fb; color: #1a6fa8; }
+.badge-multiple { background: #fef5e4; color: #b7770d; }
+.badge-cours    { background: #e8f4fd; color: #1a6fa8; }
+.badge-infer    { background: #f0e8fd; color: #6a1ab8; }
+/* Question */
+.question-text {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a2e;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+/* Options */
+.option {
+  border: 2px solid #dde3f0;
+  border-radius: 9px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  overflow: hidden;
+}
+.option:hover .option-top { background: #f7f8ff; }
+.option.selected .option-top { background: #eaf4fb; }
+.option.selected { border-color: #1a6fa8; }
+.option.correct  { border-color: #27ae60; }
+.option.correct .option-top { background: #eafaf1; }
+.option.wrong    { border-color: #C0392B; }
+.option.wrong .option-top { background: #fff0f0; }
+.option.missed   { border-color: #27ae60; border-style: dashed; }
+.option.missed .option-top { background: #f0fff4; }
+.option.disabled { cursor: default; }
+.option-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  transition: background 0.15s;
+}
+.opt-letter {
+  min-width: 28px; height: 28px;
+  border-radius: 50%;
+  background: #eee;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.82rem; color: #333;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.option.selected .opt-letter { background: #1a6fa8; color: #fff; }
+.option.correct .opt-letter  { background: #27ae60; color: #fff; }
+.option.wrong .opt-letter    { background: #C0392B; color: #fff; }
+.option.missed .opt-letter   { background: #27ae60; color: #fff; }
+.opt-text { font-size: 0.93rem; color: #222; line-height: 1.45; padding-top: 3px; }
+/* Per-option explanation */
+.opt-explanation {
+  display: none;
+  padding: 9px 14px 10px 54px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  border-top: 1px solid #f0f0f0;
+  color: #444;
+}
+.opt-explanation.show { display: block; }
+.opt-explanation.expl-correct { color: #1e7e4a; background: #f5fff9; }
+.opt-explanation.expl-wrong   { color: #8b1a0e; background: #fff5f5; }
+.opt-explanation.expl-missed  { color: #1e7e4a; background: #f0fff4; }
+/* Buttons */
+.btn-validate {
+  display: block; width: 100%; margin-top: 20px;
+  padding: 13px; background: #C0392B; color: #fff;
+  border: none; border-radius: 9px; font-size: 1rem; font-weight: 700;
+  cursor: pointer; letter-spacing: 0.5px; transition: background 0.2s;
+}
+.btn-validate:hover { background: #a93226; }
+.btn-validate:disabled { background: #ccc; cursor: not-allowed; }
+.btn-next {
+  display: none; width: 100%; margin-top: 10px;
+  padding: 13px; background: #1a6fa8; color: #fff;
+  border: none; border-radius: 9px; font-size: 1rem; font-weight: 700;
+  cursor: pointer; transition: background 0.2s;
+}
+.btn-next:hover { background: #15588a; }
+/* Global explanation block */
+.global-explanation {
+  display: none;
+  margin-top: 18px;
+  border-radius: 9px;
+  border-left: 4px solid #C0392B;
+  background: #1e1e30;
+  padding: 16px 18px;
+}
+.global-explanation.show { display: block; }
+.global-explanation .ge-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #e0a0a0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.global-explanation .ge-text {
+  font-size: 0.9rem;
+  color: #d0d8f0;
+  line-height: 1.6;
+}
+/* Timeout */
+.timeout-msg {
+  display: none;
+  text-align: center;
+  color: #C0392B;
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-top: 12px;
+  padding: 8px;
+  background: #fff0f0;
+  border-radius: 6px;
+}
+/* Score screen */
+.score-screen { display: none; }
+.score-screen.show { display: block; }
+.quiz-screen.hide  { display: none; }
+.score-title {
+  font-size: 1.6rem; font-weight: 800; color: #1a1a2e;
+  text-align: center; margin-bottom: 6px;
+}
+.score-subtitle {
+  text-align: center; font-size: 1rem; color: #555; margin-bottom: 24px;
+}
+.score-bar-wrap {
+  background: #eee; border-radius: 10px; height: 26px;
+  margin-bottom: 12px; overflow: hidden;
+}
+.score-bar-fill {
+  height: 100%; border-radius: 10px; transition: width 1s ease;
+  display: flex; align-items: center; justify-content: flex-end;
+  padding-right: 12px; font-size: 0.8rem; font-weight: 700; color: #fff;
+}
+.score-bar-fill.low  { background: linear-gradient(90deg,#C0392B,#e74c3c); }
+.score-bar-fill.mid  { background: linear-gradient(90deg,#e67e22,#f39c12); }
+.score-bar-fill.high { background: linear-gradient(90deg,#27ae60,#2ecc71); }
+.score-msg {
+  text-align: center; font-size: 1rem; font-weight: 700;
+  margin-bottom: 24px; padding: 14px; border-radius: 9px;
+}
+.score-msg.low  { background: #fff0f0; color: #C0392B; }
+.score-msg.mid  { background: #fff8f0; color: #e67e22; }
+.score-msg.high { background: #eafaf1; color: #27ae60; }
+.score-detail { display: flex; gap: 16px; margin-bottom: 20px; }
+.score-box {
+  flex: 1; border-radius: 10px; padding: 18px; text-align: center;
+}
+.score-box.cours     { background: #e8f4fd; border: 1px solid #b3d9f5; }
+.score-box.inference { background: #f0e8fd; border: 1px solid #d0b3f5; }
+.score-box .sb-label { font-size: 0.72rem; font-weight: 700; color: #555; margin-bottom: 6px; }
+.score-box .sb-val   { font-size: 1.9rem; font-weight: 800; }
+.score-box.cours .sb-val     { color: #1a6fa8; }
+.score-box.inference .sb-val { color: #6a1ab8; }
+.score-box .sb-pct   { font-size: 0.78rem; color: #888; margin-top: 4px; }
+.score-meta { text-align: center; font-size: 0.85rem; color: #666; margin-bottom: 24px; }
+.btn-restart {
+  display: block; width: 100%; padding: 14px;
+  background: #C0392B; color: #fff; border: none; border-radius: 9px;
+  font-size: 1rem; font-weight: 700; cursor: pointer; letter-spacing: 0.5px;
+  transition: background 0.2s;
+}
+.btn-restart:hover { background: #a93226; }
+</style>
+</head>
+<body>
+<div class="card">
+
+  <!-- ===== QUIZ SCREEN ===== -->
+  <div class="quiz-screen" id="quizScreen">
+    <div class="card-header">
+      <div class="header-left">
+        <div class="ccdak-title">CCDAK Prep — Level 2</div>
+        <div class="ccdak-sub">Confluent Schema Registry</div>
+      </div>
+      <div class="timer-wrap">
+        <div class="timer-label">⏱ Time Remaining</div>
+        <div class="timer-box" id="timerBox">30:00</div>
+      </div>
+    </div>
+    <div class="progress-meta">
+      <span id="progressLabel">Question 1 / 20</span>
+      <span id="scoreLabel">Score: 0</span>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progressBar" style="width:5%"></div>
+    </div>
+    <div id="qContent"></div>
+    <div class="timeout-msg" id="timeoutMsg">⏱ Time's up! Auto-validated.</div>
+    <button class="btn-validate" id="btnValidate" onclick="valider()">✔ Validate Answer</button>
+    <button class="btn-next" id="btnNext" onclick="suivante()">Next question →</button>
+    <div class="global-explanation" id="globalExplanation">
+      <div class="ge-title">💡 Key Concept</div>
+      <div class="ge-text" id="globalExplanationText"></div>
+    </div>
+  </div>
+
+  <!-- ===== SCORE SCREEN ===== -->
+  <div class="score-screen" id="scoreScreen">
+    <div class="score-title">🎓 Quiz Complete!</div>
+    <div class="score-subtitle" id="scoreSubtitle"></div>
+    <div class="score-bar-wrap">
+      <div class="score-bar-fill" id="scoreBarFill" style="width:0%"></div>
+    </div>
+    <div class="score-msg" id="scoreMsg"></div>
+    <div class="score-detail">
+      <div class="score-box cours">
+        <div class="sb-label">📘 From the Course</div>
+        <div class="sb-val" id="scoreCours">—</div>
+        <div class="sb-pct" id="scoreCoursPct"></div>
+      </div>
+      <div class="score-box inference">
+        <div class="sb-label">🔍 Beyond the Course</div>
+        <div class="sb-val" id="scoreInfer">—</div>
+        <div class="sb-pct" id="scoreInferPct"></div>
+      </div>
+    </div>
+    <div class="score-meta" id="scoreMeta"></div>
+    <button class="btn-restart" onclick="recommencer()">🔄 Restart the test</button>
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// QUESTION DATA
+// ============================================================
+var QUESTIONS_RAW = [
+  {
+    source: "cours",
+    question: "A large e-commerce platform with 60+ microservices experiences recurring production incidents caused by schema mismatches between deployments. The architecture team mandates a solution that: (1) validates schema compatibility BEFORE messages are written to any topic, (2) caches schemas locally to minimize network overhead on every serialize/deserialize operation, and (3) can be deployed with redundancy to eliminate a single point of failure. Which component and configuration best satisfies ALL three requirements?",
+    type: "single",
+    options: [
+      {
+        text: "Deploy Confluent Schema Registry as a standalone service with multiple instances behind a load balancer; configure producers and consumers with KafkaAvroSerializer / KafkaAvroDeserializer and schema.registry.url",
+        explanation: "✓ CORRECT. Schema Registry validates schemas at registration time (requirement 1), maintains an in-memory cache of schemas for low-latency lookups (requirement 2), and supports multi-instance HA deployment behind a load balancer (requirement 3).",
+        correct: true
+      },
+      {
+        text: "Implement a custom Kafka broker interceptor that validates message schemas at the broker level using a shared Redis schema store",
+        explanation: "✗ INCORRECT. Kafka brokers are completely schema-agnostic and provide no schema validation interception API. A custom Redis-backed solution lacks compatibility rule enforcement, HA features, caching semantics, and the REST API that Schema Registry provides natively.",
+        correct: false
+      },
+      {
+        text: "Use Kafka Connect with a JSON Schema Transformation (SMT) to validate messages as they flow through connectors",
+        explanation: "✗ INCORRECT. SMTs operate only within Kafka Connect pipeline connectors and cannot intercept direct producer writes to a topic. They do not provide schema versioning, compatibility enforcement, or a central schema repository.",
+        correct: false
+      },
+      {
+        text: "Configure per-topic Kafka ACLs to restrict producers to a specific schema format using a Kafka policy plugin",
+        explanation: "✗ INCORRECT. Kafka ACLs control authorization (who can produce/consume) but have no concept of message schema or format enforcement. No standard Kafka broker plugin exists for schema validation at the broker level.",
+        correct: false
+      }
+    ],
+    answers: [0],
+    globalExplanation: "Confluent Schema Registry is the standard solution for schema governance in Kafka. It validates compatibility at schema registration time (proactively), serves subsequent lookups from an in-memory cache (performance), and supports multi-instance HA deployment. Producers embed only a compact 4-byte schema ID per message instead of the full schema — minimizing overhead while retaining full schema traceability."
+  },
+  {
+    source: "cours",
+    question: "A retail company's OrderService produces events using Avro schema v1: {orderId: string, amount: double}. The Analytics team wants to add an optional field 'currency: string' (with default: null) to create v2. The Analytics consumer MUST be deployed BEFORE the OrderService producer is updated — rolling deployment with no downtime window. The team configures the Schema Registry subject accordingly. Which combination of compatibility mode and Avro rule correctly supports this phased rollout?",
+    type: "single",
+    options: [
+      {
+        text: "BACKWARD compatibility + add 'currency' field with default:null — new consumers (v2 schema) can read old v1 messages; missing 'currency' is resolved using the declared default",
+        explanation: "✓ CORRECT. BACKWARD compatibility = deploy consumer first. The new v2 consumer schema can read v1-produced messages because the new 'currency' field has a default (null), which Avro uses when the field is absent in the writer schema.",
+        correct: true
+      },
+      {
+        text: "FORWARD compatibility + add 'currency' as a required field with no default — ensures old consumers can still read new producer messages",
+        explanation: "✗ INCORRECT. FORWARD applies when the producer is deployed first. Additionally, adding a required field without a default breaks BACKWARD compatibility — Schema Registry would reject this schema under BACKWARD mode because old messages (v1) lack the field.",
+        correct: false
+      },
+      {
+        text: "NONE compatibility + add 'currency' with default:null — the default value makes the change safe regardless of compatibility mode",
+        explanation: "✗ INCORRECT. While the Avro schema change itself is safe, setting NONE disables all validation guardrails. This means future developers could accidentally register breaking schemas, creating a ticking time bomb in production. NONE is inappropriate for production topics.",
+        correct: false
+      },
+      {
+        text: "BACKWARD compatibility + add 'currency' as a required field without a default — BACKWARD mode automatically supplies null for missing required fields",
+        explanation: "✗ INCORRECT. BACKWARD compatibility does NOT automatically supply null for required fields. Schema Registry will REJECT this schema registration because the Avro BACKWARD compatibility check requires that the new schema can read all messages produced with v1 — which is impossible for a required field with no default when v1 messages lack the field.",
+        correct: false
+      }
+    ],
+    answers: [0],
+    globalExplanation: "BACKWARD compatibility = deploy consumer first. The key Avro rule: to maintain backward compatibility, any new field MUST have a default value (so the new schema can read old messages where the field is absent). Memory aid — BACKWARD = consumer is 'ahead' of the producer; it must be able to read 'backward' into older messages using defaults."
+  },
+  {
+    source: "cours",
+    question: "A logistics company operates 20 legacy consumer applications on the 'shipments' topic using Avro schema v1: {shipmentId: string, destination: string}. The ShipmentService team must deploy a new producer with schema v2 — adding optional field 'estimatedDelivery: long' (default: -1) — BEFORE any consumer updates. Several legacy consumers will never be upgraded. The team needs to register the new v2 schema. Which compatibility mode must be configured on the 'shipments-value' subject to allow this rollout without any consumer failures?",
+    type: "single",
+    options: [
+      {
+        text: "FORWARD — old consumers (v1 reader schema) can safely read new v2 messages because Avro field projection allows them to ignore the unknown 'estimatedDelivery' field",
+        explanation: "✓ CORRECT. FORWARD compatibility = deploy producer first. With FORWARD, Schema Registry verifies that the old consumer schema (v1) can still read messages written with the new schema (v2). Avro allows readers to ignore writer fields that are absent in the reader schema.",
+        correct: true
+      },
+      {
+        text: "BACKWARD — new consumers must always handle old messages, which transitively covers all producer-first deployments",
+        explanation: "✗ INCORRECT. BACKWARD ensures new consumers can read old producer messages — it does NOT protect old consumers from new producer messages. In a producer-first deployment, old consumers will receive v2 messages; BACKWARD provides no guarantee for that direction.",
+        correct: false
+      },
+      {
+        text: "NONE — gives the team maximum flexibility since the schema change is safe anyway",
+        explanation: "✗ INCORRECT. NONE removes all guardrails. Even if this particular change is safe, future schema changes could break consumers without any warning. NONE is never the right answer for a production topic requiring controlled evolution.",
+        correct: false
+      },
+      {
+        text: "FULL — always the safest option since it covers both directions",
+        explanation: "✗ INCORRECT. FULL would also work technically, but it imposes bidirectional constraints that are more restrictive than needed. More importantly, FULL is not the MINIMUM correct answer to 'which mode enables producer-first deployment without breaking consumers'. FORWARD is the precise answer. The question asks for the mode that allows the rollout, not the most restrictive one.",
+        correct: false
+      }
+    ],
+    answers: [0],
+    globalExplanation: "FORWARD compatibility = producer is deployed first. Old consumers must be able to read new messages. Avro's schema resolution handles this: when a reader (old consumer v1) encounters a writer field ('estimatedDelivery') absent in its own schema, it simply ignores that field. Memory aid — FORWARD = producer leads; old consumers 'follow' by ignoring new fields."
+  },
+  {
+    source: "cours",
+    question: "A payments platform CI/CD pipeline must automatically validate that a proposed Avro schema change (adding field 'transactionFee: double' with default 0.0) is compatible with the current registered schema for subject 'payments-value' — WITHOUT registering the new version or deploying any code. A failed compatibility check should fail the CI build. Which approach correctly implements this gate?",
+    type: "single",
+    options: [
+      {
+        text: "Call POST /compatibility/subjects/payments-value/versions/latest with the candidate schema in the request body; fail the CI build if the response contains {\"is_compatible\": false}",
+        explanation: "✓ CORRECT. The /compatibility endpoint tests a candidate schema against registered versions WITHOUT registering it. It returns {\"is_compatible\": true/false}, making it the exact tool for a CI/CD compatibility gate.",
+        correct: true
+      },
+      {
+        text: "Deploy the new producer schema to a staging Schema Registry, check staging consumer logs for deserialization errors, then promote if clean",
+        explanation: "✗ INCORRECT. This approach requires actual deployment and relies on runtime error detection — the opposite of a pre-deployment CI gate. It is slow, resource-intensive, and may affect the staging environment.",
+        correct: false
+      },
+      {
+        text: "Run the Gradle Avro Plugin in the CI pipeline; a successful compilation guarantees Schema Registry compatibility",
+        explanation: "✗ INCORRECT. The Gradle Avro Plugin validates Avro schema syntax and generates POJOs, but it does NOT query Schema Registry. A successful build only confirms valid Avro syntax — not compatibility with the currently registered schema version.",
+        correct: false
+      },
+      {
+        text: "Set auto.register.schemas=false in the CI test producer config; if the schema is incompatible, the producer will throw an exception during integration tests",
+        explanation: "✗ INCORRECT. auto.register.schemas=false prevents auto-registration but does NOT perform a compatibility check. It throws SerializationException only if the schema is NOT REGISTERED (not found), not because it is incompatible. An unregistered schema and an incompatible schema are different error conditions.",
+        correct: false
+      }
+    ],
+    answers: [0],
+    globalExplanation: "The Schema Registry /compatibility REST endpoint is the purpose-built tool for pre-deployment schema validation. It evaluates the candidate schema using the subject's configured compatibility mode without any side effects. This enables fail-fast CI/CD pipelines where schema incompatibilities are caught before code reaches a deployment stage — a key architectural advantage of the Schema Registry workflow highlighted in the course."
+  },
+  {
+    source: "cours",
+    question: "A data engineer receives this consumer error: 'org.apache.kafka.common.errors.SerializationException: Error deserializing Avro message — Unknown magic byte!'. Using a hex dump tool, they discover that the Kafka topic contains two types of messages: some starting with bytes '00 00 00 00 07 ...' and others starting with '7b 22 6f 72 64 65 72 ...' (which is the ASCII encoding of '{\"order...'). What is the root cause of the deserialization failure?",
+    type: "single",
+    options: [
+      {
+        text: "The topic contains messages serialized with Confluent's KafkaAvroSerializer (magic byte 0x00) mixed with plain JSON messages (starting with '{', byte 0x7b). The KafkaAvroDeserializer fails on non-Confluent-format messages because their first byte (0x7b) is not the expected magic byte 0x00",
+        explanation: "✓ CORRECT. Confluent's wire format begins with magic byte 0x00. JSON messages start with '{' (0x7b). The KafkaAvroDeserializer checks the first byte — if it is not 0x00, it throws 'Unknown magic byte!' before any Schema Registry lookup. Mixed serializers on the same topic is the root cause.",
+        correct: true
+      },
+      {
+        text: "Two different schema versions are registered in Schema Registry; the deserializer cannot handle both versions simultaneously",
+        explanation: "✗ INCORRECT. Multiple schema versions are a normal, expected condition. The KafkaAvroDeserializer resolves schema IDs dynamically from Schema Registry for each message. Multiple versions never cause 'Unknown magic byte!' — this error is exclusively about the first byte not being 0x00.",
+        correct: false
+      },
+      {
+        text: "The Schema Registry instance is overloaded and returning corrupted schema definitions, causing the deserializer to misinterpret message bytes",
+        explanation: "✗ INCORRECT. The 'Unknown magic byte!' error is checked BEFORE any Schema Registry call. It is a local byte-level check in the deserializer. Schema Registry availability or response quality is irrelevant to this specific error.",
+        correct: false
+      },
+      {
+        text: "The consumer's schema.registry.url points to a wrong endpoint, causing the schema ID bytes to be misread as message content",
+        explanation: "✗ INCORRECT. A wrong schema.registry.url would cause an HTTP connection error during schema lookup — which happens AFTER the magic byte check passes. The 'Unknown magic byte!' error fires in the very first step of deserialization, before any network call.",
+        correct: false
+      }
+    ],
+    answers: [0],
+    globalExplanation: "Confluent's Schema Registry wire format: [0x00 magic byte] + [4-byte big-endian schema ID] + [serialized payload]. The magic byte is a format version indicator. KafkaAvroDeserializer validates it as the FIRST step — any byte other than 0x00 immediately throws 'Unknown magic byte!'. This error is a definitive signal that the topic contains messages NOT serialized with KafkaAvroSerializer."
+  },
+  {
+    source: "cours",
+    question: "A FinTech startup configured all Schema Registry subjects with compatibility mode NONE during development to maximize iteration speed. The system is now processing 15,000 payment transactions per second in production. A developer deploys a schema change that: renames field 'amount' (double) to 'transactionAmount' (string). No consumer teams were notified. What is the MOST severe and MOST immediate production impact?",
+    type: "single",
+    options: [
+      {
+        text: "All consumers deserializing the 'amount' field as double will throw SerializationException at runtime. With NONE compatibility, Schema Registry accepted the breaking change without any pre-flight validation, so at 15,000 TPS the consumer failure is immediate and widespread",
+        explanation: "✓ CORRECT. NONE compatibility allows ANY schema change, including breaking type changes and field renames, without validation. Consumers expecting 'amount: double' encounter either a missing field or a type mismatch, causing immediate SerializationException — at scale, this means total consumer failure across all instances.",
+        correct: true
+      },
+      {
+        text: "Kafka brokers detect the incompatible message format and route the affected messages to a dead letter topic automatically",
+        explanation: "✗ INCORRECT. Kafka brokers are completely schema-agnostic — they store and forward raw bytes without any knowledge of schema validity. Broker-level schema detection and DLQ routing does not exist.",
+        correct: false
+      },
+      {
+        text: "Schema Registry logs a warning but the change is deferred until after the next consumer deployment window",
+        explanation: "✗ INCORRECT. With NONE compatibility, Schema Registry registers the new schema immediately without any warning or deferral. There is no built-in deferred registration mechanism.",
+        correct: false
+      },
+      {
+        text: "The impact is limited because Avro's field aliasing automatically maps 'transactionAmount' to 'amount' in existing consumers",
+        explanation: "✗ INCORRECT. Avro field aliasing enables mapping new field names to old names using the 'aliases' property — but ONLY if the alias is explicitly declared in the new schema. A plain rename without an alias declaration is a breaking change with no automatic resolution.",
+        correct: false
+      }
+    ],
+    answers: [0],
+    globalExplanation: "Compatibility mode NONE is the most dangerous Schema Registry configuration for production. It removes ALL guardrails, allowing any breaking schema change — field renames, type changes, deletions — to be registered without validation. The course explicitly states: without well-defined compatibility rules, schema evolution errors become 'unpredictable runtime errors that are difficult to debug in production'. NONE is acceptable only in fully isolated development environments."
+  },
+  {
+    source: "cours",
+    question: "A Java team manages event schemas in .avsc files shared across teams via a Git repository. They want to eliminate manual Java POJO maintenance, enforce compile-time type safety, and ensure that any .avsc file change automatically regenerates the corresponding Java classes during the build. A team member proposes four approaches. Which is the standard, recommended implementation?",
+    type: "single",
+    options: [
+      {
+        text: "Integrate the Avro Gradle (or Maven) plugin in the build file, pointing it to the .avsc source directory. The plugin auto-generates type-safe POJOs during compilation (generateAvroJava task / generate-sources phase). The .avsc file becomes the single source of truth, negotiated across teams via pull requests",
+        explanation: "✓ CORRECT. The Avro build plugin is the canonical approach for type-safe Avro development. The .avsc file is the shared contract; the plugin auto-generates POJOs at compile time, making the generated classes always in sync with the schema. Compile-time checks catch mismatches before deployment.",
+        correct: true
+      },
+      {
+        text: "Write Java classes implementing SpecificRecord manually, keeping them in sync with .avsc files via code review conventions",
+        explanation: "✗ INCORRECT. Manual implementation is error-prone, time-consuming, and breaks whenever the .avsc changes. There is no automated synchronization, and compile-time type safety depends on human diligence rather than tooling.",
+        correct: false
+      },
+      {
+        text: "Use SchemaBuilder Java API to define schemas programmatically at application startup, dynamically registering them with Schema Registry on first run",
+        explanation: "✗ INCORRECT. SchemaBuilder creates GenericRecord-based schemas in code, not type-safe POJOs. It eliminates the .avsc file as shared contract, makes schema changes harder to review in version control, and produces dynamic schemas rather than compile-time type safety.",
+        correct: false
+      },
+      {
+        text: "Serialize all events as Jackson JSON strings and register the JSON text as the schema definition in Schema Registry using the JSON Schema format",
+        explanation: "✗ INCORRECT. This abandons Avro entirely in favor of JSON, losing binary compactness, Avro type richness, and the IDL workflow. The .avsc file, Gradle plugin, and POJO generation pipeline are all irrelevant if Jackson JSON strings are used.",
+        correct: false
+      }
+    ],
+    answers: [0],
+    globalExplanation: "The .avsc → Gradle/Maven Plugin → Auto-generated POJO workflow is the cornerstone of production-grade Avro development. Key benefits: (1) .avsc as shared contract negotiated via PRs; (2) zero boilerplate POJO maintenance; (3) compile-time type safety; (4) pre-deployment compatibility checks against Schema Registry. The course specifically highlights compile-time verification as a major architectural advantage of this approach."
+  },
+  {
+    source: "cours",
+    question: "A multi-tenant SaaS platform has 50 producer teams and 300 consumer teams sharing Kafka topics. The platform governance team requires a schema evolution policy where: (1) either the producer OR the consumer team can deploy their schema update first, (2) no deployment can break any other team's running application, (3) schema changes must be purely additive (fields may only be added with defaults or removed with defaults). Which Schema Registry compatibility mode satisfies ALL three requirements?",
+    type: "single",
+    options: [
+      {
+        text: "FULL — enforces both BACKWARD (new consumers can read old messages) AND FORWARD (old consumers can read new messages) simultaneously, making deployment order irrelevant",
+        explanation: "✓ CORRECT. FULL compatibility is the intersection of BACKWARD and FORWARD. It guarantees that any new schema version is safe regardless of whether the producer or consumer is deployed first. It inherently enforces additive-only changes (add optional fields with defaults, remove fields with defaults).",
+        correct: true
+      },
+      {
+        text: "BACKWARD — protects all new consumers from old producer messages, which transitively covers all deployment scenarios",
+        explanation: "✗ INCORRECT. BACKWARD guarantees new consumers can read old messages — NOT that old consumers can read new messages. If a producer is deployed first with a new schema, old consumers receiving new-format messages have no protection under BACKWARD-only mode.",
+        correct: false
+      },
+      {
+        text: "FORWARD — the platform mandates that producers always deploy first, so FORWARD covers all cases",
+        explanation: "✗ INCORRECT. Requirement (1) explicitly states EITHER producer OR consumer can deploy first. FORWARD only covers producer-first deployments. Consumer-first deployments are not protected.",
+        correct: false
+      },
+      {
+        text: "NONE with a mandatory manual PR review process for all schema changes",
+        explanation: "✗ INCORRECT. Manual PR review is not an automated safety mechanism. At 50 producer teams and 300 consumer teams, manual review cannot replace automated compatibility enforcement. One missed review breaks production.",
+        correct: false
+      }
+    ],
+    answers: [0],
+    globalExplanation: "FULL compatibility = bidirectional safety = deployment order agnostic. It is the most restrictive standard mode but the correct choice for large multi-team platforms where deployment coordination is impractical. FULL only permits changes that are both backward AND forward compatible — in practice: add fields with defaults, remove fields with defaults. For topics with long history, FULL_TRANSITIVE provides even stronger guarantees."
+  },
+  {
+    source: "cours",
+    question: "A shipping platform has BACKWARD compatibility configured on 'parcels-value'. The producer deploys schema v2, adding optional field 'trackingCode: string' (default: null). The consumer is still on v1 and has NOT been updated. The consumer reads a message produced with v2 (containing trackingCode = 'TRK-9821'). What EXACTLY happens during deserialization, and what does the consumer receive?",
+    type: "single",
+    options: [
+      {
+        text: "Avro schema resolution maps v2 (writer) to v1 (reader): 'trackingCode' exists in the writer schema but not in the v1 reader schema, so it is silently projected out. The consumer successfully deserializes the message and receives an object with only {parcelId, destination} — without 'trackingCode'",
+        explanation: "✓ CORRECT. Avro's schema resolution algorithm handles writer fields absent in the reader schema by ignoring them. The v1 consumer receives a valid, complete object matching its v1 schema. The 'trackingCode' value is discarded silently. This is the practical mechanism of BACKWARD compatibility.",
+        correct: true
+      },
+      {
+        text: "The consumer throws SchemaNotFoundException because the schema ID of the v2 message (from Schema Registry) does not match the consumer's registered v1 schema ID",
+        explanation: "✗ INCORRECT. Schema ID mismatch is the NORMAL operating condition — it is how the consumer knows which writer schema to retrieve from Schema Registry. The consumer uses the message's schema ID to look up the v2 writer schema, then performs Avro field projection to its v1 reader schema.",
+        correct: false
+      },
+      {
+        text: "The consumer receives the v2 message but 'trackingCode' is populated with null (the Java default for String), regardless of its actual value 'TRK-9821'",
+        explanation: "✗ INCORRECT. This describes what would happen if the v1 schema included 'trackingCode' as a field — the Avro default would apply. But since 'trackingCode' is completely absent from v1, Avro's projection simply IGNORES the field rather than populating it with null. The consumer POJO has no 'trackingCode' property at all.",
+        correct: false
+      },
+      {
+        text: "Schema Registry intercepts the consumer read and automatically upgrades the consumer's schema to v2 for transparent compatibility",
+        explanation: "✗ INCORRECT. Schema Registry has no mechanism to intercept consumer reads or auto-upgrade consumer schemas. It serves schema definitions on request — all schema resolution logic runs inside the Avro deserializer on the consumer side.",
+        correct: false
+      }
+    ],
+    answers: [0],
+    globalExplanation: "Avro schema resolution in action: when the writer schema (v2) has fields that the reader schema (v1) does not recognize, those fields are silently ignored during deserialization. The consumer receives a valid object matching its own v1 schema. This is the runtime mechanism that makes BACKWARD compatibility safe for rolling deployments — old consumers continue working correctly even while reading messages from newer producers."
+  },
+  {
+    source: "cours",
+    question: "A critical financial platform uses a single Schema Registry instance. A post-mortem reveals that when Schema Registry was unavailable for 4 minutes, 1,200 producer send() calls failed because new schemas could not be registered or looked up. The team must eliminate Schema Registry as a single point of failure. Which TWO architectural changes most effectively reduce the blast radius of a Schema Registry outage?",
+    type: "multiple",
+    options: [
+      {
+        text: "Deploy multiple Schema Registry instances behind a load balancer sharing the same '_schemas' Kafka topic. Write operations are routed to the elected leader; read operations (schema lookups) can be served by any instance with a warm cache",
+        explanation: "✓ CORRECT. Multi-instance HA is the standard approach: all SR instances share the same durable _schemas Kafka topic. If the leader fails, a new leader is elected. Read requests served from any warm-cache replica survive during leader re-election.",
+        correct: true
+      },
+      {
+        text: "Pre-register all schemas during CI/CD deployment and set auto.register.schemas=false in all producers. At runtime, producers only look up schema IDs (never register them), and the client-side cache serves repeated lookups without live SR contact",
+        explanation: "✓ CORRECT. Pre-registration + auto.register.schemas=false means producers need SR only for FIRST-TIME ID resolution per schema (then cached). Established producers with warm caches can continue producing even during a short SR outage. This is a production-hardening pattern.",
+        correct: true
+      },
+      {
+        text: "Increase the Kafka replication factor of the '_schemas' topic to 5 to prevent data loss during broker failures",
+        explanation: "✗ INCORRECT. While a higher replication factor improves '_schemas' topic durability, it does NOT prevent a Schema Registry process outage. If the SR JVM crashes, a replication factor of 5 doesn't help — SR is still unavailable.",
+        correct: false
+      },
+      {
+        text: "Configure producers with acks=0 to bypass the need for Schema Registry acknowledgment during message production",
+        explanation: "✗ INCORRECT. acks=0 is a Kafka broker acknowledgment setting — it has absolutely no relationship to Schema Registry. Schema Registry is contacted via a separate HTTP REST call before the Kafka send. Setting acks=0 does not bypass or reduce SR dependency.",
+        correct: false
+      }
+    ],
+    answers: [0, 1],
+    globalExplanation: "Schema Registry HA requires two complementary strategies: (1) Multi-instance deployment — leader handles writes, all instances serve cached reads, Kafka-backed leader election provides automatic failover; (2) Pre-registration + auto.register.schemas=false — reduces runtime SR dependency by ensuring producers only perform lookups (not registrations) and rely on client-side caching. Together, these strategies transform Schema Registry from a hard SPOF to a resilient component."
+  },
+  {
+    source: "inference",
+    question: "A Kafka administrator accidentally deletes the '_schemas' internal topic while cleaning up unused topics. After recreating it with default broker settings (8 partitions, cleanup.policy=delete, retention.ms=604800000), Schema Registry instances fail to start and log: 'Failed to leader elect on _schemas'. Which TWO topic configurations are REQUIRED for Schema Registry to function correctly?",
+    type: "multiple",
+    options: [
+      {
+        text: "Set cleanup.policy=compact — the _schemas topic must use log compaction to permanently retain all schema records regardless of time-based retention",
+        explanation: "✓ CORRECT. cleanup.policy=compact is mandatory for _schemas. Log compaction retains the latest record per key (schema subject + version), ensuring no schema data is ever lost due to time-based deletion. With cleanup.policy=delete, schema records older than retention.ms would be permanently lost.",
+        correct: true
+      },
+      {
+        text: "Set partition count to exactly 1 — Schema Registry requires a single-partition _schemas topic to guarantee global total ordering of all schema registration events",
+        explanation: "✓ CORRECT. The _schemas topic must have exactly 1 partition. Total ordering is required for Schema Registry's schema version sequencing and leader election algorithm. Multiple partitions would break the ordering guarantee and cause inconsistent schema version numbering.",
+        correct: true
+      },
+      {
+        text: "Set retention.ms=-1 (infinite retention) to prevent any schema records from expiring",
+        explanation: "✗ INCORRECT. While infinite retention is a prudent safety measure for a compacted topic, it is NOT the cause of leader election failures. The critical requirements are single partition and compacted cleanup policy. With compaction enabled, active schema records are never deleted regardless of retention.ms.",
+        correct: false
+      },
+      {
+        text: "Set min.insync.replicas=2 to prevent schema registration from succeeding with only one in-sync replica",
+        explanation: "✗ INCORRECT. min.insync.replicas is a durability configuration — important for production reliability but not the root cause of leader election failures after topic recreation. The election failure is caused by incorrect partition count and/or cleanup policy.",
+        correct: false
+      }
+    ],
+    answers: [0, 1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. The _schemas topic has two non-negotiable characteristics: (1) cleanup.policy=compact — preserves all schema history via log compaction; (2) exactly 1 partition — guarantees total ordering required for schema versioning. Getting either wrong causes Schema Registry to malfunction. In production, also set replication.factor=3 and min.insync.replicas=2 for durability."
+  },
+  {
+    source: "inference",
+    question: "A developer deploys a Java microservice using KafkaAvroSerializer and observes this exception on the first producer.send() call: 'SerializationException: Error registering Avro schema: java.net.ConnectException: Connection refused to localhost:8081'. The producer.properties file contains: bootstrap.servers=kafka-broker:9092, key.serializer=StringSerializer, value.serializer=KafkaAvroSerializer. What is the root cause and the exact fix?",
+    type: "single",
+    options: [
+      {
+        text: "The 'schema.registry.url' property is missing from producer configuration. Add 'schema.registry.url=http://schema-registry-host:8081'. Without it, KafkaAvroSerializer defaults to localhost:8081 and fails when Schema Registry is not local",
+        explanation: "✓ CORRECT. KafkaAvroSerializer requires schema.registry.url to locate the Schema Registry REST endpoint. Without explicit configuration, it may attempt to connect to a default (localhost:8081), causing Connection refused when SR runs on a different host. This property is mandatory.",
+        correct: true
+      },
+      {
+        text: "The acks configuration is missing; set acks=all to ensure Schema Registry receives confirmation before the message is published",
+        explanation: "✗ INCORRECT. acks controls Kafka broker acknowledgment, completely independent of Schema Registry. Schema Registry is contacted via a separate HTTP REST call. acks=all has zero effect on SR connectivity or schema registration.",
+        correct: false
+      },
+      {
+        text: "The KafkaAvroSerializer class is incorrect; use io.confluent.kafka.serializers.KafkaAvroSerializerV2 for newer Schema Registry versions",
+        explanation: "✗ INCORRECT. io.confluent.kafka.serializers.KafkaAvroSerializer is the correct fully-qualified class name. There is no KafkaAvroSerializerV2 class in Confluent's libraries.",
+        correct: false
+      },
+      {
+        text: "The bootstrap.servers must include the Schema Registry host:port since Schema Registry piggybacks on the Kafka broker connection",
+        explanation: "✗ INCORRECT. Schema Registry is an entirely separate process from Kafka brokers. It runs on its own port (default 8081 vs Kafka's 9092) and requires its own dedicated configuration property (schema.registry.url), completely independent of bootstrap.servers.",
+        correct: false
+      }
+    ],
+    answers: [0],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. schema.registry.url is the mandatory configuration property for ALL Confluent Schema Registry serializers/deserializers (KafkaAvroSerializer, KafkaAvroDeserializer, KafkaJsonSchemaSerializer, KafkaProtobufSerializer, etc.). It must be set in BOTH producer AND consumer properties. Common exam traps include variant names like 'schema.registry.endpoint' or 'confluent.schema.url' — neither exists."
+  },
+  {
+    source: "inference",
+    question: "A data platform team has an 'AccountEvent' Avro record published to three Kafka topics: 'account-created', 'account-updated', and 'account-closed'. Using the default TopicNameStrategy, they have three subjects: 'account-created-value', 'account-updated-value', 'account-closed-value'. Every schema evolution requires three separate Schema Registry registrations, causing drift and governance overhead. They want a single schema subject managing the 'AccountEvent' type regardless of which topic it appears in. Which subject naming strategy achieves this?",
+    type: "single",
+    options: [
+      {
+        text: "RecordNameStrategy — subjects are named after the fully-qualified Avro record name (e.g., 'com.example.AccountEvent'), creating a single shared schema lineage across all three topics",
+        explanation: "✓ CORRECT. RecordNameStrategy uses the Avro record's fully-qualified name as the subject. All topics publishing 'AccountEvent' share the single subject 'com.example.AccountEvent'. One schema registration update propagates to all topics simultaneously — exactly what the team needs.",
+        correct: true
+      },
+      {
+        text: "TopicRecordNameStrategy — subjects combine topic name and record name, which consolidates schema management at the topic level",
+        explanation: "✗ INCORRECT. TopicRecordNameStrategy creates subjects like 'account-created-com.example.AccountEvent' — one per topic/record combination. This creates EVEN MORE subjects (more granular than default), the opposite of consolidation.",
+        correct: false
+      },
+      {
+        text: "GlobalNameStrategy — a single global subject covers all records and all topics in the cluster",
+        explanation: "✗ INCORRECT. There is no 'GlobalNameStrategy' in Confluent Schema Registry. The three supported strategies are TopicNameStrategy, RecordNameStrategy, and TopicRecordNameStrategy.",
+        correct: false
+      },
+      {
+        text: "Keep TopicNameStrategy and use Schema Registry's subject aliasing feature to link the three subjects to a canonical definition",
+        explanation: "✗ INCORRECT. Schema Registry does not have a 'subject aliasing' or 'canonical linking' feature. Each subject under TopicNameStrategy is an independent versioned lineage with no native cross-linking capability.",
+        correct: false
+      }
+    ],
+    answers: [0],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. The three subject naming strategies: TopicNameStrategy (default) = '<topic>-key/value' (isolated per topic); RecordNameStrategy = '<namespace>.<RecordName>' (shared across topics, ideal for reusable schema types); TopicRecordNameStrategy = '<topic>-<namespace>.<RecordName>' (most granular). Choosing the right strategy is a key schema governance decision with significant operational implications."
+  },
+  {
+    source: "inference",
+    question: "A developer uses the Gradle Avro Plugin to generate a 'PaymentEvent' POJO from a .avsc file. The consumer is configured with KafkaAvroDeserializer. At runtime the application throws: 'ClassCastException: org.apache.avro.generic.GenericData$Record cannot be cast to com.example.PaymentEvent'. The consumer code performs: PaymentEvent event = (PaymentEvent) record.value(). Which single configuration property is missing, and what does it do?",
+    type: "single",
+    options: [
+      {
+        text: "specific.avro.reader=true — without this property, KafkaAvroDeserializer defaults to returning GenericRecord objects (dynamic key-value maps). Setting it to true instructs the deserializer to resolve and instantiate the specific generated POJO class (PaymentEvent) from the classpath",
+        explanation: "✓ CORRECT. By default, KafkaAvroDeserializer returns GenericRecord. Setting specific.avro.reader=true activates specific record mode: the deserializer uses the Avro schema's fully-qualified record name to find the generated POJO class on the classpath and returns a properly typed PaymentEvent instance.",
+        correct: true
+      },
+      {
+        text: "value.deserializer=io.confluent.kafka.serializers.KafkaSpecificAvroDeserializer — the standard deserializer does not support specific record types",
+        explanation: "✗ INCORRECT. There is no separate KafkaSpecificAvroDeserializer class. The standard KafkaAvroDeserializer handles both generic and specific records — controlled by the specific.avro.reader property, not a different class.",
+        correct: false
+      },
+      {
+        text: "avro.specific.class=com.example.PaymentEvent — explicitly maps the schema to the target POJO class for deserialization",
+        explanation: "✗ INCORRECT. There is no avro.specific.class property in KafkaAvroDeserializer. The specific POJO class is resolved automatically from the classpath using the Avro schema's namespace + name when specific.avro.reader=true is set.",
+        correct: false
+      },
+      {
+        text: "schema.registry.url must include the POJO package path to allow Schema Registry to locate the generated class during deserialization",
+        explanation: "✗ INCORRECT. schema.registry.url is a network endpoint (HTTP URL) for the Schema Registry REST API. It has no concept of Java package paths or classpath resolution. The POJO class is resolved locally by the deserializer from the application JVM classpath.",
+        correct: false
+      }
+    ],
+    answers: [0],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. specific.avro.reader=true is mandatory in consumer config when using auto-generated Avro POJOs. Without it: KafkaAvroDeserializer returns GenericRecord (causes ClassCastException). With it: returns the specific typed POJO instance. This property must be set in the consumer properties map, not just the Serde configuration."
+  },
+  {
+    source: "inference",
+    question: "A trading platform has BACKWARD compatibility configured on the 'trades-value' subject. A developer proposes four schema changes to TradeEvent v1. The CI/CD pipeline will call the Schema Registry /compatibility endpoint for each proposal. Which TWO changes will be ACCEPTED as backward-compatible?",
+    type: "multiple",
+    options: [
+      {
+        text: "Add field 'exchangeCode: string' with default: 'NYSE' — backward-compatible because old v1 messages lacking this field will use the declared default when read by v2 consumers",
+        explanation: "✓ CORRECT. Adding a field WITH a default is the canonical backward-compatible Avro change. V2 consumers reading v1 messages (which lack 'exchangeCode') will use the default 'NYSE'. Schema Registry will accept this.",
+        correct: true
+      },
+      {
+        text: "Remove field 'legacyRef: string' which has default: '' — backward-compatible because v2 consumers reading old v1 messages (which still contain 'legacyRef') will simply ignore the extra writer field",
+        explanation: "✓ CORRECT. Removing a field that has a default is backward-compatible. V2 reader schema (without 'legacyRef') reading v1 writer messages (with 'legacyRef') — Avro projection ignores unknown writer fields. Schema Registry accepts this removal.",
+        correct: true
+      },
+      {
+        text: "Rename field 'qty: int' to 'quantity: int' (no alias declaration) — backward-compatible because Avro treats field names as flexible identifiers",
+        explanation: "✗ INCORRECT. Field renaming without Avro aliases is NOT backward-compatible. It is equivalent to deleting 'qty' (required, no default) — a breaking change. Schema Registry will REJECT this under BACKWARD mode. To rename safely, use the aliases property: add 'quantity' as new name with 'aliases: [\"qty\"]'.",
+        correct: false
+      },
+      {
+        text: "Add field 'tradeTimestamp: long' with NO default — backward-compatible because timestamps are always present in real trading data",
+        explanation: "✗ INCORRECT. Adding a required field (no default) breaks backward compatibility regardless of business logic. Old v1 messages do not contain 'tradeTimestamp', so new consumers (v2) cannot resolve this required field when reading v1 messages. Schema Registry REJECTS this.",
+        correct: false
+      }
+    ],
+    answers: [0, 1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Avro BACKWARD compatibility golden rules: SAFE = add field WITH default; remove field WITH default. UNSAFE = rename field (without alias), change field type, add required field (no default), remove required field (no default). Every safe change must ensure that new consumers can always resolve field values when reading old messages — defaults are the mechanism."
+  },
+  {
+    source: "inference",
+    question: "A data lake team starts a backfill job to reprocess 18 months of historical sensor data from the 'sensor-readings' topic (from offset 0). The 'sensor-readings-value' subject has 6 registered schema versions. The compatibility mode is BACKWARD (non-transitive). The new consumer uses schema v6. The job fails with SerializationException when processing messages produced with v1. The platform team is asked to prevent this class of issue in future topics. Which configuration change addresses the root cause?",
+    type: "single",
+    options: [
+      {
+        text: "Switch to BACKWARD_TRANSITIVE compatibility — this mode validates that each new schema version is compatible with ALL previous versions (v1 through vN-1), not just the immediately preceding version",
+        explanation: "✓ CORRECT. BACKWARD (non-transitive) only guarantees vN is compatible with v(N-1). Over 6 versions, breaking changes could have accumulated. BACKWARD_TRANSITIVE validates vN against ALL prior versions, ensuring any consumer on v6 can read messages produced with any version from v1 to v5.",
+        correct: true
+      },
+      {
+        text: "Set auto.offset.reset=earliest on the consumer — this ensures the consumer correctly reads from the beginning of the topic without offset issues",
+        explanation: "✗ INCORRECT. auto.offset.reset controls what happens when no committed offset exists. The backfill job explicitly starts from offset 0, so offset reset behavior is not the issue. The failure is a schema deserialization error, not an offset resolution problem.",
+        correct: false
+      },
+      {
+        text: "Switch to FULL compatibility — since FULL is stricter than BACKWARD, it automatically provides transitive guarantees",
+        explanation: "✗ INCORRECT. FULL (non-transitive) has the same limitation as BACKWARD (non-transitive) — it only checks adjacent versions. The transitive guarantee requires explicitly choosing FULL_TRANSITIVE or BACKWARD_TRANSITIVE, not just a stricter non-transitive mode.",
+        correct: false
+      },
+      {
+        text: "Use GenericRecord deserialization with specific.avro.reader=false — dynamic deserialization handles all schema versions automatically",
+        explanation: "✗ INCORRECT. GenericRecord deserialization does not solve schema structural incompatibility. If v6 schema is incompatible with v1 messages (e.g., required fields missing in v1), GenericRecord deserialization also fails. The root cause is a compatibility model problem, not a Java type problem.",
+        correct: false
+      }
+    ],
+    answers: [0],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. BACKWARD (non-transitive) = vN compatible with v(N-1) only. BACKWARD_TRANSITIVE = vN compatible with ALL prior versions v1...v(N-1). For topics consumed from earliest offset (historical reads, data lake, backfill jobs, offline consumers), transitive modes are critical to guarantee deserialization across the entire version history. The trade-off: transitive modes are more restrictive and reject more schema changes."
+  },
+  {
+    source: "inference",
+    question: "A DevOps engineer must build an automated CI/CD gate that validates whether a proposed new 'AnalyticsEvent' schema version is compatible with the existing 'analytics-events-value' subject — WITHOUT registering the schema. The Schema Registry REST API must be used. Which API call is correct?",
+    type: "single",
+    options: [
+      {
+        text: "POST /compatibility/subjects/analytics-events-value/versions/latest with the candidate schema as JSON body. A response of {\"is_compatible\": true} means the schema can be safely registered",
+        explanation: "✓ CORRECT. The /compatibility endpoint tests compatibility without registering the schema. It evaluates the candidate against the specified version (or 'latest') using the subject's configured compatibility mode and returns a clear boolean result with no side effects.",
+        correct: true
+      },
+      {
+        text: "POST /subjects/analytics-events-value/versions with a ?dry_run=true query parameter to simulate registration without persisting",
+        explanation: "✗ INCORRECT. The Schema Registry REST API does not support a dry_run parameter on the /subjects/{subject}/versions endpoint. This endpoint ALWAYS registers the schema if called. Use /compatibility for non-destructive checks.",
+        correct: false
+      },
+      {
+        text: "GET /subjects/analytics-events-value/versions/latest to retrieve the current schema, then compare it programmatically with the candidate schema in the CI script",
+        explanation: "✗ INCORRECT. Manual string or structural comparison cannot correctly evaluate Avro schema compatibility. Compatibility involves Avro type resolution, field defaults, aliases, and union types — logic that Schema Registry's compatibility engine handles correctly but manual comparison cannot.",
+        correct: false
+      },
+      {
+        text: "PUT /config/analytics-events-value with {\"compatibility\": \"NONE\"} before registration, register the schema, then restore the original mode",
+        explanation: "✗ INCORRECT. This is a dangerous anti-pattern that introduces a race condition window where other teams could register incompatible schemas against the temporarily NONE subject. It also actually registers the schema rather than testing it.",
+        correct: false
+      }
+    ],
+    answers: [0],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Schema Registry REST API key endpoints: /subjects/{subject}/versions (register schema), /compatibility/subjects/{subject}/versions/{version} (TEST without registering — returns is_compatible: true/false), /config/{subject} (get/set compatibility mode). The /compatibility endpoint is the correct and only safe tool for CI/CD schema validation gates."
+  },
+  {
+    source: "inference",
+    question: "A developer builds a Kafka Streams application that reads 'OrderEvent' Avro records from the 'orders' input topic (auto-generated POJO) and writes 'EnrichedOrder' Avro records to 'enriched-orders'. The application uses Confluent Schema Registry. The developer configures StreamsConfig with bootstrap.servers and application.id but the application throws NullPointerException when serializing output records. What is missing from the Serde setup?",
+    type: "single",
+    options: [
+      {
+        text: "SpecificAvroSerde instances must be explicitly configured by calling serde.configure(Map.of(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, url), isKey) before use. Without configure(), the Serde's internal schema registry client is null, causing NullPointerException",
+        explanation: "✓ CORRECT. SpecificAvroSerde (and GenericAvroSerde) do NOT auto-configure from StreamsConfig. Each Serde instance must be manually configured by calling .configure() with a map containing at minimum the schema.registry.url. Forgetting configure() leaves the SR client uninitialized, causing NPE on first serialize/deserialize.",
+        correct: true
+      },
+      {
+        text: "Set default.value.serde=io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde in StreamsConfig — this automatically configures all Serdes in the topology",
+        explanation: "✗ INCORRECT. Setting default.value.serde in StreamsConfig does NOT automatically call configure() on Serde instances. You still need to explicitly instantiate SpecificAvroSerde<T> and call .configure() for each Serde. The default Serde setting only specifies which class to use, not how to configure it.",
+        correct: false
+      },
+      {
+        text: "Use Serdes.serdeFrom(new KafkaAvroSerializer(), new KafkaAvroDeserializer()) — this lower-level approach auto-configures Schema Registry from the classpath",
+        explanation: "✗ INCORRECT. Serdes.serdeFrom() creates a raw Serde from serializer/deserializer instances but does NOT auto-configure schema.registry.url. The resulting Serde still needs explicit configuration, and this approach is not the idiomatic way to use Avro Serdes in Kafka Streams.",
+        correct: false
+      },
+      {
+        text: "Add the kafka-streams-avro-serde Maven dependency — without it, Kafka Streams cannot find the SpecificAvroSerde class, causing NullPointerException",
+        explanation: "✗ INCORRECT. A missing dependency would cause a ClassNotFoundException or NoClassDefFoundError at startup, not a NullPointerException during serialization. The NPE specifically indicates the class was found but its internal state (SR client) was not initialized — pointing to missing configure() call.",
+        correct: false
+      }
+    ],
+    answers: [0],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Kafka Streams + Avro + Schema Registry pattern: (1) Add kafka-streams-avro-serde dependency; (2) Instantiate SpecificAvroSerde<YourPojo>; (3) Call serde.configure(Map.of(SCHEMA_REGISTRY_URL_CONFIG, url), isKey) — this step is mandatory and commonly forgotten; (4) Use the configured Serde in your topology. Both input and output Serdes require separate configure() calls."
+  },
+  {
+    source: "inference",
+    question: "A team migrates from self-managed Confluent Platform to Confluent Cloud. After updating bootstrap.servers and Kafka broker SASL credentials, producers fail with HTTP 401 Unauthorized when contacting the Confluent Cloud Schema Registry endpoint. The schema.registry.url is correctly configured. Which TWO additional properties must be added to the producer configuration?",
+    type: "multiple",
+    options: [
+      {
+        text: "basic.auth.credentials.source=USER_INFO — instructs the Schema Registry client to use HTTP Basic Authentication with credentials sourced from the schema.registry.basic.auth.user.info property",
+        explanation: "✓ CORRECT. Confluent Cloud Schema Registry uses HTTP Basic Authentication. basic.auth.credentials.source=USER_INFO tells the SR client where to find the credentials. Without this, the client sends no authentication header, causing 401 Unauthorized.",
+        correct: true
+      },
+      {
+        text: "schema.registry.basic.auth.user.info=<SR_API_KEY>:<SR_API_SECRET> — provides the Schema Registry-specific API key and secret (distinct from Kafka broker credentials) in key:secret format",
+        explanation: "✓ CORRECT. Confluent Cloud Schema Registry has its own API key/secret, separate from the Kafka broker credentials. This property provides the actual credentials. Together with basic.auth.credentials.source=USER_INFO, it completes the HTTP Basic Auth setup for SR.",
+        correct: true
+      },
+      {
+        text: "security.protocol=SASL_SSL — required to enable TLS for Schema Registry connections on Confluent Cloud",
+        explanation: "✗ INCORRECT. security.protocol is a Kafka BROKER client property — it configures the connection to Kafka brokers, not Schema Registry. Schema Registry uses standard HTTPS (TLS is handled by the https:// URL scheme) independently of the Kafka security protocol setting.",
+        correct: false
+      },
+      {
+        text: "sasl.jaas.config must include the Schema Registry API key for SASL authentication to Confluent Cloud Schema Registry",
+        explanation: "✗ INCORRECT. sasl.jaas.config is a Kafka broker SASL configuration property. Schema Registry on Confluent Cloud uses HTTP Basic Authentication (basic.auth.*), NOT Kafka SASL mechanisms. Mixing these two authentication mechanisms is a very common exam trap.",
+        correct: false
+      },
+      {
+        text: "schema.registry.ssl.endpoint.identification.algorithm=https — mandatory to enable TLS hostname verification for Confluent Cloud Schema Registry",
+        explanation: "✗ INCORRECT. This property is sometimes needed for self-managed SR with custom TLS certificates. For Confluent Cloud, standard HTTPS hostname verification is already correctly configured. A 401 error is an authentication failure, not a TLS certificate verification issue.",
+        correct: false
+      }
+    ],
+    answers: [0, 1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Confluent Cloud Schema Registry authentication uses HTTP Basic Auth via two properties: basic.auth.credentials.source=USER_INFO and schema.registry.basic.auth.user.info=<KEY>:<SECRET>. These SR credentials are SEPARATE from Kafka broker SASL credentials (sasl.jaas.config, sasl.mechanism, security.protocol). A critical exam trap: confusing broker auth properties with Schema Registry auth properties."
+  },
+  {
+    source: "inference",
+    question: "A platform governance team enforces a strict policy: all schema versions must be reviewed by the Data Governance Board and pre-registered in Schema Registry via CI/CD before any service deploys. No service is allowed to auto-register schemas at runtime. The team needs a single producer configuration property to enforce this at the client level. Which configuration correctly implements this policy?",
+    type: "single",
+    options: [
+      {
+        text: "auto.register.schemas=false — with this setting, KafkaAvroSerializer looks up the schema ID for the provided schema but throws SerializationException if the schema is NOT already registered, preventing any runtime auto-registration",
+        explanation: "✓ CORRECT. auto.register.schemas=false disables the serializer's schema auto-registration behavior. The producer can only produce messages with pre-registered schemas. Any attempt to produce with an unregistered schema fails immediately with SerializationException, enforcing the governance policy.",
+        correct: true
+      },
+      {
+        text: "Set compatibility mode to NONE on all subjects — this prevents auto-registration by disabling the pre-registration validation step",
+        explanation: "✗ INCORRECT. Compatibility mode NONE makes auto-registration MORE permissive by removing validation checks. It does NOT prevent auto-registration. With NONE, any schema is accepted and auto-registered without any validation — the opposite of the governance requirement.",
+        correct: false
+      },
+      {
+        text: "Configure a Schema Registry ACL that denies WRITE permissions on the _schemas topic for all producer principals",
+        explanation: "✗ INCORRECT. Denying WRITE on _schemas would block Schema Registry's own internal operations (not just producer auto-registration). This is a sledgehammer approach that would break Schema Registry itself. The correct tool is the client-side auto.register.schemas=false property.",
+        correct: false
+      },
+      {
+        text: "Set enable.idempotence=true in the producer config — idempotent producers skip schema registration to ensure exactly-once delivery",
+        explanation: "✗ INCORRECT. enable.idempotence=true enables exactly-once delivery at the Kafka broker level (deduplication via producer IDs and sequence numbers). It has absolutely no relationship to Schema Registry schema registration behavior.",
+        correct: false
+      }
+    ],
+    answers: [0],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. auto.register.schemas=false is the client-side property for schema governance enforcement. When false: the serializer performs a schema LOOKUP only (never registers). If schema is not found, throws SerializationException. Pair with use.latest.version=true to always use the latest registered version. This pattern enables CI/CD-driven schema governance: register via pipeline, produce via pre-registered IDs."
+  }
+];
+
+// ============================================================
+// GLOBAL STATE
+// ============================================================
+var QUESTIONS = [];
+var qIdx = 0;
+var selected = [];
+var answered = false;
+var score = 0;
+var scoreCours = 0;
+var scoreInfer = 0;
+var totalCours = 0;
+var totalInfer = 0;
+var timerInterval = null;
+var timeLeft = 0;
+var totalTime = 0;
+var LETTERS = ['A','B','C','D','E','F'];
+
+// ============================================================
+// FISHER-YATES SHUFFLE
+// ============================================================
+function fisherYates(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+// ============================================================
+// SHUFFLE QUESTIONS + OPTIONS
+// ============================================================
+function shuffleQuestions() {
+  QUESTIONS = fisherYates(QUESTIONS_RAW).map(function(q) {
+    var shuffledOpts = fisherYates(q.options);
+    // Build new answers array based on correct flags
+    var newAnswers = [];
+    for (var i = 0; i < shuffledOpts.length; i++) {
+      if (shuffledOpts[i].correct) newAnswers.push(i);
+    }
+    return {
+      source: q.source,
+      question: q.question,
+      type: q.type,
+      options: shuffledOpts,
+      answers: newAnswers,
+      globalExplanation: q.globalExplanation
+    };
+  });
+  totalCours = 0; totalInfer = 0;
+  for (var i = 0; i < QUESTIONS.length; i++) {
+    if (QUESTIONS[i].source === 'cours') totalCours++;
+    else totalInfer++;
+  }
+}
+
+// ============================================================
+// TIMER
+// ============================================================
+function startTimer() {
+  clearInterval(timerInterval);
+  totalTime = 90 * QUESTIONS.length;
+  timeLeft = totalTime;
+  updateTimerDisplay();
+  timerInterval = setInterval(function() {
+    timeLeft--;
+    updateTimerDisplay();
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      if (!answered) {
+        document.getElementById('timeoutMsg').style.display = 'block';
+        valider();
+      }
+      if (qIdx < QUESTIONS.length - 1) {
+        setTimeout(function() { suivante(); }, 1200);
+      } else {
+        setTimeout(function() { paintScore(); }, 1200);
+      }
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  var m = Math.floor(timeLeft / 60);
+  var s = timeLeft % 60;
+  var txt = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  document.getElementById('timerBox').textContent = txt;
+  var box = document.getElementById('timerBox');
+  var pct = totalTime > 0 ? timeLeft / totalTime : 1;
+  if (pct < 0.10) box.className = 'timer-box danger';
+  else if (pct < 0.20) box.className = 'timer-box warn';
+  else box.className = 'timer-box';
+}
+
+// ============================================================
+// RENDER QUESTION
+// ============================================================
+function paint() {
+  var q = QUESTIONS[qIdx];
+  var total = QUESTIONS.length;
+
+  document.getElementById('progressLabel').textContent = 'Question ' + (qIdx+1) + ' / ' + total;
+  document.getElementById('scoreLabel').textContent = 'Score: ' + score;
+  document.getElementById('progressBar').style.width = Math.round(((qIdx+1)/total)*100) + '%';
+
+  var typeBadge = q.type === 'multiple'
+    ? '<span class="badge badge-multiple">Multiple answers</span>'
+    : '<span class="badge badge-single">Single answer</span>';
+  var srcBadge = q.source === 'cours'
+    ? '<span class="badge badge-cours">📘 From the course</span>'
+    : '<span class="badge badge-infer">🔍 Beyond the course</span>';
+
+  var html = '<div class="badges-row">' + typeBadge + srcBadge + '</div>';
+  html += '<div class="question-text">' + q.question + '</div>';
+
+  for (var i = 0; i < q.options.length; i++) {
+    html += '<div class="option" id="opt_' + i + '" onclick="pickOption(' + i + ')">';
+    html += '  <div class="option-top">';
+    html += '    <div class="opt-letter">' + LETTERS[i] + '</div>';
+    html += '    <div class="opt-text">' + q.options[i].text + '</div>';
+    html += '  </div>';
+    html += '  <div class="opt-explanation" id="expl_' + i + '"></div>';
+    html += '</div>';
+  }
+
+  document.getElementById('qContent').innerHTML = html;
+  document.getElementById('globalExplanation').className = 'global-explanation';
+  document.getElementById('globalExplanationText').textContent = '';
+  document.getElementById('btnValidate').style.display = 'block';
+  document.getElementById('btnValidate').disabled = false;
+  document.getElementById('btnNext').style.display = 'none';
+  document.getElementById('timeoutMsg').style.display = 'none';
+  selected = [];
+  answered = false;
+}
+
+// ============================================================
+// PICK OPTION
+// ============================================================
+function pickOption(i) {
+  if (answered) return;
+  var q = QUESTIONS[qIdx];
+  if (q.type === 'multiple') {
+    var idx2 = selected.indexOf(i);
+    if (idx2 === -1) {
+      selected.push(i);
+      document.getElementById('opt_' + i).className = 'option selected';
+    } else {
+      selected.splice(idx2, 1);
+      document.getElementById('opt_' + i).className = 'option';
+    }
+  } else {
+    if (selected.length > 0) {
+      document.getElementById('opt_' + selected[0]).className = 'option';
+    }
+    selected = [i];
+    document.getElementById('opt_' + i).className = 'option selected';
+  }
+}
+
+// ============================================================
+// VALIDATE
+// ============================================================
+function valider() {
+  if (answered) return;
+  answered = true;
+
+  var q = QUESTIONS[qIdx];
+  var correctSet = q.answers.slice().sort();
+  var selSet = selected.slice().sort();
+
+  var isCorrect = false;
+  if (selSet.length === correctSet.length) {
+    isCorrect = true;
+    for (var k = 0; k < correctSet.length; k++) {
+      if (selSet[k] !== correctSet[k]) { isCorrect = false; break; }
+    }
+  }
+
+  if (isCorrect) {
+    score++;
+    if (q.source === 'cours') scoreCours++;
+    else scoreInfer++;
+  }
+  document.getElementById('scoreLabel').textContent = 'Score: ' + score;
+
+  for (var j = 0; j < q.options.length; j++) {
+    var optEl = document.getElementById('opt_' + j);
+    var explEl = document.getElementById('expl_' + j);
+    var isCorrectOpt = (correctSet.indexOf(j) !== -1);
+    var wasSelected = (selected.indexOf(j) !== -1);
+
+    var explClass = 'opt-explanation show ';
+    if (isCorrectOpt && wasSelected) {
+      optEl.className = 'option correct disabled';
+      explClass += 'expl-correct';
+    } else if (!isCorrectOpt && wasSelected) {
+      optEl.className = 'option wrong disabled';
+      explClass += 'expl-wrong';
+    } else if (isCorrectOpt && !wasSelected) {
+      optEl.className = 'option missed disabled';
+      explClass += 'expl-missed';
+    } else {
+      optEl.className = 'option disabled';
+      explClass += 'expl-wrong';
+    }
+    explEl.className = explClass;
+    explEl.innerHTML = q.options[j].explanation;
+  }
+
+  document.getElementById('globalExplanationText').textContent = q.globalExplanation;
+  document.getElementById('globalExplanation').className = 'global-explanation show';
+  document.getElementById('btnValidate').style.display = 'none';
+  document.getElementById('btnNext').style.display = 'block';
+}
+
+// ============================================================
+// NEXT QUESTION
+// ============================================================
+function suivante() {
+  qIdx++;
+  if (qIdx >= QUESTIONS.length) {
+    paintScore();
+  } else {
+    paint();
+  }
+}
+
+// ============================================================
+// SCORE SCREEN
+// ============================================================
+function paintScore() {
+  clearInterval(timerInterval);
+  document.getElementById('quizScreen').className = 'quiz-screen hide';
+  document.getElementById('scoreScreen').className = 'score-screen show';
+
+  var total = QUESTIONS.length;
+  var pct = Math.round((score / total) * 100);
+
+  document.getElementById('scoreSubtitle').textContent = 'Final score: ' + score + ' / ' + total + ' (' + pct + '%)';
+
+  var fill = document.getElementById('scoreBarFill');
+  fill.style.width = pct + '%';
+  fill.textContent = pct + '%';
+  fill.className = 'score-bar-fill ' + (pct >= 75 ? 'high' : pct >= 50 ? 'mid' : 'low');
+
+  var msg = document.getElementById('scoreMsg');
+  if (pct >= 75) {
+    msg.textContent = '🎉 Excellent! You are well prepared for the CCDAK exam on Confluent Schema Registry.';
+    msg.className = 'score-msg high';
+  } else if (pct >= 50) {
+    msg.textContent = '📈 Good effort! Review the per-option explanations and retry the questions you missed.';
+    msg.className = 'score-msg mid';
+  } else {
+    msg.textContent = '📚 Keep studying! Re-read the course, go through each explanation carefully, and try again.';
+    msg.className = 'score-msg low';
+  }
+
+  document.getElementById('scoreCours').textContent = scoreCours + ' / ' + totalCours;
+  document.getElementById('scoreCoursPct').textContent = Math.round((scoreCours / (totalCours || 1)) * 100) + '% success';
+  document.getElementById('scoreInfer').textContent = scoreInfer + ' / ' + totalInfer;
+  document.getElementById('scoreInferPct').textContent = Math.round((scoreInfer / (totalInfer || 1)) * 100) + '% success';
+
+  var timeUsed = totalTime - timeLeft;
+  var avgSec = total > 0 ? Math.round(timeUsed / total) : 0;
+  document.getElementById('scoreMeta').textContent =
+    'Time used: ' + Math.floor(timeUsed/60) + 'm ' + (timeUsed%60) + 's — Average per question: ' + avgSec + 's';
+}
+
+// ============================================================
+// RESTART
+// ============================================================
+function recommencer() {
+  score = 0; scoreCours = 0; scoreInfer = 0;
+  qIdx = 0; selected = []; answered = false;
+  clearInterval(timerInterval);
+  shuffleQuestions();
+  document.getElementById('scoreScreen').className = 'score-screen';
+  document.getElementById('quizScreen').className = 'quiz-screen';
+  paint();
+  startTimer();
+}
+
+// ============================================================
+// INIT
+// ============================================================
+shuffleQuestions();
+paint();
+startTimer();
+</script>
+</body>
+</html>

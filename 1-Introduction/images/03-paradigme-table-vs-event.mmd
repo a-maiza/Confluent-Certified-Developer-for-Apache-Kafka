@@ -1,0 +1,21 @@
+graph TB
+    subgraph TRAD ["🗄️ Paradigme Traditionnel — Tables"]
+        direction TB
+        T1["Entité : Article"]
+        T2["État stocké : 42 unités"]
+        T3["Lecture ponctuelle"]
+        T1 --> T2 --> T3
+    end
+
+    subgraph KAFKA ["⚡ Paradigme Kafka — Événements"]
+        direction TB
+        E1["Fait : Vente à 14h32"]
+        E2["Fait : Vente à 14h35"]
+        E3["Fait : Réapprovisionnement à 15h00"]
+        E1 --> E2 --> E3
+    end
+
+    TRAD -.->|"Inversion<br/>de la logique"| KAFKA
+
+    style TRAD fill:#ffebee,stroke:#c62828
+    style KAFKA fill:#e8f5e9,stroke:#2e7d32

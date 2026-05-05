@@ -1,0 +1,17 @@
+flowchart LR
+    subgraph FRAME [" "]
+        direction LR
+        L["👑 Leader<br/>(1)"]
+        L -->|"réplication continue"| F1["🔁 Follower 1"]
+        L -->|"réplication continue"| F2["🔁 Follower 2"]
+        L -->|"réplication continue"| FN["🔁 Follower n-1"]
+
+        L -.->|"replication.factor = n<br/>→ 1 leader + (n-1) followers"| INFO["ℹ️ Total = n copies"]
+    end
+
+    style L fill:#e53935,color:#fff,stroke:#b71c1c,stroke-width:3px
+    style F1 fill:#fff8e1,stroke:#f57c00
+    style F2 fill:#fff8e1,stroke:#f57c00
+    style FN fill:#f5f5f5,stroke:#9e9e9e,stroke-dasharray:3 3
+    style INFO fill:#e3f2fd,stroke:#1565c0
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

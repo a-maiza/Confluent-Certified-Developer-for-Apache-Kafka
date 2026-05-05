@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CCDAK Quiz — Kafka Durability, Replication & Topics</title>
+    <style>
+        body{margin:0;background:#f5f5f3;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1f2937;}
+        .wrap{max-width:980px;margin:0 auto;padding:28px 16px 44px;}
+        .top{height:12px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin-bottom:18px;border:1px solid #d1d5db;}
+        .bar{height:100%;width:0;background:#378ADD;transition:width .3s ease;}
+        .card{background:#fff;border:1px solid #d9d9d6;border-radius:12px;padding:24px;box-shadow:0 8px 22px rgba(0,0,0,.04);}
+        .head{display:flex;gap:12px;justify-content:space-between;align-items:flex-start;margin-bottom:16px;}
+        h1{font-size:24px;margin:0 0 4px;} h2{font-size:21px;margin:12px 0 14px;line-height:1.35;}
+        code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:1px 5px;font-size:.95em;}
+        .muted{color:#6b7280;font-size:14px}.badge{display:inline-block;background:#eaf4ff;color:#155e9f;border:1px solid #b8daf8;border-radius:999px;padding:6px 10px;font-weight:700;font-size:13px;}
+        .timer{font-weight:800;border:1px solid #cbd5e1;border-radius:999px;padding:8px 12px;color:#378ADD;min-width:64px;text-align:center;}
+        .timer.orange{color:#c77700;border-color:#f59e0b;background:#fff7ed}.timer.red{color:#b91c1c;border-color:#ef4444;background:#fef2f2;animation:pulse .8s infinite alternate;}
+        @keyframes pulse{from{transform:scale(1)}to{transform:scale(1.04)}}
+        .opts{display:grid;gap:10px;margin:18px 0}.opt{border:1px solid #d1d5db;border-radius:10px;padding:13px 14px;cursor:pointer;background:#fff;display:flex;gap:10px;line-height:1.35;transition:.15s;}
+        .opt:hover{background:#f8fafc;border-color:#9dc8ef}.opt.sel{border-color:#378ADD;background:#eef6ff}.opt.good{border-color:#15803d;background:#dcfce7}.opt.bad{border-color:#b91c1c;background:#fee2e2}.opt.missed{border:2px dashed #15803d;background:#f0fdf4}.letter{font-weight:800;min-width:24px;color:#374151}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.btn{border:0;border-radius:10px;padding:11px 16px;font-weight:800;cursor:pointer;background:#378ADD;color:#fff}.btn.secondary{background:#eef2f7;color:#1f2937}.btn:disabled{background:#cbd5e1;color:#64748b;cursor:not-allowed}.explain{display:none;margin-top:18px;border-top:1px solid #e5e7eb;padding-top:16px}.explain h3{margin:14px 0 6px;font-size:16px;color:#111827}.explain p,.explain li{line-height:1.52}.warn{font-weight:800;color:#b91c1c}.scoreBox{text-align:center;padding:22px}.scoreNum{font-size:48px;font-weight:900;color:#378ADD}.resultBar{height:18px;border-radius:999px;background:#e5e7eb;overflow:hidden;margin:18px 0}.resultFill{height:100%;background:#378ADD;width:0}.pill{display:inline-block;border:1px solid #d1d5db;border-radius:999px;padding:7px 11px;margin:4px;background:#fff}.hidden{display:none}
+    </style>
+</head>
+<body onload="initQuiz()">
+<div class="wrap">
+    <div class="top"><div id="progress" class="bar"></div></div>
+    <div id="quiz" class="card">
+        <div class="head">
+            <div><h1>CCDAK Quiz — Kafka Durability, Replication & Topics</h1><div id="meta" class="muted"></div></div>
+            <div id="timer" class="timer">01:30</div>
+        </div>
+        <span id="badge" class="badge"></span>
+        <h2 id="question"></h2>
+        <div id="options" class="opts"></div>
+        <div id="status" class="muted"></div>
+        <div class="actions">
+            <button id="validateBtn" class="btn" onclick="valider()">Validate</button>
+            <button id="nextBtn" class="btn secondary" onclick="suivante()" disabled>Next Question →</button>
+            <button class="btn secondary" onclick="recommencer()">Restart</button>
+        </div>
+        <div id="explanation" class="explain"></div>
+    </div>
+    <div id="final" class="card hidden"></div>
+</div>
+<script>
+    var qIdx = 0;
+    var selected = {};
+    var answered = false;
+    var score = 0;
+    var timeLeft = 90;
+    var timerInterval = null;
+    var totalTimeSpent = 0;
+    var lastTimeUp = false;
+
+    var QUESTIONS = [
+     {type:'multiple',q:'Which of the following statements about <code>acks</code> and <code>min.insync.replicas</code> are true?',opts:[
+      {t:'<code>acks</code> is a producer configuration, while <code>min.insync.replicas</code> is a topic configuration.',c:true},
+      {t:'<code>acks</code> and <code>min.insync.replicas</code> are both producer configurations.',c:false},
+      {t:'<code>acks</code> and <code>min.insync.replicas</code> are both topic configurations.',c:false},
+      {t:'<code>acks=all</code> and <code>min.insync.replicas=1</code> provides the strongest durability guarantee.',c:false},
+      {t:'<code>acks=1</code> and <code>min.insync.replicas=2</code> provides the strongest durability guarantee.',c:false},
+      {t:'For <code>acks=all</code> to provide any additional durability over <code>acks=1</code>, <code>min.insync.replicas</code> must be greater than 1.',c:true}],
+      exp:{key:'<code>acks</code> and <code>min.insync.replicas</code> work together to control write durability, but they are configured at different levels.',correct:['<code>acks</code> is a producer configuration that defines how many acknowledgments the producer requires before treating a write as successful.','<code>min.insync.replicas</code> is a topic-level configuration, also configurable as a broker default, that defines the minimum number of in-sync replicas required for writes to succeed.','For <code>acks=all</code> to be stronger than <code>acks=1</code>, <code>min.insync.replicas</code> must be greater than 1. Otherwise, the leader alone can satisfy the write.'],wrong:['They are not both producer configurations.','They are not both topic configurations.','<code>acks=all</code> with <code>min.insync.replicas=1</code> is no stronger than <code>acks=1</code>.','<code>acks=1</code> does not use <code>min.insync.replicas</code> for durability, so it is not the strongest guarantee.'],tip:'Strong durability usually means <code>acks=all</code> plus <code>min.insync.replicas &gt; 1</code>, with enough replication factor to tolerate failures.'}},
+
+     {type:'single',q:'What is the relationship between <code>unclean.leader.election.enable</code> and <code>min.insync.replicas</code>?',opts:[
+      {t:'They control the same thing and should always be set to the same value.',c:false},
+      {t:'<code>unclean.leader.election.enable</code> overrides <code>min.insync.replicas</code>.',c:false},
+      {t:'They are independent and one does not affect the other.',c:false},
+      {t:'If <code>unclean.leader.election.enable=true</code>, <code>min.insync.replicas</code> can be violated during leader election.',c:true}],
+      exp:{key:'<code>unclean.leader.election.enable</code> controls whether an out-of-sync replica can become leader. <code>min.insync.replicas</code> controls how many in-sync replicas must acknowledge writes.',correct:['If unclean leader election is enabled and all in-sync replicas fail, Kafka may elect an out-of-sync replica as leader. This keeps the partition available but can violate the durability expectations associated with <code>min.insync.replicas</code> and may cause data loss.'],wrong:['They do not control the same thing.','Unclean leader election does not directly override <code>min.insync.replicas</code>; it allows an unsafe leader election in edge cases.','They are not completely unrelated because unclean leader election can undermine the durability assumptions of in-sync replicas.'],tip:'CCDAK trap: unclean leader election favors availability over durability.'}},
+
+     {type:'single',q:'A Kafka cluster has 3 brokers. You create a topic with 6 partitions and 2 consumers in a consumer group subscribed to this topic. What is the maximum number of partitions that can be assigned to a single consumer?',opts:[
+      {t:'1',c:false},{t:'2',c:false},{t:'3',c:true},{t:'6',c:false}],
+      exp:{key:'Within one consumer group, each partition is assigned to only one consumer at a time, and Kafka tries to distribute partitions evenly across active consumers.',correct:['With 6 partitions and 2 consumers, the normal balanced assignment is 3 partitions per consumer. The number of brokers does not determine consumer assignment.'],wrong:['1 and 2 are too low because there are more partitions than consumers.','6 would mean one active consumer owns all partitions while another owns none, which is not the expected balanced assignment for two active consumers in the same group.'],tip:'Consumer-group parallelism is bounded by the number of partitions. With P partitions and C consumers, a balanced assignment is roughly P/C partitions per consumer.'}},
+
+     {type:'single',q:'A topic has 10 partitions and a replication factor of 3. There are 2 consumers in a consumer group subscribed to this topic. The cluster has 5 brokers. How would the partitions be assigned to the consumers to achieve maximum throughput?',opts:[
+      {t:'Consumer 1: Partitions 0-4, Consumer 2: Partitions 5-9.',c:true},
+      {t:'Consumer 1: Partitions 0-9 and 0-1 replicas, Consumer 2: Partitions 0-9 and 3 replicas.',c:false},
+      {t:'Consumer 1: Partitions 0, 1, 2, Consumer 2: Partitions 3, 4, 5, Unassigned: 6, 7, 8, 9.',c:false},
+      {t:'Consumer 1: Partitions 0-9.',c:false}],
+      exp:{key:'Kafka maximizes consumer-group throughput by spreading partitions across available consumers. Replicas and brokers do not directly change which consumer reads which partition.',correct:['With 10 partitions and 2 consumers, the ideal distribution is 5 partitions per consumer so all partitions are consumed in parallel.'],wrong:['Consumers do not consume from different replicas in a consumer group assignment.','Leaving partitions unassigned reduces throughput.','Assigning all partitions to one consumer removes the benefit of parallel consumption.'],tip:'Replication factor is about durability. Consumer assignment is about partitions and consumers in the group.'}},
+
+     {type:'single',q:'Which of the following statements about Kafka topic configurations is true?',opts:[
+      {t:'Topic configurations can only be set when a topic is first created and cannot be changed later.',c:false},
+      {t:'Topic configurations can be changed dynamically using the <code>kafka-configs.sh</code> tool.',c:true},
+      {t:'Topic configurations are stored in ZooKeeper and are not accessible through the Kafka broker.',c:false},
+      {t:'Topic configurations are stored in the Kafka broker configuration file and require a broker restart to take effect.',c:false}],
+      exp:{key:'Kafka topic configurations can be changed dynamically after topic creation using administrative tooling such as <code>kafka-configs.sh</code>.',correct:['Topic-level settings such as retention-related configurations can be altered without restarting brokers.'],wrong:['Topic configurations are not fixed forever at creation time.','The ZooKeeper-specific statement is outdated or incomplete for modern Kafka, especially with KRaft. Brokers and admin tools can access topic configs.','Topic configs are not simply stored in the broker configuration file and do not generally require a broker restart.'],tip:'Prefer the general exam-safe idea: topic configs are dynamic and managed through Kafka admin tooling.'}},
+
+     {type:'single',q:'What is the default cleanup policy for Kafka topics?',opts:[
+      {t:'Delete',c:true},{t:'Compact',c:false},{t:'Delete and Compact',c:false},{t:'None',c:false}],
+      exp:{key:'The default Kafka topic cleanup policy is <code>delete</code>.',correct:['With the delete policy, Kafka removes old log segments when retention time or retention size limits are reached.'],wrong:['<code>compact</code> is useful for retaining the latest value per key, but it is not the default.','<code>delete,compact</code> can be configured together in Kafka, but it is not the default.','Kafka does have a default cleanup policy.'],tip:'Default cleanup policy: <code>cleanup.policy=delete</code>. Use compaction explicitly when you need latest-value-per-key semantics.'}}
+    ];
+
+    function shuffleOptions(){
+      var i; var j; var tmp; var arr;
+      for(i=0;i<QUESTIONS.length;i++){
+        arr = QUESTIONS[i].opts;
+        for(j=arr.length-1;j>0;j--){
+          var k = Math.floor(Math.random()*(j+1));
+          tmp = arr[j]; arr[j] = arr[k]; arr[k] = tmp;
+        }
+      }
+    }
+    function initQuiz(){shuffleOptions(); paint();}
+    function fmt(s){var m=Math.floor(s/60);var r=s%60;return (m<10?'0'+m:m)+':'+(r<10?'0'+r:r);}
+    function startTimer(){
+      clearInterval(timerInterval); timeLeft=90; lastTimeUp=false; paintTimer();
+      timerInterval=setInterval(function(){timeLeft--; paintTimer(); if(timeLeft<=0){clearInterval(timerInterval); lastTimeUp=true; valider();}},1000);
+    }
+    function paintTimer(){
+      var el=document.getElementById('timer'); el.innerHTML=fmt(timeLeft); el.className='timer';
+      if(timeLeft<=30 && timeLeft>=15){el.className='timer orange';}
+      if(timeLeft<15){el.className='timer red';}
+    }
+    function pickOption(i){
+      if(answered){return;} var q=QUESTIONS[qIdx];
+      if(q.type==='single'){selected={}; selected[i]=true;} else {selected[i]=!selected[i]; if(!selected[i]){delete selected[i];}}
+      paintOptions();
+    }
+    function paintOptions(){
+      var q=QUESTIONS[qIdx]; var box=document.getElementById('options'); var html=''; var letters='ABCDEFGHIJKLMNOPQRSTUVWXYZ'; var i; var cls;
+      for(i=0;i<q.opts.length;i++){
+        cls='opt';
+        if(selected[i]){cls+=' sel';}
+        if(answered){
+          if(q.opts[i].c && selected[i]){cls='opt good';}
+          if(!q.opts[i].c && selected[i]){cls='opt bad';}
+          if(q.opts[i].c && !selected[i]){cls='opt missed';}
+        }
+        html+='<div class="'+cls+'" onclick="pickOption('+i+')"><span class="letter">'+letters.charAt(i)+'.</span><span>'+q.opts[i].t+'</span></div>';
+      }
+      box.innerHTML=html;
+    }
+    function isCorrect(){
+      var q=QUESTIONS[qIdx]; var i;
+      for(i=0;i<q.opts.length;i++){
+        if(q.opts[i].c && !selected[i]){return false;}
+        if(!q.opts[i].c && selected[i]){return false;}
+      }
+      return true;
+    }
+    function valider(){
+      if(answered){return;} clearInterval(timerInterval); answered=true; totalTimeSpent += (90-timeLeft);
+      var ok=isCorrect(); if(ok){score++;}
+      document.getElementById('validateBtn').disabled=true; document.getElementById('nextBtn').disabled=false;
+      document.getElementById('status').innerHTML= lastTimeUp ? '<span class="warn">Time’s up!</span>' : (ok ? 'Correct.' : 'Incorrect.');
+      paintOptions(); paintExplanation(); paintScore();
+    }
+    function paintExplanation(){
+      var q=QUESTIONS[qIdx]; var e=q.exp; var html=''; var i;
+      html+='<h3>1. Key Concept</h3><p>'+e.key+'</p>';
+      html+='<h3>2. Why it is correct</h3><ol>';
+      for(i=0;i<e.correct.length;i++){html+='<li>'+e.correct[i]+'</li>';}
+      html+='</ol><h3>3. Why it is incorrect</h3><ol>';
+      for(i=0;i<e.wrong.length;i++){html+='<li>'+e.wrong[i]+'</li>';}
+      html+='</ol><h3>4. Exam Tip (CCDAK)</h3><p>'+e.tip+'</p>';
+      document.getElementById('explanation').style.display='block'; document.getElementById('explanation').innerHTML=html;
+    }
+    function paint(){
+      var q=QUESTIONS[qIdx]; selected={}; answered=false;
+      document.getElementById('quiz').className='card'; document.getElementById('final').className='card hidden';
+      document.getElementById('meta').innerHTML='Question '+(qIdx+1)+' / '+QUESTIONS.length+' · Score '+score;
+      document.getElementById('badge').innerHTML=q.type==='single'?'Single answer':'Multiple answers';
+      document.getElementById('question').innerHTML=q.q;
+      document.getElementById('status').innerHTML=''; document.getElementById('explanation').style.display='none';
+      document.getElementById('validateBtn').disabled=false; document.getElementById('nextBtn').disabled=true;
+      paintOptions(); paintScore(); startTimer();
+    }
+    function paintScore(){
+      var pct=((qIdx)/QUESTIONS.length)*100;
+      if(answered){pct=((qIdx+1)/QUESTIONS.length)*100;}
+      document.getElementById('progress').style.width=pct+'%';
+    }
+    function suivante(){
+      if(!answered){return;} qIdx++;
+      if(qIdx>=QUESTIONS.length){showFinal();} else {paint();}
+    }
+    function showFinal(){
+      clearInterval(timerInterval); document.getElementById('quiz').className='card hidden';
+      var pct=Math.round((score/QUESTIONS.length)*100); var avg=Math.round(totalTimeSpent/QUESTIONS.length); var msg='';
+      if(pct>=85){msg='Excellent level on Kafka durability, replication, and topic configuration.';} else if(pct>=70){msg='Solid result; review ISR, acks, consumer assignment, and cleanup policies.';} else {msg='Needs review: focus on acks, min.insync.replicas, leader election, and consumer partition assignment.';}
+      document.getElementById('final').className='card';
+      document.getElementById('final').innerHTML='<div class="scoreBox"><h1>Final Score</h1><div class="scoreNum">'+score+' / '+QUESTIONS.length+'</div><div class="resultBar"><div class="resultFill" style="width:'+pct+'%"></div></div><p><strong>'+pct+'%</strong> — '+msg+'</p><p><span class="pill">Average time per question: '+avg+'s</span><span class="pill">Questions: '+QUESTIONS.length+'</span></p><button class="btn" onclick="recommencer()">Restart Quiz</button></div>';
+      document.getElementById('progress').style.width='100%';
+    }
+    function recommencer(){
+      clearInterval(timerInterval); qIdx=0; selected={}; answered=false; score=0; timeLeft=90; totalTimeSpent=0; lastTimeUp=false; shuffleOptions(); paint();
+    }
+</script>
+</body>
+</html>

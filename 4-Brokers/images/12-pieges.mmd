@@ -1,0 +1,12 @@
+flowchart TB
+    subgraph FRAME [" "]
+        direction TB
+        WARN["⚠️ Mises en garde"]
+        WARN --> W1["❌ Suivre une doc ZooKeeper<br/><i>obsolète depuis Kafka 4.0</i>"]
+        WARN --> W2["❌ Ignorer les brokers<br/>parce que c'est managé<br/><i>les concepts restent essentiels</i>"]
+    end
+
+    style WARN fill:#ff5722,color:#fff,stroke:#bf360c,stroke-width:3px
+    style W1 fill:#ffcdd2,color:#000,stroke:#c62828
+    style W2 fill:#ffcdd2,color:#000,stroke:#c62828
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

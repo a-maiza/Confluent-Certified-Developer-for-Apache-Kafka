@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CCDAK Prep — Kafka Brokers (Niveau 1)</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px;
+    background: #1a1a2e;
+    color: #1a1a2e;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  .card {
+    background: #ffffff;
+    border: 1px solid #d8d8e0;
+    border-radius: 12px;
+    padding: 28px 32px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #ececf2;
+    padding-bottom: 16px;
+    margin-bottom: 20px;
+  }
+  .brand {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .brand small {
+    display: block;
+    font-size: 12px;
+    color: #6c6c80;
+    font-weight: 500;
+    margin-top: 2px;
+  }
+  .timer {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 22px;
+    font-weight: 700;
+    color: #C0392B;
+    padding: 6px 14px;
+    border: 2px solid #C0392B;
+    border-radius: 8px;
+    min-width: 86px;
+    text-align: center;
+  }
+  .timer.warn { color: #e67e22; border-color: #e67e22; }
+  .timer.crit { color: #c0392b; border-color: #c0392b; animation: pulse 0.8s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.45; } }
+
+  .progress-wrap {
+    width: 100%;
+    height: 8px;
+    background: #ececf2;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #1a6fa8 0%, #6a1ab8 100%);
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+  .meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: #6c6c80;
+  }
+  .badges {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .badge-type { background: #fff3e0; color: #b35400; }
+  .badge-multi { background: #e8f5e9; color: #1b5e20; }
+  .badge-cours { background: #e8f4fd; color: #1a6fa8; }
+  .badge-inf { background: #f0e8fd; color: #6a1ab8; }
+
+  h2.q-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 8px 0 14px 0;
+    line-height: 1.45;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 16px 0 20px 0;
+  }
+  .opt {
+    display: flex;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1.5px solid #d8d8e0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    background: #fafafc;
+    align-items: flex-start;
+  }
+  .opt:hover { background: #f1f1f8; border-color: #b6b6c8; }
+  .opt.sel { background: #e8f4fd; border-color: #1a6fa8; }
+  .opt.correct { background: #e8f5e9; border-color: #2e7d32; }
+  .opt.wrong { background: #ffebee; border-color: #c62828; }
+  .opt.missed { background: #ffffff; border: 2px dashed #2e7d32; }
+  .opt.disabled { cursor: default; }
+  .letter {
+    font-weight: 700;
+    width: 24px;
+    flex-shrink: 0;
+    color: #1a6fa8;
+  }
+  .opt.correct .letter { color: #2e7d32; }
+  .opt.wrong .letter { color: #c62828; }
+  .opt-text { flex: 1; line-height: 1.4; }
+
+  .actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 18px;
+  }
+  button {
+    background: #C0392B;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 22px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-family: inherit;
+  }
+  button:hover:not(:disabled) { background: #962d22; }
+  button:disabled { background: #c8c8d2; cursor: not-allowed; }
+  button.ghost {
+    background: transparent;
+    color: #1a1a2e;
+    border: 1.5px solid #d8d8e0;
+  }
+  button.ghost:hover:not(:disabled) { background: #f1f1f8; }
+
+  .explanation {
+    background: #f6f6fb;
+    border-left: 4px solid #1a6fa8;
+    padding: 16px 18px;
+    border-radius: 0 8px 8px 0;
+    margin-top: 16px;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  .explanation h4 {
+    margin: 0 0 6px 0;
+    font-size: 14px;
+    color: #1a6fa8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .explanation .block { margin-bottom: 12px; }
+  .explanation .block:last-child { margin-bottom: 0; }
+  .explanation code {
+    background: #1a1a2e;
+    color: #fff;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+  .explanation .why-wrong { padding-left: 16px; }
+  .explanation .why-wrong li { margin-bottom: 4px; }
+  .explanation .retain {
+    background: #fff8e1;
+    border-left: 4px solid #f57c00;
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+  }
+  .explanation .retain h4 { color: #b35400; }
+  .explanation .inferred-note {
+    background: #f0e8fd;
+    color: #6a1ab8;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-weight: 500;
+    margin-bottom: 10px;
+  }
+
+  .timeout-msg {
+    background: #fff3e0;
+    color: #b35400;
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-bottom: 14px;
+    font-weight: 600;
+  }
+
+  /* Final score */
+  .final-score { text-align: center; }
+  .final-score h1 {
+    font-size: 28px;
+    margin: 8px 0;
+  }
+  .score-bar-wrap {
+    width: 100%;
+    height: 16px;
+    background: #ececf2;
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 20px 0;
+  }
+  .score-bar {
+    height: 100%;
+    transition: width 0.6s ease;
+  }
+  .score-detail {
+    display: flex;
+    justify-content: space-around;
+    gap: 20px;
+    margin: 20px 0;
+    flex-wrap: wrap;
+  }
+  .score-card {
+    flex: 1;
+    min-width: 180px;
+    padding: 16px;
+    border-radius: 10px;
+    text-align: center;
+  }
+  .score-card.cours { background: #e8f4fd; color: #1a6fa8; }
+  .score-card.inf { background: #f0e8fd; color: #6a1ab8; }
+  .score-card .num { font-size: 26px; font-weight: 700; }
+  .score-card .lbl { font-size: 13px; margin-top: 4px; }
+  .avg-time {
+    color: #6c6c80;
+    font-size: 14px;
+    margin-bottom: 18px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card" id="card">
+    <!-- Dynamic content here -->
+  </div>
+</div>
+
+<script>
+// =====================================================
+// CCDAK Prep — Kafka Brokers (Niveau 1)
+// =====================================================
+
+var QUESTIONS = [
+  // ==================== 📘 Du cours ====================
+  {
+    source: "cours",
+    type: "single",
+    q: "What best describes a Kafka broker?",
+    options: [
+      "A client library that produces and consumes messages",
+      "A machine running the Kafka server JVM process that hosts partitions and serves client requests",
+      "A web UI used to manage Kafka topics",
+      "A connector that integrates Kafka with external systems"
+    ],
+    correct: [1],
+    explain: {
+      concept: "A broker is the fundamental server-side unit of Kafka: a machine (physical, VM, cloud instance, even a Raspberry Pi) running the Kafka JVM server process. It hosts partitions, performs disk I/O, and answers produce/fetch requests.",
+      whyCorrect: "The broker is precisely the JVM process that hosts partitions and handles client read/write traffic. Every Kafka deployment needs at least one broker; production clusters typically run several.",
+      whyWrong: {
+        "A client library that produces and consumes messages": "Producer/consumer libraries (KafkaProducer, KafkaConsumer) are clients sitting outside the cluster — they are not brokers.",
+        "A web UI used to manage Kafka topics": "Tools like Confluent Control Center or AKHQ are management UIs, not brokers.",
+        "A connector that integrates Kafka with external systems": "That describes Kafka Connect connectors, which are also clients of the broker, not brokers themselves."
+      },
+      retain: "Mnemonic: broker = server-side JVM = stores logs and serves clients. Producers, consumers and connectors are clients of the brokers."
+    }
+  },
+  {
+    source: "cours",
+    type: "single",
+    q: "What forms a Kafka cluster?",
+    options: [
+      "A single broker with multiple partitions",
+      "A set of interconnected brokers working together",
+      "A group of producers writing to the same topic",
+      "A consumer group reading from a topic"
+    ],
+    correct: [1],
+    explain: {
+      concept: "A Kafka cluster is a set of brokers that cooperate to distribute load and replicate data. A typical production cluster contains at least three brokers.",
+      whyCorrect: "Multiple brokers interconnected form the cluster — this is what enables partition distribution, replication and fault tolerance.",
+      whyWrong: {
+        "A single broker with multiple partitions": "That is just one broker — not a cluster. Resilience requires multiple machines.",
+        "A group of producers writing to the same topic": "That is a producer fan-in pattern, not a cluster.",
+        "A consumer group reading from a topic": "Consumer groups are a client-side construct, unrelated to the broker cluster definition."
+      },
+      retain: "Cluster = brokers (server side). Consumer group = consumers (client side). Don't confuse the two."
+    }
+  },
+  {
+    source: "cours",
+    type: "single",
+    q: "Which protocol replaces ZooKeeper for cluster metadata management as of Apache Kafka 4.0?",
+    options: [
+      "Paxos",
+      "KRaft (Kafka Raft)",
+      "etcd",
+      "Apache Curator"
+    ],
+    correct: [1],
+    explain: {
+      concept: "KRaft is Kafka's own implementation of the Raft consensus algorithm. Since Kafka 4.0, ZooKeeper is removed entirely and brokers manage metadata themselves via KRaft.",
+      whyCorrect: "KRaft (\"Kafka Raft\") is built directly into Kafka brokers, eliminating the external ZooKeeper dependency.",
+      whyWrong: {
+        "Paxos": "Paxos is a different consensus algorithm; Kafka chose Raft for its simpler implementation and reasoning model.",
+        "etcd": "etcd is an external distributed key-value store (used by Kubernetes, for example), not adopted by Kafka.",
+        "Apache Curator": "Curator is a high-level client for ZooKeeper — exactly the dependency KRaft eliminates."
+      },
+      retain: "Kafka 4.0 = ZooKeeper-free. Any tutorial mentioning ZooKeeper for new installations is outdated."
+    }
+  },
+  {
+    source: "cours",
+    type: "multi",
+    q: "Which of the following are responsibilities of a Kafka broker? (Select all that apply)",
+    options: [
+      "Hosting one or more partitions on local storage",
+      "Handling produce and fetch requests from clients",
+      "Replicating data to/from other brokers",
+      "Managing cluster metadata via KRaft (since Kafka 4.0)",
+      "Compiling Java client applications before they connect"
+    ],
+    correct: [0, 1, 2, 3],
+    explain: {
+      concept: "Brokers carry several core responsibilities: hosting partitions, serving I/O requests, replicating data for fault tolerance, and (since Kafka 4.0) maintaining cluster metadata via KRaft.",
+      whyCorrect: "All four are explicit broker duties as described in the course: storage, request handling, replication, and KRaft metadata consensus.",
+      whyWrong: {
+        "Compiling Java client applications before they connect": "Client compilation happens in the client's build environment (Maven/Gradle, etc.). Brokers never compile or interpret client code."
+      },
+      retain: "Memorize the broker duties: store partitions, serve I/O, replicate, and (since 4.0) KRaft metadata."
+    }
+  },
+  {
+    source: "cours",
+    type: "single",
+    q: "A topic has 2 partitions and the cluster has 3 brokers. How are the partitions distributed?",
+    options: [
+      "Each broker hosts a fraction of each partition",
+      "All partitions live on a single broker for performance",
+      "Two brokers host one partition each; the third broker hosts no partition for this topic",
+      "The cluster refuses to create the topic because partitions < brokers"
+    ],
+    correct: [2],
+    explain: {
+      concept: "Kafka distributes partitions across brokers, but the number of partitions hosted is bounded by the partition count itself. With 2 partitions on a 3-broker cluster, only 2 brokers will host a partition for that specific topic.",
+      whyCorrect: "Each partition has exactly one leader on one broker (and replicas on others). Two partitions ⇒ two leaders on two distinct brokers. The third broker can still host other topics' partitions or replicas — it just isn't a leader for this topic.",
+      whyWrong: {
+        "Each broker hosts a fraction of each partition": "A partition is an indivisible log; it isn't split across brokers (only its replicas are placed on different brokers).",
+        "All partitions live on a single broker for performance": "That would defeat the purpose of partitioning. Kafka spreads partitions across brokers for scalability.",
+        "The cluster refuses to create the topic because partitions < brokers": "There is no such restriction; partitions ≤ brokers is perfectly valid."
+      },
+      retain: "Number of brokers hosting partitions of a topic = min(partitions, brokers) for the leader role. Replication may involve more brokers."
+    }
+  },
+  {
+    source: "cours",
+    type: "multi",
+    q: "Which methods are valid ways to start one or more Kafka brokers locally? (Select all that apply)",
+    options: [
+      "Download the Apache Kafka tarball, unpack it, and run the broker startup script",
+      "Use a standard Docker image with Docker Compose to launch multiple broker containers",
+      "Install Kafka via the Windows Registry editor",
+      "Compile the broker from source as a kernel module"
+    ],
+    correct: [0, 1],
+    explain: {
+      concept: "The course mentions two practical ways to spin up brokers: the official tarball + script (bare-metal/dev mode) and Docker images orchestrated via Docker Compose for multi-broker setups.",
+      whyCorrect: "Both are official, widely used approaches. The tarball is the canonical install; Docker Compose makes it trivial to model multiple brokers as separate containers.",
+      whyWrong: {
+        "Install Kafka via the Windows Registry editor": "The Registry is not an installation mechanism for Kafka. This is nonsense.",
+        "Compile the broker from source as a kernel module": "Kafka is a JVM userspace application, not a kernel module."
+      },
+      retain: "Two paths: tarball + script, or Docker Compose with one container per broker."
+    }
+  },
+  {
+    source: "cours",
+    type: "single",
+    q: "What characterizes the storage model of an Apache Kafka broker (open-source)?",
+    options: [
+      "Brokers are tightly coupled with local storage (typically SSDs close to the CPU)",
+      "Brokers exclusively use object storage like S3 by default",
+      "Brokers stream all data to remote NFS shares",
+      "Brokers store data in RAM only and lose it on restart"
+    ],
+    correct: [0],
+    explain: {
+      concept: "In Apache Kafka open-source, the broker is tightly coupled to its local disk (usually SSDs sitting close to the CPU). This design choice favors high-throughput sequential I/O.",
+      whyCorrect: "The course explicitly highlights this tight coupling between broker and local storage as a defining characteristic of OSS Kafka.",
+      whyWrong: {
+        "Brokers exclusively use object storage like S3 by default": "Tiered storage (e.g., to S3) exists in some distributions/versions but is not the default. OSS Kafka primarily uses local disks.",
+        "Brokers stream all data to remote NFS shares": "Kafka explicitly recommends against NFS due to latency and locking semantics.",
+        "Brokers store data in RAM only and lose it on restart": "Kafka is durable by design: data is written to disk and replicated."
+      },
+      retain: "Kafka loves sequential disk I/O on local SSDs. Object storage backends exist but are an extension, not the default."
+    }
+  },
+  {
+    source: "cours",
+    type: "single",
+    q: "In Confluent Cloud (managed Kafka service), how do brokers appear to the end user?",
+    options: [
+      "The user must SSH into each broker to configure it",
+      "Brokers are entirely abstracted away — the user only interacts with topics, messages and connectors",
+      "The user manually assigns partitions to specific broker IDs",
+      "The user is responsible for installing KRaft on each broker"
+    ],
+    correct: [1],
+    explain: {
+      concept: "Managed services like Confluent Cloud hide broker-level operations behind their control plane. Users interact with logical resources (topics, schemas, connectors), not individual broker hosts.",
+      whyCorrect: "Confluent Cloud customers don't see broker IDs, log directories or KRaft controllers — those are operated by Confluent.",
+      whyWrong: {
+        "The user must SSH into each broker to configure it": "There is no SSH access to Confluent Cloud brokers.",
+        "The user manually assigns partitions to specific broker IDs": "Assignment is automatic and managed by the platform.",
+        "The user is responsible for installing KRaft on each broker": "All broker-side software is managed by Confluent."
+      },
+      retain: "Self-managed Kafka = brokers visible. Managed (Confluent Cloud, Amazon MSK Serverless) = brokers abstracted."
+    }
+  },
+  {
+    source: "cours",
+    type: "single",
+    q: "Why is documentation that references ZooKeeper for new Kafka installations now considered obsolete?",
+    options: [
+      "Because Apache Kafka 4.0 removed ZooKeeper support entirely; brokers now use KRaft",
+      "Because ZooKeeper was renamed but is still functionally required",
+      "Because ZooKeeper now runs inside the broker JVM with the same API",
+      "Because Confluent rewrote ZooKeeper in Rust"
+    ],
+    correct: [0],
+    explain: {
+      concept: "Apache Kafka 4.0 dropped ZooKeeper. New clusters must use KRaft. Old documentation still references ZooKeeper-only setups, which no longer apply.",
+      whyCorrect: "The removal of ZooKeeper in 4.0 makes any ZK-based instructions inappropriate for new installations.",
+      whyWrong: {
+        "Because ZooKeeper was renamed but is still functionally required": "ZooKeeper was removed, not renamed.",
+        "Because ZooKeeper now runs inside the broker JVM with the same API": "KRaft is a different protocol; it is not ZooKeeper bundled in the JVM.",
+        "Because Confluent rewrote ZooKeeper in Rust": "There is no Rust rewrite of ZooKeeper involved here."
+      },
+      retain: "If a tutorial says \"start ZooKeeper, then start the broker\" — it predates Kafka 4.0."
+    }
+  },
+  {
+    source: "cours",
+    type: "single",
+    q: "Why is it useful to understand brokers even if you only plan to use a managed Kafka service?",
+    options: [
+      "You will need to manually edit broker configs in the cloud UI",
+      "Core abstractions (brokers, partitions, replication) shape how you design and operate any Kafka workload, managed or not",
+      "Managed services frequently expose raw broker logs to clients",
+      "Without broker knowledge, the producer API will refuse connections"
+    ],
+    correct: [1],
+    explain: {
+      concept: "Even when brokers are abstracted by a cloud service, your design choices (partitions, keys, replication factor, throughput planning) depend on understanding what the brokers do.",
+      whyCorrect: "A correct mental model of brokers, partitions and replication is essential to size topics, choose keys, and reason about throughput and durability — regardless of who operates the brokers.",
+      whyWrong: {
+        "You will need to manually edit broker configs in the cloud UI": "Managed services hide broker config entirely.",
+        "Managed services frequently expose raw broker logs to clients": "They generally do not.",
+        "Without broker knowledge, the producer API will refuse connections": "The API works the same way; understanding brokers makes you use it well, not just at all."
+      },
+      retain: "Managed = no operations, but design choices still rely on knowing what brokers and partitions are."
+    }
+  },
+
+  // ==================== 🔍 Au-delà du cours ====================
+  {
+    source: "inference",
+    type: "single",
+    q: "In a KRaft-based cluster, what does the broker configuration parameter process.roles control?",
+    options: [
+      "Whether the JVM uses G1 or ZGC garbage collector",
+      "Which roles a node plays: 'broker', 'controller', or both (combined mode)",
+      "The user permissions assigned to the broker process at OS level",
+      "The maximum number of producer connections accepted"
+    ],
+    correct: [1],
+    explain: {
+      concept: "KRaft separates two responsibilities: serving data (broker role) and managing metadata via the Raft quorum (controller role). The process.roles config tells a node which role(s) to play.",
+      whyCorrect: "Valid values are broker, controller, or broker,controller (combined mode, useful for development).",
+      whyWrong: {
+        "Whether the JVM uses G1 or ZGC garbage collector": "GC selection is a JVM flag, not a Kafka config.",
+        "The user permissions assigned to the broker process at OS level": "OS-level permissions are unrelated to Kafka configuration.",
+        "The maximum number of producer connections accepted": "That is governed by other settings (max.connections, etc.)."
+      },
+      retain: "process.roles = broker | controller | broker,controller. Production typically separates them; dev often combines."
+    }
+  },
+  {
+    source: "inference",
+    type: "single",
+    q: "What is the recommended size for a KRaft controller quorum in production?",
+    options: [
+      "Always 1 controller for simplicity",
+      "An even number (2 or 4) to avoid wasted votes",
+      "An odd number, typically 3 or 5, for fault tolerance",
+      "The same number as the total number of brokers"
+    ],
+    correct: [2],
+    explain: {
+      concept: "Like all Raft-based systems, KRaft tolerates ⌊(N-1)/2⌋ failures. Odd quorum sizes (3 or 5) maximize fault tolerance for the number of voters.",
+      whyCorrect: "3 voters → tolerate 1 failure; 5 voters → tolerate 2 failures. Odd numbers prevent split-brain.",
+      whyWrong: {
+        "Always 1 controller for simplicity": "A single controller is a single point of failure — unacceptable in production.",
+        "An even number (2 or 4) to avoid wasted votes": "Even quorums offer no extra fault tolerance over the next-lower odd number and can lead to ties.",
+        "The same number as the total number of brokers": "Excessive — it doesn't help and increases cross-quorum traffic."
+      },
+      retain: "KRaft quorum = odd (3 or 5). Tolerates (N-1)/2 failures, just like ZooKeeper ensembles."
+    }
+  },
+  {
+    source: "inference",
+    type: "single",
+    q: "Each broker in a Kafka cluster must have a unique value for which configuration property?",
+    options: [
+      "broker.id (or node.id in KRaft mode)",
+      "log.dirs",
+      "auto.create.topics.enable",
+      "compression.type"
+    ],
+    correct: [0],
+    explain: {
+      concept: "Brokers in a cluster are identified by a unique numeric ID (broker.id, or node.id in KRaft). Two brokers with the same ID will conflict and refuse to coexist.",
+      whyCorrect: "broker.id (legacy) / node.id (KRaft) is the cluster-wide unique identifier of each broker.",
+      whyWrong: {
+        "log.dirs": "Different brokers can use the same path on different machines — uniqueness is not required.",
+        "auto.create.topics.enable": "A boolean flag, not an identifier.",
+        "compression.type": "A producer/topic-level setting, not a broker identifier."
+      },
+      retain: "broker.id (or node.id in KRaft) must be unique per broker in the cluster."
+    }
+  },
+  {
+    source: "inference",
+    type: "single",
+    q: "When a producer uses acks=all, the write is acknowledged only after which condition is met?",
+    options: [
+      "The leader has written to its local log",
+      "All brokers in the cluster have received the message",
+      "All replicas in the In-Sync Replicas (ISR) set have replicated the message",
+      "The consumer has read the message"
+    ],
+    correct: [2],
+    explain: {
+      concept: "acks=all (a.k.a. acks=-1) means the leader waits until every replica in the In-Sync Replicas (ISR) set has appended the record before acknowledging. This is the strongest durability setting.",
+      whyCorrect: "Only ISR members count; acks=all + min.insync.replicas controls the durability guarantee.",
+      whyWrong: {
+        "The leader has written to its local log": "That describes acks=1, not acks=all.",
+        "All brokers in the cluster have received the message": "Only the partition's replicas (specifically the in-sync ones) participate, not every broker.",
+        "The consumer has read the message": "Producer acknowledgements are independent of consumer activity."
+      },
+      retain: "acks=all + min.insync.replicas=2 is the standard \"never lose data\" durability recipe."
+    }
+  },
+  {
+    source: "inference",
+    type: "single",
+    q: "What is the In-Sync Replicas (ISR) set for a partition?",
+    options: [
+      "Replicas that are fully caught up with the leader and eligible for leader election",
+      "Replicas located on the same physical rack as the leader",
+      "Replicas that hold compressed data only",
+      "Replicas dedicated to consumer reads"
+    ],
+    correct: [0],
+    explain: {
+      concept: "The ISR set contains all replicas (including the leader) that have caught up to the leader's log within the configured threshold (replica.lag.time.max.ms). Only ISR members can become a new leader during failover.",
+      whyCorrect: "ISR membership is what guarantees a no-data-loss leader election — the new leader has all committed data.",
+      whyWrong: {
+        "Replicas located on the same physical rack as the leader": "That refers to rack awareness, not ISR.",
+        "Replicas that hold compressed data only": "Compression is independent of ISR.",
+        "Replicas dedicated to consumer reads": "Replicas don't have a \"consumer-only\" role; reads default to the leader (or the closest replica with a specific config)."
+      },
+      retain: "ISR = caught-up replicas. min.insync.replicas controls the minimum ISR size required for acks=all writes."
+    }
+  },
+  {
+    source: "inference",
+    type: "single",
+    q: "What does setting unclean.leader.election.enable=true do?",
+    options: [
+      "Forces all leaders to be re-elected every minute",
+      "Allows out-of-sync replicas to become leaders, sacrificing durability for availability",
+      "Encrypts leader election traffic",
+      "Disables leader election entirely"
+    ],
+    correct: [1],
+    explain: {
+      concept: "unclean.leader.election.enable controls whether replicas that were not in the ISR (and may therefore have lost some data) can be elected leader. Enabling it favors availability over durability.",
+      whyCorrect: "When true, an out-of-sync replica may take over leadership, potentially silently dropping committed records. Useful for some availability-critical workloads, dangerous for durability-critical ones.",
+      whyWrong: {
+        "Forces all leaders to be re-elected every minute": "Leader elections happen on demand (e.g., broker failure), not on a fixed schedule.",
+        "Encrypts leader election traffic": "Encryption is configured separately (TLS).",
+        "Disables leader election entirely": "Leader election cannot be disabled — Kafka requires a leader per partition."
+      },
+      retain: "unclean.leader.election.enable=false (default in modern Kafka) prefers consistency. Enable only if you knowingly trade durability for availability."
+    }
+  },
+  {
+    source: "inference",
+    type: "single",
+    q: "Which broker configuration property defines where the broker stores its partition log files?",
+    options: [
+      "log.dirs",
+      "broker.storage.path",
+      "kafka.home",
+      "data.location"
+    ],
+    correct: [0],
+    explain: {
+      concept: "log.dirs (or the singular log.dir) specifies the filesystem directories where the broker stores partition log segments. You can list multiple directories to spread I/O across disks.",
+      whyCorrect: "log.dirs is the canonical Kafka configuration for log storage paths. Multiple values enable JBOD-like spreading of partitions across disks.",
+      whyWrong: {
+        "broker.storage.path": "Not a real Kafka configuration.",
+        "kafka.home": "An informal environment variable in some distributions, not the storage path.",
+        "data.location": "Not a Kafka configuration name."
+      },
+      retain: "log.dirs = comma-separated list of disk paths for partition logs. Multiple disks = better write throughput."
+    }
+  },
+  {
+    source: "inference",
+    type: "single",
+    q: "What is the default TCP port a Kafka broker listens on for plaintext client traffic?",
+    options: [
+      "2181",
+      "9092",
+      "8080",
+      "9093"
+    ],
+    correct: [1],
+    explain: {
+      concept: "By convention, Kafka brokers listen on port 9092 for plaintext client traffic. Other ports are used for SSL (9093), SASL (9094), or KRaft controllers.",
+      whyCorrect: "9092 is the de-facto default port for Kafka client connections (PLAINTEXT listener).",
+      whyWrong: {
+        "2181": "That is ZooKeeper's default port, not Kafka's.",
+        "8080": "A common HTTP port; not used by Kafka brokers by default.",
+        "9093": "Often used as the SSL listener or, in some configurations, as the KRaft controller port."
+      },
+      retain: "9092 = Kafka client default. 2181 = ZooKeeper (legacy). 9093 = SSL or KRaft controller depending on setup."
+    }
+  },
+  {
+    source: "inference",
+    type: "single",
+    q: "You want to create a topic with replication.factor=3. What is the minimum number of brokers required in the cluster?",
+    options: [
+      "1",
+      "2",
+      "3",
+      "4"
+    ],
+    correct: [2],
+    explain: {
+      concept: "Each replica of a partition must reside on a different broker. A replication factor of 3 therefore requires at least 3 brokers in the cluster.",
+      whyCorrect: "3 replicas need 3 distinct brokers — placing two replicas on the same broker would defeat the redundancy.",
+      whyWrong: {
+        "1": "A single broker cannot host 3 distinct replicas of the same partition.",
+        "2": "Same problem — only enough hosts for replication.factor=2.",
+        "4": "4 works, but it is not the minimum."
+      },
+      retain: "min brokers ≥ replication.factor. Topic creation will fail otherwise."
+    }
+  },
+  {
+    source: "inference",
+    type: "single",
+    q: "What is the purpose of the broker.rack configuration parameter?",
+    options: [
+      "It controls how many JVM threads handle network I/O",
+      "It declares the rack/availability-zone of the broker so Kafka can spread replicas across failure domains",
+      "It configures the broker's CPU affinity",
+      "It sets the maximum batch size accepted from producers"
+    ],
+    correct: [1],
+    explain: {
+      concept: "Rack awareness ensures partition replicas are placed on brokers in different racks (or cloud availability zones), so a single rack/AZ failure doesn't take down all replicas of a partition.",
+      whyCorrect: "broker.rack labels each broker with its rack/AZ identifier; the controller then balances replica placement across distinct rack values.",
+      whyWrong: {
+        "It controls how many JVM threads handle network I/O": "That's num.network.threads.",
+        "It configures the broker's CPU affinity": "CPU affinity is set at the OS level, not in Kafka config.",
+        "It sets the maximum batch size accepted from producers": "That's controlled by message.max.bytes / replica.fetch.max.bytes."
+      },
+      retain: "broker.rack = AZ/rack tag. Crucial in cloud deployments to survive an AZ outage."
+    }
+  },
+  {
+    source: "inference",
+    type: "multi",
+    q: "Which statements about the migration from ZooKeeper to KRaft are correct? (Select all that apply)",
+    options: [
+      "KRaft eliminates the operational burden of running and securing a separate ZooKeeper ensemble",
+      "Apache Kafka 4.0 ships without ZooKeeper support",
+      "Kafka 4.0 still requires a ZooKeeper ensemble running in 'observer' mode",
+      "KRaft uses an internal Raft-based controller quorum to manage cluster metadata"
+    ],
+    correct: [0, 1, 3],
+    explain: {
+      concept: "KRaft replaces ZooKeeper with an internal Raft-based metadata layer. Kafka 4.0 has fully removed ZooKeeper support, simplifying operations.",
+      whyCorrect: "Operating one fewer distributed system, no ZK dependency in 4.0, and an internal Raft quorum are all accurate descriptions of KRaft.",
+      whyWrong: {
+        "Kafka 4.0 still requires a ZooKeeper ensemble running in 'observer' mode": "Kafka 4.0 has no ZooKeeper at all — observer mode is irrelevant."
+      },
+      retain: "After 4.0: one cluster type, KRaft. No ZK, no observer mode, no migration tooling needed for new clusters."
+    }
+  },
+  {
+    source: "inference",
+    type: "single",
+    q: "In a KRaft cluster, which configuration tells brokers how to find the controller quorum?",
+    options: [
+      "controller.quorum.voters",
+      "zookeeper.connect",
+      "metadata.servers",
+      "kraft.controller.list"
+    ],
+    correct: [0],
+    explain: {
+      concept: "controller.quorum.voters lists the controller nodes participating in the KRaft quorum (each entry is id@host:port). Every broker uses this list to discover the controller leader.",
+      whyCorrect: "It is the canonical KRaft configuration replacing zookeeper.connect.",
+      whyWrong: {
+        "zookeeper.connect": "The legacy ZooKeeper-based config — irrelevant under KRaft.",
+        "metadata.servers": "Not a real Kafka configuration.",
+        "kraft.controller.list": "Not a real Kafka configuration."
+      },
+      retain: "Under KRaft: controller.quorum.voters=1@host1:9093,2@host2:9093,3@host3:9093. Format: id@host:port."
+    }
+  },
+  {
+    source: "inference",
+    type: "single",
+    q: "Which broker configuration controls how long log segments are retained on disk before deletion (time-based retention)?",
+    options: [
+      "log.retention.hours",
+      "log.compaction.lag.ms",
+      "log.delete.delay.ms",
+      "message.timestamp.type"
+    ],
+    correct: [0],
+    explain: {
+      concept: "log.retention.hours (and its higher-precision siblings log.retention.minutes / log.retention.ms) controls how long Kafka keeps log segments before deletion. Default is 168 hours (7 days).",
+      whyCorrect: "It is the time-based retention policy at the broker level (overridable per topic via retention.ms).",
+      whyWrong: {
+        "log.compaction.lag.ms": "Used by log compaction, not size/time retention.",
+        "log.delete.delay.ms": "Delay between marking a segment for deletion and actually removing the file — a small operational delay, not the retention period.",
+        "message.timestamp.type": "Defines whether the message timestamp is CreateTime or LogAppendTime, unrelated to retention."
+      },
+      retain: "Time retention: log.retention.hours (default 168h). Size retention: log.retention.bytes. Both are evaluated; whichever triggers first wins."
+    }
+  }
+];
+
+// =====================================================
+// Global state
+// =====================================================
+var qIdx = 0;
+var selected = [];
+var answered = false;
+var score = 0;
+var scoreCours = 0;
+var scoreInf = 0;
+var totalCours = 0;
+var totalInf = 0;
+var timeLeft = 90;
+var timerInterval = null;
+var timeSpent = []; // time spent per question
+
+// =====================================================
+// Fisher-Yates shuffle
+// =====================================================
+function shuffle(arr) {
+  for (var i = arr.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = arr[i];
+    arr[i] = arr[j];
+    arr[j] = tmp;
+  }
+}
+
+function shuffleQuestionOptions() {
+  for (var i = 0; i < QUESTIONS.length; i++) {
+    var q = QUESTIONS[i];
+    var indices = [];
+    for (var k = 0; k < q.options.length; k++) indices.push(k);
+    shuffle(indices);
+    var newOptions = [];
+    var newCorrect = [];
+    for (var k = 0; k < indices.length; k++) {
+      newOptions.push(q.options[indices[k]]);
+      if (q.correct.indexOf(indices[k]) !== -1) newCorrect.push(k);
+    }
+    q.options = newOptions;
+    q.correct = newCorrect;
+  }
+}
+
+function countTotals() {
+  totalCours = 0;
+  totalInf = 0;
+  for (var i = 0; i < QUESTIONS.length; i++) {
+    if (QUESTIONS[i].source === "cours") totalCours++;
+    else totalInf++;
+  }
+}
+
+// =====================================================
+// Timer
+// =====================================================
+function startTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  timeLeft = 90;
+  updateTimerDisplay();
+  timerInterval = setInterval(function() {
+    timeLeft--;
+    updateTimerDisplay();
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      autoSubmit();
+    }
+  }, 1000);
+}
+
+function stopTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+}
+
+function updateTimerDisplay() {
+  var el = document.getElementById("timer");
+  if (!el) return;
+  var mm = Math.floor(timeLeft / 60);
+  var ss = timeLeft % 60;
+  var mmStr = (mm < 10 ? "0" : "") + mm;
+  var ssStr = (ss < 10 ? "0" : "") + ss;
+  el.textContent = mmStr + ":" + ssStr;
+  el.className = "timer";
+  if (timeLeft < 15) el.className = "timer crit";
+  else if (timeLeft < 30) el.className = "timer warn";
+}
+
+// =====================================================
+// Render
+// =====================================================
+function paint() {
+  var card = document.getElementById("card");
+  if (qIdx >= QUESTIONS.length) {
+    paintScore();
+    return;
+  }
+  var q = QUESTIONS[qIdx];
+  var pct = ((qIdx) / QUESTIONS.length) * 100;
+  var isMulti = q.type === "multi";
+  var srcBadge = q.source === "cours"
+    ? '<span class="badge badge-cours">📘 Du cours</span>'
+    : '<span class="badge badge-inf">🔍 Au-delà du cours</span>';
+  var typeBadge = isMulti
+    ? '<span class="badge badge-multi">Réponses multiples</span>'
+    : '<span class="badge badge-type">Réponse unique</span>';
+
+  var html = ''
+    + '<div class="header">'
+    +   '<div class="brand">CCDAK Prep<small>Kafka Brokers — Niveau 1</small></div>'
+    +   '<div class="timer" id="timer">01:30</div>'
+    + '</div>'
+    + '<div class="meta"><span>Question ' + (qIdx + 1) + ' / ' + QUESTIONS.length + '</span>'
+    + '<span>Score : ' + score + '</span></div>'
+    + '<div class="progress-wrap"><div class="progress-bar" style="width:' + pct + '%"></div></div>'
+    + '<div class="badges">' + srcBadge + typeBadge + '</div>'
+    + '<h2 class="q-title">' + q.q + '</h2>'
+    + '<div class="options" id="opts">';
+
+  var letters = ["A", "B", "C", "D", "E", "F"];
+  for (var i = 0; i < q.options.length; i++) {
+    html += '<div class="opt" id="opt-' + i + '" onclick="pickOption(' + i + ')">'
+         +    '<span class="letter">' + letters[i] + '</span>'
+         +    '<span class="opt-text">' + q.options[i] + '</span>'
+         + '</div>';
+  }
+  html += '</div>';
+  html += '<div id="explainSlot"></div>';
+  html += '<div class="actions">'
+       +    '<button class="ghost" onclick="resetQuestion()">Réinitialiser ce choix</button>'
+       +    '<div>'
+       +      '<button id="btnValid" onclick="valider()">Valider</button>'
+       +      '<button id="btnNext" onclick="suivante()" disabled style="margin-left:8px">Question suivante →</button>'
+       +    '</div>'
+       + '</div>';
+
+  card.innerHTML = html;
+  startTimer();
+}
+
+function pickOption(i) {
+  if (answered) return;
+  var q = QUESTIONS[qIdx];
+  var idx = selected.indexOf(i);
+  if (q.type === "single") {
+    selected = [i];
+  } else {
+    if (idx === -1) selected.push(i);
+    else selected.splice(idx, 1);
+  }
+  // Repaint selection
+  for (var k = 0; k < q.options.length; k++) {
+    var el = document.getElementById("opt-" + k);
+    if (!el) continue;
+    el.classList.remove("sel");
+    if (selected.indexOf(k) !== -1) el.classList.add("sel");
+  }
+}
+
+function resetQuestion() {
+  if (answered) return;
+  selected = [];
+  var q = QUESTIONS[qIdx];
+  for (var k = 0; k < q.options.length; k++) {
+    var el = document.getElementById("opt-" + k);
+    if (el) el.classList.remove("sel");
+  }
+}
+
+function autoSubmit() {
+  if (answered) return;
+  applyValidation(true);
+}
+
+function valider() {
+  if (answered) return;
+  if (selected.length === 0) return; // require at least 1
+  applyValidation(false);
+}
+
+function applyValidation(isTimeout) {
+  answered = true;
+  stopTimer();
+  var q = QUESTIONS[qIdx];
+
+  // record time spent
+  timeSpent.push(90 - timeLeft);
+
+  // Determine correctness
+  var correctSet = q.correct.slice().sort();
+  var selectedSet = selected.slice().sort();
+  var isCorrect = (correctSet.length === selectedSet.length);
+  if (isCorrect) {
+    for (var i = 0; i < correctSet.length; i++) {
+      if (correctSet[i] !== selectedSet[i]) { isCorrect = false; break; }
+    }
+  }
+
+  // Color options
+  for (var i = 0; i < q.options.length; i++) {
+    var el = document.getElementById("opt-" + i);
+    if (!el) continue;
+    el.classList.add("disabled");
+    el.classList.remove("sel");
+    el.setAttribute("onclick", "");
+    var isInCorrect = q.correct.indexOf(i) !== -1;
+    var isSelected = selected.indexOf(i) !== -1;
+    if (isInCorrect && isSelected) el.classList.add("correct");
+    else if (!isInCorrect && isSelected) el.classList.add("wrong");
+    else if (isInCorrect && !isSelected) el.classList.add("missed");
+  }
+
+  if (isCorrect) {
+    score++;
+    if (q.source === "cours") scoreCours++;
+    else scoreInf++;
+  }
+
+  // Render explanation
+  var slot = document.getElementById("explainSlot");
+  var ex = q.explain;
+  var html = "";
+  if (isTimeout) {
+    html += '<div class="timeout-msg">⏰ Temps écoulé !</div>';
+  }
+  html += '<div class="explanation">';
+  if (q.source === "inference") {
+    html += '<div class="inferred-note">⚠️ Ce concept n\'était pas dans le cours mais est fréquemment testé à l\'examen CCDAK.</div>';
+  }
+  html += '<div class="block"><h4>Concept clé</h4><div>' + ex.concept + '</div></div>';
+  html += '<div class="block"><h4>Pourquoi c\'est correct</h4><div>' + ex.whyCorrect + '</div></div>';
+  // Why wrong list
+  var wrongKeys = [];
+  for (var key in ex.whyWrong) {
+    if (Object.prototype.hasOwnProperty.call(ex.whyWrong, key)) wrongKeys.push(key);
+  }
+  if (wrongKeys.length > 0) {
+    html += '<div class="block"><h4>Pourquoi les autres sont incorrectes</h4><ul class="why-wrong">';
+    for (var w = 0; w < wrongKeys.length; w++) {
+      html += '<li><strong>' + wrongKeys[w] + '</strong> — ' + ex.whyWrong[wrongKeys[w]] + '</li>';
+    }
+    html += '</ul></div>';
+  }
+  html += '<div class="retain"><h4>À retenir pour l\'examen</h4><div>' + ex.retain + '</div></div>';
+  html += '</div>';
+  slot.innerHTML = html;
+
+  // Disable validation buttons
+  var bv = document.getElementById("btnValid");
+  if (bv) bv.disabled = true;
+  var bn = document.getElementById("btnNext");
+  if (bn) bn.disabled = false;
+
+  // Update score display
+  // (will refresh on next paint)
+}
+
+function suivante() {
+  qIdx++;
+  selected = [];
+  answered = false;
+  paint();
+}
+
+function paintScore() {
+  stopTimer();
+  var card = document.getElementById("card");
+  var pct = QUESTIONS.length === 0 ? 0 : Math.round((score / QUESTIONS.length) * 100);
+  var color = "#c62828", msg = "Il faut retravailler les bases.";
+  if (pct >= 80) { color = "#2e7d32"; msg = "Excellent ! Tu es prêt(e) pour cette section."; }
+  else if (pct >= 60) { color = "#f57c00"; msg = "Bon niveau, mais quelques notions à revoir."; }
+  else if (pct >= 40) { color = "#e67e22"; msg = "Niveau moyen — révise les concepts clés."; }
+
+  // Average time per question
+  var totalTime = 0;
+  for (var i = 0; i < timeSpent.length; i++) totalTime += timeSpent[i];
+  var avgTime = timeSpent.length > 0 ? Math.round(totalTime / timeSpent.length) : 0;
+  var avgMin = Math.floor(avgTime / 60);
+  var avgSec = avgTime % 60;
+  var avgStr = (avgMin > 0 ? avgMin + "m " : "") + avgSec + "s";
+
+  var html = ''
+    + '<div class="header">'
+    +   '<div class="brand">CCDAK Prep<small>Kafka Brokers — Niveau 1</small></div>'
+    + '</div>'
+    + '<div class="final-score">'
+    +   '<h1>Résultats finaux</h1>'
+    +   '<p style="font-size:18px;color:' + color + ';font-weight:600;">' + msg + '</p>'
+    +   '<p style="font-size:32px;margin:8px 0;"><strong>' + score + '</strong> / ' + QUESTIONS.length + ' (' + pct + '%)</p>'
+    +   '<div class="score-bar-wrap"><div class="score-bar" style="width:' + pct + '%;background:' + color + ';"></div></div>'
+    +   '<div class="score-detail">'
+    +     '<div class="score-card cours"><div class="num">' + scoreCours + ' / ' + totalCours + '</div><div class="lbl">📘 Du cours</div></div>'
+    +     '<div class="score-card inf"><div class="num">' + scoreInf + ' / ' + totalInf + '</div><div class="lbl">🔍 Au-delà du cours</div></div>'
+    +   '</div>'
+    +   '<div class="avg-time">⏱️ Temps moyen par question : <strong>' + avgStr + '</strong></div>'
+    +   '<button onclick="recommencer()">Recommencer le test</button>'
+    + '</div>';
+  card.innerHTML = html;
+}
+
+function recommencer() {
+  qIdx = 0;
+  selected = [];
+  answered = false;
+  score = 0;
+  scoreCours = 0;
+  scoreInf = 0;
+  timeSpent = [];
+  shuffleQuestionOptions();
+  paint();
+}
+
+// =====================================================
+// Init
+// =====================================================
+countTotals();
+shuffleQuestionOptions();
+paint();
+</script>
+</body>
+</html>

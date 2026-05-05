@@ -1,0 +1,23 @@
+sequenceDiagram
+    autonumber
+    participant P as 🏭 Producteur
+    participant L as 👑 Leader
+    participant F1 as 🔁 Follower 1
+    participant F2 as 🔁 Follower 2
+    participant C as 📱 Consommateur
+
+    rect rgb(250, 250, 250)
+        Note over P,L: 1️⃣ Écriture
+        P->>L: write(message)
+        L-->>P: ack
+
+        Note over L,F2: 2️⃣ Réplication
+        F1->>L: fetch(offset)
+        L-->>F1: message(s)
+        F2->>L: fetch(offset)
+        L-->>F2: message(s)
+
+        Note over L,C: 3️⃣ Lecture (défaut)
+        C->>L: fetch(offset)
+        L-->>C: message(s)
+    end

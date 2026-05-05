@@ -1,0 +1,25 @@
+flowchart TB
+    subgraph FRAME [" "]
+        direction LR
+        subgraph SM ["🛠️ Apache Kafka (self-managed)"]
+            direction TB
+            SM1["👁️ Brokers : visibles"]
+            SM2["💾 Stockage : SSD local couplé"]
+            SM3["🗳️ Métadonnées : KRaft"]
+            SM4["⚙️ Complexité : élevée"]
+        end
+
+        subgraph CM ["☁️ Confluent Cloud (managé)"]
+            direction TB
+            CM1["🙈 Brokers : abstraits"]
+            CM2["💾 Stockage : géré par le fournisseur"]
+            CM3["🗳️ Métadonnées : transparent"]
+            CM4["⚙️ Complexité : faible"]
+        end
+    end
+
+    style SM fill:#fff3e0,stroke:#e65100
+    style CM fill:#e3f2fd,stroke:#0d47a1
+    style SM4 fill:#ffcdd2
+    style CM4 fill:#c8e6c9
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

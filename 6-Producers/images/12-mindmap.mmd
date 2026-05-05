@@ -1,0 +1,40 @@
+mindmap
+  root((🏭 Producers<br/>Kafka))
+    Définition
+      Application cliente
+      Écrit dans Kafka
+      Pas un broker
+    API Java
+      KafkaProducer
+        Façade simple
+        Plomberie complexe
+      ProducerRecord
+        topic obligatoire
+        key valeur
+        timestamp partition headers
+    Configuration
+      Clé-valeur
+      bootstrap.servers
+      acks
+      5 à 10 params en réel
+    Bootstrap
+      2-3 brokers suffisent
+      Découverte métadonnées
+      Communication tous brokers
+    Sérialisation
+      Bytes
+      Natifs primitifs
+      Avro Protobuf
+      Schema Registry
+    Routage partition
+      hash key
+      round-robin
+      partition forcée
+    Multi-langage
+      Java natif
+      Python Go JS .NET
+      Communautaire
+    Pièges
+      Sérialisation simpliste
+      Trop de bootstrap servers
+      API faussement simple

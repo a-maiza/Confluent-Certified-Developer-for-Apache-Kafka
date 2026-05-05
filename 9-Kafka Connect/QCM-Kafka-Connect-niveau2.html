@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CCDAK Prep — Level 2 · Kafka Connect</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,sans-serif;background:#1a1a2e;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:32px 16px}
+  .card{background:#fff;border-radius:12px;border:1px solid #dde1e9;width:100%;max-width:840px;overflow:hidden}
+  .card-header{background:#1a1a2e;padding:16px 26px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .card-header h1{color:#fff;font-size:1.1rem;letter-spacing:.8px;white-space:nowrap}
+  .header-right{display:flex;align-items:center;gap:16px}
+  .timer-global{font-size:1rem;font-weight:700;color:#fff;background:rgba(255,255,255,.1);border-radius:7px;padding:5px 12px;white-space:nowrap}
+  .timer-global.warn{color:#f39c12;background:rgba(243,156,18,.15)}
+  .timer-global.danger{color:#e74c3c;background:rgba(231,76,60,.18);animation:pulse .8s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+  .q-count-header{color:#aab;font-size:.82rem;white-space:nowrap}
+  .progress-bar-wrap{height:5px;background:#e9ecef}
+  .progress-bar-fill{height:5px;background:#C0392B;transition:width .4s}
+  .card-body{padding:26px}
+  .q-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .q-num{font-size:.8rem;color:#888}
+  .badges{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .badge{display:inline-block;font-size:.72rem;font-weight:600;border-radius:4px;padding:2px 9px}
+  .badge-single{background:#eaf4fb;color:#1a6fa8}
+  .badge-multi{background:#fef3e2;color:#b05f00}
+  .badge-cours{background:#e8f4fd;color:#1a6fa8}
+  .badge-inference{background:#f0e8fd;color:#6a1ab8}
+  .q-text{font-size:1rem;color:#1a1a2e;font-weight:600;line-height:1.6;margin-bottom:18px}
+  .options-list{list-style:none;display:flex;flex-direction:column;gap:8px}
+  .option-wrap{display:flex;flex-direction:column}
+  .option-btn{width:100%;background:#f8f9fb;border:1.5px solid #dde1e9;border-radius:8px;padding:11px 14px;text-align:left;cursor:pointer;font-size:.93rem;color:#2d3748;display:flex;align-items:flex-start;gap:11px;transition:background .15s,border-color .15s}
+  .option-btn:hover:not([disabled]){background:#eef1f7;border-color:#b0b8cc}
+  .option-btn.selected{background:#e8f0fe;border-color:#3a6fd8}
+  .option-btn.correct{background:#e6f9f0;border-color:#27ae60;color:#145c35}
+  .option-btn.wrong{background:#fdecea;border-color:#e74c3c;color:#7b1a1a}
+  .option-btn.missed{background:#e6f9f0;border-color:#27ae60;border-style:dashed;color:#145c35}
+  .option-btn[disabled]{cursor:default}
+  .opt-letter{font-weight:700;font-size:.88rem;min-width:24px;height:24px;border-radius:50%;background:#dde1e9;display:flex;align-items:center;justify-content:center;color:#555;flex-shrink:0;margin-top:1px}
+  .option-btn.selected .opt-letter{background:#3a6fd8;color:#fff}
+  .option-btn.correct  .opt-letter{background:#27ae60;color:#fff}
+  .option-btn.wrong    .opt-letter{background:#e74c3c;color:#fff}
+  .option-btn.missed   .opt-letter{background:#27ae60;color:#fff}
+  .opt-expl{display:none;font-size:.82rem;color:#555;padding:6px 14px 6px 49px;line-height:1.55;border-left:2px solid #dde1e9;margin-top:2px;border-radius:0 0 6px 6px}
+  .opt-expl.show{display:block}
+  .opt-expl.expl-ok{border-left-color:#27ae60;color:#1a5c38}
+  .opt-expl.expl-ko{border-left-color:#e74c3c;color:#7b1a1a}
+  .opt-expl.expl-missed{border-left-color:#27ae60;color:#1a5c38}
+  .global-expl{display:none;margin-top:18px;background:#12102a;border-left:4px solid #C0392B;border-radius:0 8px 8px 0;padding:14px 16px;color:#e0e0f0;font-size:.88rem;line-height:1.65}
+  .global-expl.show{display:block}
+  .global-expl h4{font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;color:#C0392B;margin-bottom:7px}
+  .actions{margin-top:20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .btn-validate,.btn-next,.btn-restart{border:none;border-radius:7px;padding:10px 24px;font-size:.93rem;font-weight:600;cursor:pointer;transition:opacity .15s}
+  .btn-validate{background:#C0392B;color:#fff}
+  .btn-validate:disabled{opacity:.38;cursor:default}
+  .btn-next{background:#1a1a2e;color:#fff}
+  .btn-next:disabled{opacity:.32;cursor:default}
+  .btn-restart{background:#C0392B;color:#fff}
+  /* Score */
+  .score-screen{padding:30px 26px;text-align:center}
+  .score-screen h2{font-size:1.55rem;color:#1a1a2e;margin-bottom:7px}
+  .score-msg{font-size:.97rem;color:#555;margin-bottom:22px}
+  .score-bar-wrap{background:#e9ecef;border-radius:999px;height:16px;margin-bottom:22px;overflow:hidden}
+  .score-bar-fill{height:16px;border-radius:999px;transition:width .8s}
+  .score-detail{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px;text-align:left}
+  .score-box{background:#f7f8fc;border-radius:8px;padding:13px 15px;border:1px solid #dde1e9}
+  .score-box .lbl{font-size:.75rem;color:#888;margin-bottom:3px}
+  .score-box .val{font-size:1.35rem;font-weight:700;color:#1a1a2e}
+  .score-box .sub{font-size:.78rem;color:#555;margin-top:2px}
+  .score-box.blue .val{color:#1a6fa8}
+  .score-box.purple .val{color:#6a1ab8}
+  .score-box.orange .val{color:#b05f00}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="card-header">
+    <h1>CCDAK Prep &mdash; Level 2 &middot; Kafka Connect</h1>
+    <div class="header-right">
+      <span class="timer-global" id="globalTimer">⏱ 30:00</span>
+      <span class="q-count-header" id="headerSub">Module 9</span>
+    </div>
+  </div>
+  <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBar" style="width:0%"></div></div>
+  <div id="quizArea" class="card-body"></div>
+</div>
+
+<script>
+var QUESTIONS = [
+  {
+    source: "cours",
+    type: "single",
+    question: "A data engineering team at a financial company needs to capture every INSERT, UPDATE, and DELETE operation from a PostgreSQL database and publish these changes as events to a Kafka topic in real time. They want to avoid writing custom producer code and need a solution that is declarative and configuration-driven. Which approach should they implement?",
+    options: [
+      {
+        text: "Deploy a Kafka Streams application that polls the database every second and produces changed rows to a topic.",
+        explanation: "✗ Kafka Streams is a stream processing library, not a data ingestion tool. Polling a database every second does not capture deletes and is not event-driven CDC. It also requires custom application code, violating the 'no custom producer code' requirement."
+      },
+      {
+        text: "Configure a Kafka Connect Source Connector (e.g., Debezium PostgreSQL connector) with a JSON configuration sent to the Connect REST API.",
+        explanation: "✓ A Kafka Connect Source Connector is exactly the right tool: it captures CDC events (INSERT/UPDATE/DELETE) from PostgreSQL's WAL using log-based change capture, requires no custom code, and is deployed declaratively via a JSON config sent to the REST API."
+      },
+      {
+        text: "Configure a Kafka Connect Sink Connector to read from the database and publish to a topic.",
+        explanation: "✗ A Sink Connector flows data FROM Kafka TO an external system — the opposite of what is needed here. The database must be the SOURCE, not the destination."
+      },
+      {
+        text: "Use a Kafka AdminClient to create a topic and then write a JDBC polling script to produce messages.",
+        explanation: "✗ This requires writing custom producer code (the JDBC polling script), which contradicts the declarative requirement. Additionally, JDBC polling misses DELETE operations unless using timestamp-based strategies."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "Change Data Capture (CDC) from a relational database to Kafka is a canonical use case for Kafka Connect Source Connectors. Tools like Debezium integrate as a Source Connector and use database transaction logs (WAL for PostgreSQL) to capture all DML events in real time. The configuration is entirely declarative in JSON, requiring no custom producer code."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A healthcare company is using a Kafka Connect JDBC Source Connector to ingest patient records from a relational database into a Kafka topic. Before the records reach the topic, the team must mask the patient's national ID number field (`national_id`) to comply with HIPAA regulations. They want to implement this transformation inside the connector itself, without deploying a separate processing application. What is the correct approach?",
+    options: [
+      {
+        text: "Configure a Single Message Transform (SMT) of type MaskField in the connector configuration to replace the `national_id` field value with null.",
+        explanation: "✓ MaskField is a built-in Kafka Connect SMT that replaces a specified field's value with a null or a fixed literal, making it perfect for PII masking at ingestion time — directly inside the connector, with no external processing application needed."
+      },
+      {
+        text: "Deploy a Kafka Streams application downstream that reads from the topic and republishes with the field masked.",
+        explanation: "✗ This works technically but violates the requirement to implement the transformation 'inside the connector itself.' It also means unmasked data momentarily exists in the source topic, posing a compliance risk."
+      },
+      {
+        text: "Configure a Single Message Transform (SMT) of type ExtractField to remove the `national_id` field from the record.",
+        explanation: "✗ ExtractField extracts a value FROM a field to use as the record key or value — it does not mask or nullify a field within a struct. The correct SMT for masking is MaskField, not ExtractField."
+      },
+      {
+        text: "Use the `value.converter.schemas.enable=false` connector property to strip all field metadata including sensitive fields.",
+        explanation: "✗ schemas.enable controls whether schema information is embedded in the serialized record. It does not selectively remove or mask specific fields. Disabling it would affect all field metadata, not just the sensitive one."
+      }
+    ],
+    answers: [0],
+    globalExplanation: "Single Message Transforms (SMTs) allow lightweight, stateless, per-record transformations directly within a Kafka Connect connector — no external application required. The built-in MaskField SMT is the standard solution for PII field masking. It is configured via the 'transforms' property in the connector JSON config."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A startup is building a search feature powered by Elasticsearch. They have data flowing through Kafka topics and need to continuously index new records into Elasticsearch as they arrive. The engineering team has no experience with Kafka Connect internals and wants a solution that requires zero custom code. Which Kafka Connect component and configuration strategy should they use?",
+    options: [
+      {
+        text: "Implement a custom SinkConnector Java class that extends the Kafka Connect SinkConnector API and deploy it as a standalone connector.",
+        explanation: "✗ Writing a custom SinkConnector requires significant Java development effort. The requirement explicitly calls for zero custom code, and a ready-made Elasticsearch Sink Connector already exists."
+      },
+      {
+        text: "Deploy a Source Connector configured to read from Kafka topics and write to Elasticsearch using a JSON configuration.",
+        explanation: "✗ Source Connectors read from external systems INTO Kafka, not the reverse. Writing from Kafka to Elasticsearch is a Sink Connector operation, not a Source Connector operation."
+      },
+      {
+        text: "Deploy the Elasticsearch Sink Connector by submitting a JSON configuration to the Kafka Connect REST API — no custom code required.",
+        explanation: "✓ The Elasticsearch Sink Connector is a pre-built connector available on Confluent Hub. It consumes records from Kafka topics and indexes them into Elasticsearch. Deploying it requires only a JSON config sent to the REST API — exactly zero custom code."
+      },
+      {
+        text: "Use a Kafka Consumer client library with a custom Elasticsearch client library to build a microservice.",
+        explanation: "✗ This approach requires writing custom code for both the consumer logic and the Elasticsearch integration, which directly contradicts the zero-code requirement."
+      }
+    ],
+    answers: [2],
+    globalExplanation: "Kafka Connect's declarative, JSON-based configuration model means that connecting Kafka to well-known systems like Elasticsearch requires no custom code. Pre-built connectors available on Confluent Hub cover the vast majority of integration patterns. The Elasticsearch Sink Connector is a textbook example: it consumes from a topic and indexes into Elasticsearch, configured entirely via JSON."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A retail company runs a Kafka Connect cluster on self-managed infrastructure. Their platform engineering team spends significant time patching connector plugins, scaling worker nodes during peak shopping seasons, and recovering from worker failures. The CTO wants to eliminate this operational burden while keeping full access to 80+ pre-built connectors. Which solution best satisfies this requirement?",
+    options: [
+      {
+        text: "Migrate to Kafka Connect standalone mode to reduce cluster complexity.",
+        explanation: "✗ Standalone mode is simpler but provides NO fault tolerance — if the single worker fails, all connectors stop. It actually increases operational risk rather than reducing burden."
+      },
+      {
+        text: "Switch to Confluent Cloud fully managed connectors.",
+        explanation: "✓ Confluent Cloud offers 80+ fully managed connectors with no infrastructure to provision, patch, or scale. Confluent handles worker management, fault tolerance, and upgrades — eliminating the described operational burden entirely."
+      },
+      {
+        text: "Increase the number of Kafka Connect workers in the distributed cluster to 10 to handle failures automatically.",
+        explanation: "✗ Adding more workers improves fault tolerance but does NOT eliminate the operational burden of managing the cluster. Patching, upgrades, and capacity planning still require significant ops effort."
+      },
+      {
+        text: "Download all 4,000+ connectors from GitHub and deploy them on a single high-memory Connect worker.",
+        explanation: "✗ Installing thousands of connector plugins on a single worker is an anti-pattern. Many community connectors are poorly maintained, and this approach creates instability and security risk. It also does nothing to reduce operational overhead."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "Confluent Cloud's fully managed connectors remove the operational burden of running Kafka Connect infrastructure. With 80+ production-ready connectors and zero infrastructure management, it is the correct choice when the goal is to eliminate cluster operations while retaining broad connector coverage."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A team configures a Kafka Connect JDBC Source Connector to ingest data from a PostgreSQL table that has 12 distinct partitions. They set `tasks.max=8`. After deploying the connector, how many tasks will Kafka Connect actually create?",
+    options: [
+      {
+        text: "12 tasks, because the number of tasks always matches the number of source partitions.",
+        explanation: "✗ tasks.max is an upper bound, not a minimum. The connector will create at most tasks.max tasks. Since tasks.max=8 < 12 partitions, the connector cannot create more than 8 tasks."
+      },
+      {
+        text: "8 tasks, because tasks.max caps the number of tasks and the source has more partitions than the configured maximum.",
+        explanation: "✓ tasks.max defines the MAXIMUM number of tasks. When the source system (PostgreSQL with 12 partitions) can support more parallelism than tasks.max allows, the connector is capped at 8 tasks. The connector will never exceed tasks.max."
+      },
+      {
+        text: "1 task, because JDBC Source Connectors always run as a single task regardless of tasks.max.",
+        explanation: "✗ This is incorrect. JDBC Source Connectors can run with multiple tasks when the source table can be parallelized (e.g., by partition key or query splitting). tasks.max controls the ceiling."
+      },
+      {
+        text: "0 tasks, because the connector will fail to start when tasks.max is less than the number of source partitions.",
+        explanation: "✗ tasks.max being lower than the source parallelism is normal and expected. The connector starts successfully and creates min(tasks.max, achievable_parallelism) tasks."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "tasks.max is an upper bound on connector parallelism, not a fixed target. The actual number of tasks created is min(tasks.max, parallelism_achievable_by_the_source). If the source supports more parallelism than tasks.max allows, the connector is capped at tasks.max tasks. If the source supports LESS parallelism, fewer tasks are created."
+  },
+  {
+    source: "cours",
+    type: "multiple",
+    question: "A production Kafka Connect pipeline ingests JSON records from an IoT platform into a Kafka topic. Occasionally, a malformed record (missing required field) causes the connector task to fail and stop processing. The team wants the connector to: (1) continue processing despite bad records, and (2) preserve the failed records for later analysis. Which TWO configuration changes should they apply to the connector?",
+    options: [
+      {
+        text: "Set `errors.tolerance=all`",
+        explanation: "✓ errors.tolerance=all instructs the connector to skip records that cause errors (such as deserialization failures or transformation errors) instead of failing the task. This satisfies requirement (1): continue processing despite bad records."
+      },
+      {
+        text: "Set `errors.deadletterqueue.topic.name=iot-dlq`",
+        explanation: "✓ Configuring the Dead Letter Queue topic routes failed records to a designated Kafka topic ('iot-dlq') for later analysis and replay. This satisfies requirement (2): preserve failed records."
+      },
+      {
+        text: "Set `errors.tolerance=none`",
+        explanation: "✗ errors.tolerance=none is the DEFAULT behavior — the task fails immediately on any error. This would make the problem worse, not better."
+      },
+      {
+        text: "Set `auto.offset.reset=earliest` on the Connect worker",
+        explanation: "✗ auto.offset.reset controls where a consumer starts reading when no committed offset exists. It has no effect on error handling or fault tolerance for malformed records."
+      },
+      {
+        text: "Set `enable.idempotence=true` on the connector's producer",
+        explanation: "✗ enable.idempotence prevents duplicate records due to producer retries and is related to exactly-once semantics — it has no bearing on handling malformed input records or preserving them in a DLQ."
+      }
+    ],
+    answers: [0, 1],
+    globalExplanation: "Robust error handling in Kafka Connect requires two complementary settings: errors.tolerance=all (skip bad records instead of failing) combined with errors.deadletterqueue.topic.name (route failed records to a DLQ topic for analysis). Together they achieve 'continue on error + preserve failures.' Without the DLQ, bad records are silently dropped."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A real-time analytics team uses a Kafka Connect pipeline to enrich customer purchase events before they land in a data warehouse. A product manager requests that each event be joined with a 'customer segment' lookup table to add a `segment` field to every record. The developer proposes implementing this enrichment as a Single Message Transform (SMT). A senior engineer objects. Who is correct, and why?",
+    options: [
+      {
+        text: "The developer is correct — SMTs support table lookups via the ExtractField and InsertField transforms.",
+        explanation: "✗ ExtractField and InsertField operate on data already present within the record. Neither performs external lookups. SMTs have NO access to external state like a lookup table."
+      },
+      {
+        text: "The senior engineer is correct — SMTs are strictly stateless and cannot perform joins or lookups. This enrichment must be implemented in Kafka Streams or Apache Flink.",
+        explanation: "✓ SMTs are stateless, per-record transformations. They cannot hold or query external state. Any enrichment requiring a JOIN with a lookup table requires a stateful stream processing engine like Kafka Streams (KTable lookup) or Apache Flink."
+      },
+      {
+        text: "The developer is correct — SMTs can be chained to simulate a join operation across multiple transforms.",
+        explanation: "✗ Chaining SMTs composes multiple stateless operations sequentially, but each SMT still operates on a single record in isolation. Chaining does not add state or join capability."
+      },
+      {
+        text: "The senior engineer is correct — SMTs cannot be used for any data enrichment; they only support field removal.",
+        explanation: "✗ SMTs DO support data enrichment — for example, InsertField can add a static field, and TimestampConverter can transform timestamp formats. The limitation is STATELESSNESS, not enrichment in general."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "SMTs (Single Message Transforms) are stateless by design: they operate on individual records with no access to external state, tables, or other records. Any transformation requiring state — joins, aggregations, lookups — must be handled by a stateful processor like Kafka Streams or Apache Flink AFTER data is in Kafka topics."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A logistics company needs to synchronize order records between their Kafka platform and their Oracle database. New orders arrive in a Kafka topic, and they need to be written to the Oracle `orders` table in near real time. The team wants a solution that requires no custom Java code. Which Kafka Connect component and direction should they use?",
+    options: [
+      {
+        text: "A Source Connector (e.g., JDBC Source) configured to poll the Oracle `orders` table and produce to a Kafka topic.",
+        explanation: "✗ A Source Connector reads FROM Oracle INTO Kafka — the opposite direction of what is required. Here, Kafka is the source and Oracle is the destination."
+      },
+      {
+        text: "A Sink Connector (e.g., JDBC Sink) configured to consume from the orders Kafka topic and write to the Oracle database.",
+        explanation: "✓ A Sink Connector flows data FROM Kafka TO an external system. The JDBC Sink Connector reads records from the Kafka topic and writes them to the Oracle table, with no custom Java code — just a JSON configuration."
+      },
+      {
+        text: "A Source Connector combined with a Kafka Streams application to reverse the data flow.",
+        explanation: "✗ Using a Source Connector to pull from Oracle plus Kafka Streams to redirect the flow is a convoluted workaround. A Sink Connector directly serves this need with zero code."
+      },
+      {
+        text: "A Kafka consumer client in Java that reads from the topic and issues JDBC INSERT statements to Oracle.",
+        explanation: "✗ This requires writing custom Java code (consumer + JDBC client), directly contradicting the 'no custom Java code' requirement. The JDBC Sink Connector already implements this pattern."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "When data must flow FROM Kafka TO an external system (database, search engine, data warehouse), a Sink Connector is the correct choice. The JDBC Sink Connector is specifically designed for Kafka-to-database synchronization and handles the consumer logic, offset management, and database writes through pure configuration — no code required."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A developer is setting up a Kafka Connect connector and needs to add a field `source_system` with the static value `crm_db` to every record ingested from a CRM database. They want to accomplish this inside the connector configuration without writing any code. Which SMT and property name should they use?",
+    options: [
+      {
+        text: "Use the `ExtractField` SMT with the `field` property set to `source_system`.",
+        explanation: "✗ ExtractField extracts an existing field from a struct to promote it as the record's key or value. It does not INSERT new fields — it works on fields that already exist in the record."
+      },
+      {
+        text: "Use the `InsertField` SMT with the `static.field` property set to `source_system` and `static.value` set to `crm_db`.",
+        explanation: "✓ InsertField is the built-in SMT designed to add a new field with a static value to every record. The static.field property names the new field and static.value provides its value — no code required."
+      },
+      {
+        text: "Use the `MaskField` SMT with the `fields` property set to `source_system`.",
+        explanation: "✗ MaskField replaces the VALUE of an existing field with null or a fixed literal — it does not ADD new fields. If source_system does not already exist in the record, MaskField would fail or have no effect."
+      },
+      {
+        text: "Use the `ReplaceField` SMT with the `include` property set to `source_system`.",
+        explanation: "✗ ReplaceField is used to rename or remove existing fields (via 'rename' and 'blacklist'/'whitelist' options). It cannot add fields that do not already exist in the record."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "InsertField is the correct SMT for adding new fields with static or computed values to every record passing through a connector. It is commonly used for metadata enrichment such as adding a source system identifier, ingestion timestamp, or environment tag — all without writing application code."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "An operations team is designing a Kafka Connect deployment for a mission-critical pipeline that ingests data from 5 different source systems. They need the pipeline to automatically recover from worker failures without manual intervention and to scale horizontally as data volumes grow. Which deployment mode should they choose and why?",
+    options: [
+      {
+        text: "Standalone mode, because it is simpler to configure and adequate for mission-critical pipelines.",
+        explanation: "✗ Standalone mode runs as a single process with no fault tolerance. If the worker fails, all connectors stop and require manual restart. It is NOT suitable for mission-critical pipelines."
+      },
+      {
+        text: "Standalone mode with multiple connector instances on separate hosts.",
+        explanation: "✗ Standalone mode does not support cluster formation or work coordination between instances. Running multiple standalone instances does not provide automatic failover or load balancing."
+      },
+      {
+        text: "Distributed mode with multiple worker instances, because it provides automatic task rebalancing on failure and supports horizontal scaling.",
+        explanation: "✓ Distributed mode is designed for production: multiple workers form a cluster, coordinate via Kafka internal topics, and automatically rebalance tasks when a worker fails. New workers can be added at any time to scale capacity."
+      },
+      {
+        text: "Embedded mode inside each source system's application JVM, to eliminate network latency.",
+        explanation: "✗ 'Embedded mode' is not a standard Kafka Connect deployment mode. Connect runs as a separate client process (standalone or distributed) — it is not embedded inside external applications."
+      }
+    ],
+    answers: [2],
+    globalExplanation: "Distributed mode is the production-ready deployment choice for Kafka Connect. Workers form a cluster, share work via internal Kafka topics, and automatically rebalance when any worker fails — providing both fault tolerance and horizontal scalability. Standalone mode is suitable only for development and simple single-node scenarios."
+  },
+  {
+    source: "inference",
+    type: "multiple",
+    question: "A platform team is deploying Kafka Connect in distributed mode for the first time in a production environment. They need to configure the three mandatory internal Kafka topics required for Connect distributed coordination. They want to manually pre-create these topics with appropriate replication factors. Which THREE topic configuration properties must they specify in the worker configuration?",
+    options: [
+      {
+        text: "`config.storage.topic` — stores connector and task configurations.",
+        explanation: "✓ This is one of the three mandatory internal topics. It stores the connector and task configurations and must be created with a high replication factor (typically 3) and cleanup.policy=compact."
+      },
+      {
+        text: "`offset.storage.topic` — tracks source connector read progress.",
+        explanation: "✓ This is the second mandatory internal topic. It stores the offsets (progress markers) for source connectors, enabling resumption after failures. It also requires compaction and a replication factor of at least 3 in production."
+      },
+      {
+        text: "`status.storage.topic` — records the state and status of connectors and tasks.",
+        explanation: "✓ This is the third mandatory internal topic. It records connector and task lifecycle states (RUNNING, PAUSED, FAILED, etc.) and also requires compaction."
+      },
+      {
+        text: "`__consumer_offsets` — tracks consumer group progress for Connect consumers.",
+        explanation: "✗ __consumer_offsets is an internal Kafka broker topic managed automatically. Connect uses its own offset.storage.topic for source connector progress — not __consumer_offsets."
+      },
+      {
+        text: "`connect-metrics` — stores JMX metrics from Connect workers.",
+        explanation: "✗ There is no standard Kafka Connect internal topic called connect-metrics. Metrics are exposed via JMX and Prometheus exporters, not stored in Kafka topics."
+      }
+    ],
+    answers: [0, 1, 2],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Kafka Connect distributed mode requires exactly three internal Kafka topics: config.storage.topic, offset.storage.topic, and status.storage.topic. All three should be pre-created in production with replication factor ≥ 3 and cleanup.policy=compact to ensure durability and correctness after failures."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A DevOps engineer is adding a second Kafka Connect distributed worker to an existing cluster. The new worker's configuration file has a different `group.id` value than the existing workers. What will be the result?",
+    options: [
+      {
+        text: "The new worker will join the existing Connect cluster and share the connector workload.",
+        explanation: "✗ Workers only form a cluster when they share the SAME group.id. A different group.id causes the new worker to form or join a different, independent Connect cluster."
+      },
+      {
+        text: "The new worker will form a separate, independent Connect cluster and will not share work with the existing workers.",
+        explanation: "✓ In Kafka Connect distributed mode, group.id is the cluster identity. Workers with the same group.id coordinate together. A worker with a different group.id operates as its own independent cluster, isolated from the existing one."
+      },
+      {
+        text: "The Kafka Connect REST API will reject the new worker's registration and return a 409 Conflict error.",
+        explanation: "✗ Kafka Connect does not have a registration mechanism that rejects workers based on group.id conflicts. The new worker will simply form its own separate cluster silently."
+      },
+      {
+        text: "The new worker will inherit the existing cluster's connector assignments via ZooKeeper coordination.",
+        explanation: "✗ Kafka Connect distributed mode does NOT use ZooKeeper for coordination. It uses the three internal Kafka topics (config, offset, status). ZooKeeper is a Kafka broker concern, not a Connect concern."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. The group.id property in Kafka Connect distributed mode acts as the cluster identifier. All workers sharing the same group.id form one Connect cluster and coordinate work among themselves. Workers with different group.ids are completely isolated from each other and form separate clusters."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A Kafka Connect distributed cluster is running 4 workers with 20 tasks spread evenly across them (5 tasks per worker). Worker #3 crashes unexpectedly. Assuming no other changes to the cluster, what happens to the 5 tasks that were assigned to Worker #3?",
+    options: [
+      {
+        text: "The 5 tasks are permanently lost and must be manually reconfigured via the REST API.",
+        explanation: "✗ Tasks are not lost when a worker fails. The connector and task configurations are stored in the config.storage.topic Kafka topic, making them durable and recoverable."
+      },
+      {
+        text: "The Connect cluster triggers a rebalance and redistributes the 5 orphaned tasks among the remaining 3 workers.",
+        explanation: "✓ Kafka Connect distributed mode provides automatic fault tolerance. When a worker fails, the remaining workers detect the failure (via heartbeat timeout on internal topics) and trigger a rebalance, redistributing the orphaned tasks across healthy workers."
+      },
+      {
+        text: "The connector associated with Worker #3's tasks enters PAUSED state and waits for the failed worker to return.",
+        explanation: "✗ Connect does not wait for the failed worker. It immediately redistributes tasks to available workers via a rebalance. The PAUSED state is a manually triggered state, not an automatic response to worker failure."
+      },
+      {
+        text: "The tasks on Worker #3 are reassigned only if errors.tolerance=all is set on the connectors.",
+        explanation: "✗ errors.tolerance controls per-record error handling inside a running task. It has absolutely no relationship to worker failure detection or task rebalancing."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Kafka Connect distributed mode provides automatic fault tolerance through task rebalancing. When a worker fails, surviving workers detect this (via the status.storage.topic and heartbeat mechanism) and rebalance, redistributing the orphaned tasks. This is one of the primary advantages of distributed over standalone mode."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A team is migrating a Kafka Connect standalone deployment (used in development) to distributed mode for production. In standalone mode, offsets are stored in a local file on the worker's filesystem. After migrating to distributed mode, the team notices that source connector offsets are being stored differently. Where does Kafka Connect distributed mode store source connector offsets, and what is the risk if this topic does not exist before the cluster starts?",
+    options: [
+      {
+        text: "Offsets are stored in ZooKeeper. If ZooKeeper is unavailable, the connector will restart from the beginning of the source.",
+        explanation: "✗ Kafka Connect does NOT use ZooKeeper to store offsets. ZooKeeper is used by Kafka brokers for cluster metadata (and is deprecated since KRaft). Connect uses a Kafka topic for offset storage."
+      },
+      {
+        text: "Offsets are stored in the Kafka topic specified by `offset.storage.topic`. If this topic is auto-created with default settings (e.g., replication.factor=1), it may lose offset data on broker failure, causing the connector to replay records.",
+        explanation: "✓ In distributed mode, offsets are stored in offset.storage.topic. If this topic is auto-created with default settings instead of being pre-created with replication.factor=3, a broker failure can cause offset loss, resulting in duplicate record delivery."
+      },
+      {
+        text: "Offsets are stored in the file defined by `offset.storage.file.filename`. If the file is deleted, the connector restarts from the beginning.",
+        explanation: "✗ offset.storage.file.filename applies only to STANDALONE mode. In distributed mode, this property is ignored; offsets go to a Kafka topic."
+      },
+      {
+        text: "Offsets are stored in `__consumer_offsets`. If the consumer group is reset, the connector restarts from the latest offset.",
+        explanation: "✗ __consumer_offsets tracks consumer group offsets for standard Kafka consumers. Kafka Connect uses its own dedicated offset.storage.topic, not __consumer_offsets, for source connector progress tracking."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Standalone mode stores offsets in a local file (offset.storage.file.filename). Distributed mode stores offsets in a Kafka topic (offset.storage.topic). It is critical to pre-create this topic with a high replication factor (≥3) and cleanup.policy=compact to prevent offset loss and duplicate record delivery after broker failures."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A developer is implementing a custom Kafka Connect source connector to ingest data from a proprietary REST API. They extend `SourceConnector` and create a `SourceTask` implementation. During a code review, the reviewer asks which method in the `SourceTask` class is called by the Connect framework to retrieve new records from the REST API. Which method must the developer implement, and what must it return?",
+    options: [
+      {
+        text: "The `read()` method, which returns an `InputStream` of raw bytes from the external API.",
+        explanation: "✗ There is no read() method in the Kafka Connect SourceTask API. This is not a valid Kafka Connect interface method."
+      },
+      {
+        text: "The `poll()` method, which returns a `List<SourceRecord>` containing the records fetched from the external system.",
+        explanation: "✓ SourceTask.poll() is the core method called repeatedly by the Connect framework to retrieve batches of records. It must return a List<SourceRecord> (can be empty but not null) with each record containing topic, partition, offset, key, and value."
+      },
+      {
+        text: "The `fetch()` method, which returns a `Collection<ConnectRecord>` of records to be published to Kafka.",
+        explanation: "✗ There is no fetch() method in the SourceTask API. ConnectRecord is a base class; SourceTask specifically returns List<SourceRecord>."
+      },
+      {
+        text: "The `consume()` method, which returns a `Map<String, Object>` of key-value pairs to be serialized.",
+        explanation: "✗ consume() is not a SourceTask method. SourceTasks PRODUCE records (they are the source); consume() implies the opposite direction."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. In the Kafka Connect SourceTask API, the poll() method is the primary extension point. It is called repeatedly by the Connect framework and must return List<SourceRecord>. Each SourceRecord specifies the target topic, source partition identifier (for offset tracking), source offset, and the record key/value."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A team builds a custom Kafka Connect sink connector to write records from a Kafka topic into a custom binary data store. They extend `SinkConnector` and `SinkTask`. A junior developer is unsure which method in `SinkTask` receives the Kafka records and is responsible for writing them to the external system. Which method must they implement, and what is its signature?",
+    options: [
+      {
+        text: "The `write(List<SinkRecord> records)` method, which writes a list of records to the external system.",
+        explanation: "✗ The Kafka Connect SinkTask API does not define a write() method. This is not a valid interface method in the Connect framework."
+      },
+      {
+        text: "The `put(Collection<SinkRecord> records)` method, which receives a batch of Kafka records and must write them to the external system.",
+        explanation: "✓ SinkTask.put(Collection<SinkRecord> records) is the primary extension point for SinkTask. The Connect framework calls it with a batch of records from the Kafka topic, and the implementation must persist them to the target system."
+      },
+      {
+        text: "The `flush(Map<TopicPartition, OffsetAndMetadata> offsets)` method, which both writes records and commits offsets.",
+        explanation: "✗ flush() exists in SinkTask but is called AFTER put() to signal that previously put records can be safely committed. Its responsibility is offset commit acknowledgment, not primary record writing."
+      },
+      {
+        text: "The `process(SinkRecord record)` method, which handles one record at a time from the Kafka topic.",
+        explanation: "✗ There is no process() method in the SinkTask API. The framework uses put() to deliver batches of records, not individual record callbacks."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. SinkTask.put(Collection<SinkRecord>) is the primary write method in a custom SinkConnector implementation. The flush() method exists as a secondary lifecycle hook for offset commit acknowledgment. Confusing put() and flush() is a common exam distractor."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A data platform team uses Kafka Connect to ingest customer records from a relational database into a Kafka topic. The downstream consumers require Avro-serialized records with schema management via Confluent Schema Registry. Which converter configuration should the team apply to the Kafka Connect connector, and what additional property is mandatory?",
+    options: [
+      {
+        text: "Set `value.converter=org.apache.kafka.connect.json.JsonConverter` and `value.converter.schemas.enable=true`.",
+        explanation: "✗ JsonConverter produces JSON-encoded records, not Avro. It does not integrate with Confluent Schema Registry and does not produce Avro binary format, which is required by downstream consumers."
+      },
+      {
+        text: "Set `value.converter=io.confluent.connect.avro.AvroConverter` and `value.converter.schema.registry.url=<registry-url>`.",
+        explanation: "✓ AvroConverter serializes Connect records in Avro binary format and integrates with Confluent Schema Registry for schema registration and retrieval. The schema.registry.url property is mandatory for AvroConverter to locate the registry."
+      },
+      {
+        text: "Set `value.converter=org.apache.kafka.connect.storage.StringConverter` and register the Avro schema manually.",
+        explanation: "✗ StringConverter serializes records as plain UTF-8 strings. It does not produce Avro binary format and does not integrate with Schema Registry. Manual schema registration alone does not change the serialization format."
+      },
+      {
+        text: "Set `value.converter=org.apache.kafka.connect.converters.ByteArrayConverter` and `value.converter.schema.registry.url=<registry-url>`.",
+        explanation: "✗ ByteArrayConverter passes raw byte arrays through without any schema awareness. It does not serialize to Avro format and does not use Schema Registry, even if the URL is provided."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. When Kafka Connect needs to produce Avro-serialized records compatible with Confluent Schema Registry, the correct converter is io.confluent.connect.avro.AvroConverter. Its mandatory companion property is value.converter.schema.registry.url, which must point to the Schema Registry URL. Without it, the connector will fail to start."
+  },
+  {
+    source: "inference",
+    type: "multiple",
+    question: "A fintech company needs to configure Kafka Connect source connectors to guarantee exactly-once delivery of payment events to Kafka topics. A senior architect specifies a set of producer-level properties to be applied to the connector. Which TWO producer configurations are essential to achieve idempotent, exactly-once semantics for the source connector?",
+    options: [
+      {
+        text: "`enable.idempotence=true` — prevents duplicate records when the producer retries after a transient failure.",
+        explanation: "✓ Idempotent producers assign a unique sequence number to each record batch. Kafka deduplicates retried batches using this sequence number, ensuring each record is written exactly once to the leader even if the producer retries."
+      },
+      {
+        text: "`acks=all` — requires acknowledgment from all in-sync replicas before the producer considers a send successful.",
+        explanation: "✓ acks=all combined with enable.idempotence=true ensures both durability (ISR acknowledgment) and deduplication. Together they form the foundation of exactly-once producer semantics."
+      },
+      {
+        text: "`auto.offset.reset=earliest` — ensures the connector reads from the earliest available offset on restart.",
+        explanation: "✗ auto.offset.reset is a consumer property controlling what happens when no committed offset exists. It affects at-least-once delivery behavior but does not contribute to exactly-once producer semantics."
+      },
+      {
+        text: "`compression.type=lz4` — reduces record size to prevent timeout-related duplicates.",
+        explanation: "✗ Compression reduces network and storage overhead but has no direct bearing on exactly-once semantics. Duplicates from retries are prevented by idempotence, not compression."
+      },
+      {
+        text: "`linger.ms=0` — minimizes latency to reduce the chance of duplicate sends.",
+        explanation: "✗ linger.ms=0 reduces batching wait time for lower latency. It does not prevent duplicate records; that is the role of enable.idempotence. Lowering linger.ms can actually increase the number of retries."
+      }
+    ],
+    answers: [0, 1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Exactly-once semantics for a Kafka Connect source connector producer requires: enable.idempotence=true (sequence-number-based deduplication) and acks=all (full ISR acknowledgment for durability). Additionally, max.in.flight.requests.per.connection=1 or ≤5 (with idempotence) and transaction.timeout.ms are relevant for full transactional EOS."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A Kafka Connect source connector is ingesting data from a legacy system. After a Connect worker restart, the team observes that some records are reprocessed (duplicated in the Kafka topic). The SRE team identifies that the connector's source offsets were not flushed to the offset storage topic before the crash. Which configuration parameter should they tune to flush offsets more frequently, and what is the trade-off?",
+    options: [
+      {
+        text: "Decrease `auto.commit.interval.ms` — but risk increasing consumer group rebalance frequency.",
+        explanation: "✗ auto.commit.interval.ms is a Kafka consumer property for consumer group offset auto-commit intervals. It is unrelated to Kafka Connect source connector offset flushing."
+      },
+      {
+        text: "Decrease `offset.flush.interval.ms` — offsets will be flushed more frequently, reducing duplicate reprocessing on restart, but increasing write load to the offset storage topic.",
+        explanation: "✓ offset.flush.interval.ms (default: 60,000 ms) controls how often the Connect worker commits source connector offsets. Decreasing it means offsets are flushed more frequently, minimizing the reprocessing window after a crash — at the cost of more frequent writes to the offset.storage.topic."
+      },
+      {
+        text: "Increase `offset.flush.interval.ms` — offsets will be stored more durably, reducing the chance of reprocessing.",
+        explanation: "✗ Increasing offset.flush.interval.ms means LONGER gaps between offset flushes, which INCREASES the amount of reprocessing needed after a crash. This is the opposite of the desired outcome."
+      },
+      {
+        text: "Set `enable.auto.commit=false` on the Connect worker — offsets will be committed manually, preventing duplicates.",
+        explanation: "✗ enable.auto.commit is a consumer API property. Kafka Connect manages its own offset lifecycle internally via offset.flush.interval.ms — you do not control it with enable.auto.commit."
+      }
+    ],
+    answers: [1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. offset.flush.interval.ms (default: 60 seconds) controls the frequency at which Kafka Connect flushes source connector offsets to offset.storage.topic. Decreasing this value reduces the amount of data that must be reprocessed after a worker restart, at the cost of more frequent writes to Kafka. This is a key tuning parameter for minimizing duplicate delivery in source connectors."
+  },
+  {
+    source: "inference",
+    type: "multiple",
+    question: "A data engineering team uses a Kafka Connect JDBC Sink Connector to write customer records to a PostgreSQL database. After a schema change (a new nullable column `loyalty_tier` was added to the source records), the connector starts failing because the column does not yet exist in the target table. The team wants the connector to automatically adapt to schema changes without manual DDL intervention. Which TWO connector properties should they configure?",
+    options: [
+      {
+        text: "Set `auto.evolve=true` — allows the connector to automatically ALTER the target table to add new columns when the source schema changes.",
+        explanation: "✓ auto.evolve=true instructs the JDBC Sink Connector to issue ALTER TABLE statements to add missing columns automatically when it detects new fields in incoming records, preventing schema mismatch failures."
+      },
+      {
+        text: "Set `auto.create=true` — allows the connector to automatically CREATE the target table if it does not exist.",
+        explanation: "✓ auto.create=true enables automatic table creation when the target table is absent. While not strictly required for the column addition scenario, it is a complementary best practice for full schema automation. Combined with auto.evolve, it handles both table creation and evolution."
+      },
+      {
+        text: "Set `insert.mode=upsert` — resolves schema conflicts by merging new and existing records.",
+        explanation: "✗ insert.mode controls how records are written (INSERT, UPSERT, or UPDATE) — it does not resolve schema mismatches or add missing columns to the target table."
+      },
+      {
+        text: "Set `errors.tolerance=all` — instructs the connector to skip records with schema mismatches.",
+        explanation: "✗ errors.tolerance=all would cause the connector to silently skip records that fail due to schema mismatch — data would be LOST. The correct solution is to fix the schema mismatch using auto.evolve, not to discard records."
+      },
+      {
+        text: "Set `value.converter.schemas.enable=false` — disables schema enforcement so any field is accepted.",
+        explanation: "✗ Disabling schema enforcement removes type safety and schema tracking entirely. It does not adapt the target database schema and can cause silent data corruption if the database has strict column definitions."
+      }
+    ],
+    answers: [0, 1],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. The JDBC Sink Connector supports automatic schema management via two properties: auto.create=true (creates the table if it does not exist) and auto.evolve=true (issues ALTER TABLE to add missing columns). Together they enable schema-agile pipelines that adapt to upstream schema changes without manual DDL intervention."
+  }
+];
+
+var qIdx = 0;
+var selected = [];
+var answered = false;
+var score = 0;
+var scoresCours = { correct: 0, total: 0 };
+var scoresInfer = { correct: 0, total: 0 };
+var timerInterval = null;
+var timeLeft = QUESTIONS.length * 90;
+var totalTime = QUESTIONS.length * 90;
+
+function shuffle(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+function shuffleAll() {
+  for (var i = 0; i < QUESTIONS.length; i++) {
+    var q = QUESTIONS[i];
+    var indexed = [];
+    for (var k = 0; k < q.options.length; k++) {
+      indexed.push({ text: q.options[k].text, explanation: q.options[k].explanation, origIdx: k });
+    }
+    indexed = shuffle(indexed);
+    var newOptions = [];
+    var newAnswers = [];
+    for (var j = 0; j < indexed.length; j++) {
+      newOptions.push({ text: indexed[j].text, explanation: indexed[j].explanation });
+      if (q.answers.indexOf(indexed[j].origIdx) !== -1) newAnswers.push(j);
+    }
+    q.options = newOptions;
+    q.answers = newAnswers;
+  }
+}
+
+function startGlobalTimer() {
+  clearInterval(timerInterval);
+  paintGlobalTimer();
+  timerInterval = setInterval(function() {
+    timeLeft--;
+    paintGlobalTimer();
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      forceSubmitCurrent();
+    }
+  }, 1000);
+}
+
+function paintGlobalTimer() {
+  var el = document.getElementById('globalTimer');
+  if (!el) return;
+  var m = Math.floor(timeLeft / 60);
+  var s = timeLeft % 60;
+  el.textContent = '⏱ ' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  var ratio = timeLeft / totalTime;
+  el.className = 'timer-global';
+  if (ratio < 0.1) el.className = 'timer-global danger';
+  else if (ratio < 0.2) el.className = 'timer-global warn';
+}
+
+function forceSubmitCurrent() {
+  if (!answered) {
+    answered = true;
+    var q = QUESTIONS[qIdx];
+    if (q.source === 'cours') scoresCours.total++;
+    else scoresInfer.total++;
+    paintAnswered();
+  }
+  if (qIdx < QUESTIONS.length - 1) {
+    setTimeout(function() { suivante(); }, 1500);
+  } else {
+    setTimeout(function() { showScore(); }, 1500);
+  }
+}
+
+function pickOption(idx) {
+  if (answered) return;
+  var q = QUESTIONS[qIdx];
+  if (q.type === 'multiple') {
+    var pos = selected.indexOf(idx);
+    if (pos === -1) selected.push(idx);
+    else selected.splice(pos, 1);
+  } else {
+    selected = [idx];
+  }
+  paintButtons();
+  document.getElementById('btnValidate').disabled = selected.length === 0;
+}
+
+function valider() {
+  if (answered || selected.length === 0) return;
+  answered = true;
+  recordScore();
+  paintAnswered();
+}
+
+function recordScore() {
+  var q = QUESTIONS[qIdx];
+  var ans = q.answers;
+  var isCorrect = false;
+  if (selected.length === ans.length) {
+    var ok = true;
+    for (var i = 0; i < ans.length; i++) {
+      if (selected.indexOf(ans[i]) === -1) { ok = false; break; }
+    }
+    isCorrect = ok;
+  }
+  if (isCorrect) score++;
+  if (q.source === 'cours') {
+    scoresCours.total++;
+    if (isCorrect) scoresCours.correct++;
+  } else {
+    scoresInfer.total++;
+    if (isCorrect) scoresInfer.correct++;
+  }
+}
+
+function paintButtons() {
+  var q = QUESTIONS[qIdx];
+  for (var i = 0; i < q.options.length; i++) {
+    var btn = document.getElementById('opt_' + i);
+    if (!btn) continue;
+    btn.className = 'option-btn';
+    if (selected.indexOf(i) !== -1) btn.className += ' selected';
+  }
+}
+
+function paintAnswered() {
+  var q = QUESTIONS[qIdx];
+  for (var i = 0; i < q.options.length; i++) {
+    var btn = document.getElementById('opt_' + i);
+    var expl = document.getElementById('expl_' + i);
+    if (!btn) continue;
+    btn.disabled = true;
+    btn.className = 'option-btn';
+    var isAns = q.answers.indexOf(i) !== -1;
+    var isSel = selected.indexOf(i) !== -1;
+    if (isAns && isSel) {
+      btn.className += ' correct';
+      if (expl) { expl.className = 'opt-expl show expl-ok'; }
+    } else if (!isAns && isSel) {
+      btn.className += ' wrong';
+      if (expl) { expl.className = 'opt-expl show expl-ko'; }
+    } else if (isAns && !isSel) {
+      btn.className += ' missed';
+      if (expl) { expl.className = 'opt-expl show expl-missed'; }
+    } else {
+      if (expl) { expl.className = 'opt-expl show'; expl.style.color = '#aaa'; }
+    }
+  }
+  var ge = document.getElementById('globalExpl');
+  if (ge) ge.className = 'global-expl show';
+  document.getElementById('btnValidate').disabled = true;
+  document.getElementById('btnNext').disabled = false;
+}
+
+function suivante() {
+  qIdx++;
+  if (qIdx >= QUESTIONS.length) { showScore(); return; }
+  selected = [];
+  answered = false;
+  render();
+}
+
+function recommencer() {
+  qIdx = 0; selected = []; answered = false;
+  score = 0;
+  scoresCours = { correct: 0, total: 0 };
+  scoresInfer = { correct: 0, total: 0 };
+  timeLeft = totalTime;
+  shuffleAll();
+  render();
+  startGlobalTimer();
+}
+
+var LETTERS = ['A','B','C','D','E'];
+
+function render() {
+  var q = QUESTIONS[qIdx];
+  var pct = Math.round((qIdx / QUESTIONS.length) * 100);
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('headerSub').textContent = 'Q' + (qIdx + 1) + ' / ' + QUESTIONS.length;
+
+  var srcBadge = q.source === 'cours'
+    ? '<span class="badge badge-cours">📘 From the course</span>'
+    : '<span class="badge badge-inference">🔍 Beyond the course</span>';
+  var typeBadge = q.type === 'multiple'
+    ? '<span class="badge badge-multi">Multiple answers</span>'
+    : '<span class="badge badge-single">Single answer</span>';
+
+  var optHTML = '<ul class="options-list">';
+  for (var i = 0; i < q.options.length; i++) {
+    optHTML += '<li class="option-wrap">'
+      + '<button class="option-btn" id="opt_' + i + '" onclick="pickOption(' + i + ')">'
+      + '<span class="opt-letter">' + LETTERS[i] + '</span>'
+      + '<span>' + q.options[i].text + '</span>'
+      + '</button>'
+      + '<div class="opt-expl" id="expl_' + i + '">' + q.options[i].explanation + '</div>'
+      + '</li>';
+  }
+  optHTML += '</ul>';
+
+  var geHTML = '<div class="global-expl" id="globalExpl">'
+    + '<h4>💡 Key Concept</h4>'
+    + '<p>' + q.globalExplanation + '</p>'
+    + '</div>';
+
+  document.getElementById('quizArea').innerHTML =
+    '<div class="q-meta"><span class="q-num">Question ' + (qIdx+1) + ' of ' + QUESTIONS.length + '</span></div>'
+    + '<div class="badges">' + typeBadge + srcBadge + '</div>'
+    + '<div class="q-text">' + q.question + '</div>'
+    + optHTML
+    + '<div class="actions">'
+    + '<button class="btn-validate" id="btnValidate" onclick="valider()" disabled>Validate</button>'
+    + '<button class="btn-next" id="btnNext" onclick="suivante()" disabled>Next question →</button>'
+    + '</div>'
+    + geHTML;
+}
+
+function showScore() {
+  clearInterval(timerInterval);
+  document.getElementById('progressBar').style.width = '100%';
+  document.getElementById('headerSub').textContent = 'Results';
+  var pct = Math.round((score / QUESTIONS.length) * 100);
+  var color = pct >= 80 ? '#27ae60' : pct >= 60 ? '#f39c12' : '#e74c3c';
+  var msg = pct >= 80
+    ? '🎉 Excellent! You are ready for the CCDAK exam.'
+    : pct >= 60
+    ? '👍 Good work! A few more revision sessions recommended.'
+    : '📚 Keep studying — you are making progress!';
+  var timeUsed = totalTime - timeLeft;
+  var avgTime = QUESTIONS.length > 0 ? Math.round(timeUsed / QUESTIONS.length) : 0;
+
+  document.getElementById('quizArea').innerHTML =
+    '<div class="score-screen">'
+    + '<h2>' + score + ' / ' + QUESTIONS.length + ' &mdash; ' + pct + '%</h2>'
+    + '<p class="score-msg">' + msg + '</p>'
+    + '<div class="score-bar-wrap"><div class="score-bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div>'
+    + '<div class="score-detail">'
+    + '<div class="score-box blue"><div class="lbl">📘 From the course</div><div class="val">' + scoresCours.correct + '/' + scoresCours.total + '</div><div class="sub">Direct course questions</div></div>'
+    + '<div class="score-box purple"><div class="lbl">🔍 Beyond the course</div><div class="val">' + scoresInfer.correct + '/' + scoresInfer.total + '</div><div class="sub">Inferred CCDAK questions</div></div>'
+    + '<div class="score-box"><div class="lbl">Global score</div><div class="val">' + pct + '%</div><div class="sub">CCDAK passing threshold: ~75%</div></div>'
+    + '<div class="score-box orange"><div class="lbl">⏱ Avg time / question</div><div class="val">' + avgTime + 's</div><div class="sub">90s allocated per question</div></div>'
+    + '</div>'
+    + '<button class="btn-restart" onclick="recommencer()">🔄 Restart the test</button>'
+    + '</div>';
+}
+
+shuffleAll();
+render();
+startGlobalTimer();
+</script>
+</body>
+</html>

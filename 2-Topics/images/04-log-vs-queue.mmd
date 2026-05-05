@@ -1,0 +1,25 @@
+flowchart TB
+    subgraph FRAME [" "]
+        direction TB
+        subgraph QUEUE ["📤 Queue (RabbitMQ, SQS...)"]
+            direction LR
+            QM1["Msg 1"] --> QM2["Msg 2"] --> QM3["Msg 3"]
+            QM1 -->|"lit & retire"| QC["Consommateur"]
+            QM1 -.->|"❌ disparu après lecture"| QGONE["Indisponible"]
+        end
+
+        subgraph LOG ["📜 Log Kafka"]
+            direction LR
+            LM1["Msg 1"] --> LM2["Msg 2"] --> LM3["Msg 3"]
+            LM1 -->|"lit (offset 0)"| LC1["Consommateur A"]
+            LM1 -->|"lit (offset 0)"| LC2["Consommateur B"]
+            LM1 -->|"relit (offset 0)"| LC3["Consommateur C"]
+            LM1 -.->|"✅ reste disponible"| LSTILL["Toujours là"]
+        end
+    end
+
+    style QUEUE fill:#ffebee,stroke:#c62828
+    style LOG fill:#e8f5e9,stroke:#2e7d32
+    style QGONE fill:#ef9a9a,color:#000
+    style LSTILL fill:#a5d6a7,color:#000
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

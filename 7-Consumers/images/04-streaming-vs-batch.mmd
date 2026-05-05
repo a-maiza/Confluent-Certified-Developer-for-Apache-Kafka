@@ -1,0 +1,21 @@
+flowchart TB
+    subgraph FRAME [" "]
+        direction LR
+        subgraph BATCH ["📦 Traitement par lots"]
+            direction TB
+            B1["📂 Fichier figé"] --> B2["▶️ Job"] --> B3["✅ Fin"]
+            B3 -.->|"a un dernier élément"| BEND["🛑 Termine"]
+        end
+
+        subgraph STREAM ["♾️ Streaming Kafka"]
+            direction TB
+            S1["📨 Flux continu"] --> S2["🔁 poll()"] --> S2
+            S2 -.->|"jamais de dernier message"| SEND["⏳ Tourne en permanence"]
+        end
+    end
+
+    style BATCH fill:#fff3e0,stroke:#e65100
+    style STREAM fill:#e8f5e9,stroke:#2e7d32
+    style BEND fill:#ffe0b2
+    style SEND fill:#a5d6a7
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

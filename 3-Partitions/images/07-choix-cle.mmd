@@ -1,0 +1,17 @@
+flowchart TB
+    subgraph FRAME [" "]
+        direction TB
+        Q{"❓ Besoin métier"}
+        Q -->|"ordre par entité<br/>(user, capteur, tx...)"| UC1["✅ Utiliser une clé<br/>= ID de l'entité"]
+        Q -->|"répartition uniforme<br/>charge homogène"| UC2["✅ Pas de clé<br/>(round-robin)"]
+
+        UC1 --> R1["🎯 Ordre garanti<br/>par entité"]
+        UC2 --> R2["⚖️ Charge équilibrée<br/>sur le cluster"]
+    end
+
+    style Q fill:#fb8c00,color:#fff,stroke:#e65100,stroke-width:3px
+    style UC1 fill:#43a047,color:#fff
+    style UC2 fill:#1e88e5,color:#fff
+    style R1 fill:#c8e6c9,stroke:#2e7d32
+    style R2 fill:#bbdefb,stroke:#1565c0
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

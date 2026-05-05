@@ -1,0 +1,19 @@
+flowchart LR
+    subgraph FRAME [" "]
+        direction LR
+        subgraph DEFAULT ["📍 Lecture par défaut"]
+            CD["📱 Consommateur<br/>(zone B)"] -->|"latence ↑"| LD["👑 Leader<br/>(zone A)"]
+        end
+
+        subgraph NEAR ["📍 Lecture replica le plus proche"]
+            CN["📱 Consommateur<br/>(zone B)"] -->|"latence ↓"| FN["🔁 Follower<br/>(zone B)"]
+            FN -.->|"réplique depuis"| LN["👑 Leader<br/>(zone A)"]
+        end
+    end
+
+    style DEFAULT fill:#fff3e0,stroke:#e65100
+    style NEAR fill:#e8f5e9,stroke:#2e7d32
+    style LD fill:#e53935,color:#fff
+    style LN fill:#e53935,color:#fff
+    style FN fill:#fff8e1,stroke:#f57c00,stroke-width:3px
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

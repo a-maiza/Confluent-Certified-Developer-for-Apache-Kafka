@@ -1,0 +1,16 @@
+flowchart LR
+    subgraph FRAME [" "]
+        direction LR
+        T1[("📋 thermostat-readings<br/>22°C, 24°C, 30°C, 18°C, 35°C")]
+        T1 --> SP["🔧 Stream Processor<br/>SELECT * WHERE temp > 28"]
+        SP --> T2[("📋 hot-locations<br/>30°C, 35°C")]
+        T2 --> SP2["🔧 Autre traitement<br/>(alertes, agrégats...)"]
+        SP2 --> T3[("📋 alerts")]
+    end
+
+    style T1 fill:#1e88e5,color:#fff,stroke:#0d47a1,stroke-width:3px
+    style T2 fill:#e53935,color:#fff,stroke:#b71c1c,stroke-width:3px
+    style T3 fill:#fb8c00,color:#fff,stroke:#e65100,stroke-width:3px
+    style SP fill:#43a047,color:#fff
+    style SP2 fill:#43a047,color:#fff
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

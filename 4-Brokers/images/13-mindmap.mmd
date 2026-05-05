@@ -1,0 +1,32 @@
+mindmap
+  root((🖥️ Brokers<br/>Kafka))
+    Définition
+      Machine
+      Processus JVM
+      Stockage local SSD
+    Cluster
+      Plusieurs brokers
+      Distribution de charge
+      Réplication
+    Rôles
+      Héberger partitions
+      Traiter requêtes
+        Écriture producteur
+        Lecture consommateur
+      Répliquer données
+      Gérer métadonnées
+    Démarrage
+      Tarball + script
+      Docker Compose
+    KRaft
+      Depuis Kafka 4.0
+      Remplace ZooKeeper
+      Consensus interne
+    Contextes
+      Self-managed
+        Brokers visibles
+      Confluent Cloud
+        Brokers abstraits
+    Pièges
+      Doc ZooKeeper obsolète
+      Comprendre quand même

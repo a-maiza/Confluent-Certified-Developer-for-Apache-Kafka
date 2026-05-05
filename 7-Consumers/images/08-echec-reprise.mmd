@@ -1,0 +1,21 @@
+sequenceDiagram
+    autonumber
+    participant C as 📱 Consumer
+    participant K as ⚡ Kafka
+
+    rect rgb(250, 250, 250)
+        Note over C: 🟢 Marche normale
+        K-->>C: msg offset 1
+        C->>K: commit(1)
+        K-->>C: msg offset 2
+        C->>K: commit(2)
+
+        Note over C: 🔴 Échec de traitement
+        K-->>C: msg offset 3
+        C--xC: ❌ erreur — pas de commit
+
+        Note over C: 💥 Crash / redémarrage
+        C->>K: reprise au<br/>dernier offset commité (2)
+        K-->>C: msg offset 3 (rejoué)
+        C->>K: commit(3)
+    end

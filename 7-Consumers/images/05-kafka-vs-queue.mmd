@@ -1,0 +1,21 @@
+flowchart TB
+    subgraph FRAME [" "]
+        direction LR
+        subgraph KAFKA ["📜 Kafka (log persistant)"]
+            direction TB
+            KM["📦 Message"] --> KR["🔄 Reste dans le topic"]
+            KR --> KCN["📱 Consumers ∞ indépendants"]
+        end
+
+        subgraph QUEUE ["📤 Queue traditionnelle"]
+            direction TB
+            QM["📦 Message"] --> QR["🗑️ Supprimé après lecture"]
+            QR --> QCN["📱 1 seul consommateur<br/>par message"]
+        end
+    end
+
+    style KAFKA fill:#e8f5e9,stroke:#2e7d32
+    style QUEUE fill:#ffebee,stroke:#c62828
+    style KR fill:#a5d6a7
+    style QR fill:#ef9a9a
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

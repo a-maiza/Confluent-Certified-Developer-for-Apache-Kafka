@@ -1,0 +1,11 @@
+graph LR
+    S["⏱️ Seconde"] -->|"×3 600"| H["⏰ Heure"]
+    H -->|"×24"| D["📅 Jour"]
+
+    S -.->|"📊"| SV["Millions<br/>d'événements/s"]
+    H -.->|"📊"| HV["Milliards<br/>d'événements/h"]
+    D -.->|"📊"| DV["Trillions<br/>d'événements/j"]
+
+    style SV fill:#4caf50,color:#fff
+    style HV fill:#ff9800,color:#fff
+    style DV fill:#f44336,color:#fff

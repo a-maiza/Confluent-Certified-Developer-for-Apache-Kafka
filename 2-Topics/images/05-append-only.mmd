@@ -1,0 +1,22 @@
+flowchart LR
+    subgraph FRAME [" "]
+        direction LR
+        S["🌡️ Capteur<br/>thermostat"] -->|"22°C @ 08h00"| K[("⚡ Kafka")]
+        S -->|"24°C @ 08h15"| K
+        S -->|"25°C @ 08h30"| K
+
+        subgraph TOPIC ["📋 topic: thermostat-readings"]
+            direction LR
+            O0["offset 0<br/>22°C"] --> O1["offset 1<br/>24°C"] --> O2["offset 2<br/>25°C"] --> ONEXT["offset 3<br/>(à venir →)"]
+        end
+
+        K --> TOPIC
+    end
+
+    style S fill:#fb8c00,color:#fff
+    style K fill:#1e88e5,color:#fff,stroke:#0d47a1,stroke-width:3px
+    style O0 fill:#e3f2fd,stroke:#1976d2
+    style O1 fill:#e3f2fd,stroke:#1976d2
+    style O2 fill:#e3f2fd,stroke:#1976d2
+    style ONEXT fill:#f5f5f5,stroke:#9e9e9e,stroke-dasharray:3 3
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

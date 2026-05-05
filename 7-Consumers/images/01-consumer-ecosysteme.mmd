@@ -1,0 +1,16 @@
+flowchart LR
+    subgraph FRAME [" "]
+        direction LR
+        K[("⚡ Cluster Kafka<br/>(brokers + topics)")]
+        K --> C1["📱 Consumer A<br/>(application externe)"]
+        K --> C2["📱 Consumer B<br/>(application externe)"]
+        C1 -.->|"lit en continu"| APP1["💻 Logique métier"]
+        C2 -.->|"lit en continu"| APP2["💻 Logique métier"]
+    end
+
+    style K fill:#1e88e5,color:#fff,stroke:#0d47a1,stroke-width:3px
+    style C1 fill:#fb8c00,color:#fff
+    style C2 fill:#fb8c00,color:#fff
+    style APP1 fill:#43a047,color:#fff
+    style APP2 fill:#43a047,color:#fff
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

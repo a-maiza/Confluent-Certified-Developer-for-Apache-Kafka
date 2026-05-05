@@ -1,0 +1,13 @@
+flowchart LR
+    subgraph FRAME [" "]
+        direction LR
+        P["🏭 Producteur"] -->|"✍️ écriture"| L["👑 Leader Replica<br/>(unique)"]
+        C["📱 Consommateur"] -->|"📖 lecture (défaut)"| L
+        L -.->|"1 seul leader<br/>par partition<br/>à un instant T"| RULE["📜 Règle"]
+    end
+
+    style P fill:#43a047,color:#fff
+    style C fill:#fb8c00,color:#fff
+    style L fill:#e53935,color:#fff,stroke:#b71c1c,stroke-width:3px
+    style RULE fill:#fff9c4,stroke:#f57f17
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

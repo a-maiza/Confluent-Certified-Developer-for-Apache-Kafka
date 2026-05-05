@@ -1,0 +1,20 @@
+flowchart TB
+    subgraph FRAME [" "]
+        direction TB
+        MSG["📦 Message Kafka"]
+        MSG --> V["🎯 Value (✅ obligatoire)<br/>Le contenu — le 'quoi'<br/>JSON / Avro / Protobuf..."]
+        MSG --> K["🔑 Key (recommandée)<br/>Identifiant logique<br/>→ partitionnement"]
+        MSG --> TS["⏱️ Timestamp (auto)<br/>Le 'quand'<br/>producteur ou broker"]
+        MSG --> H["🏷️ Headers (optionnel)<br/>Métadonnées légères<br/>clé-valeur string"]
+        MSG --> T["📋 Topic (auto)<br/>Destination logique"]
+        MSG --> O["#️⃣ Offset (auto)<br/>Position séquentielle<br/>0, 1, 2, 3, ..."]
+    end
+
+    style MSG fill:#1e88e5,color:#fff,stroke:#0d47a1,stroke-width:3px
+    style V fill:#43a047,color:#fff,stroke:#1b5e20,stroke-width:2px
+    style K fill:#fb8c00,color:#fff
+    style TS fill:#7b1fa2,color:#fff
+    style H fill:#9e9e9e,color:#fff
+    style T fill:#039be5,color:#fff
+    style O fill:#e53935,color:#fff
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

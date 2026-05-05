@@ -1,0 +1,32 @@
+mindmap
+  root((🛡️ Replication<br/>Kafka))
+    Replication factor
+      Nombre de copies
+      Ex RF = 3
+      Tolérance aux pannes
+    Roles
+      Leader replica
+        Unique
+        Toutes les écritures
+        Lectures par défaut
+      Follower replicas
+        n moins 1 followers
+        Réplication continue
+        Synchronisation
+    Cycle
+      Écriture vers leader
+      Réplication vers followers
+      Lecture leader ou plus proche
+    Failover
+      Détection panne
+      Élection nouveau leader
+      Transparent clients
+      Pas de perte si 1 replica OK
+    Cas usage
+      Auto-hébergement critique
+      Cloud managé transparent
+      Optimisation latence
+    Pièges
+      RF = 1 dangereux
+      Restaurer les replicas
+      Lecture follower lag

@@ -1,0 +1,14 @@
+flowchart TB
+    subgraph FRAME [" "]
+        direction TB
+        WARN["⚠️ Pièges courants"]
+        WARN --> W1["❌ Sérialiser via JSON.toString()<br/><i>peu robuste, pas de schéma</i>"]
+        WARN --> W2["❌ Lister 50 brokers<br/>dans bootstrap.servers<br/><i>2-3 suffisent</i>"]
+        WARN --> W3["❌ Croire l'API triviale<br/><i>acks, retries, idempotence,<br/>batching à comprendre</i>"]
+    end
+
+    style WARN fill:#ff5722,color:#fff,stroke:#bf360c,stroke-width:3px
+    style W1 fill:#ffcdd2,color:#000,stroke:#c62828
+    style W2 fill:#ffcdd2,color:#000,stroke:#c62828
+    style W3 fill:#ffcdd2,color:#000,stroke:#c62828
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

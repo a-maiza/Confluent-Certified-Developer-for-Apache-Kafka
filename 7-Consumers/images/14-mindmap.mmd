@@ -1,0 +1,29 @@
+mindmap
+  root((📱 Consumers<br/>Kafka))
+    Module 1 — Bases
+      KafkaConsumer
+      bootstrap.servers
+      subscribe liste ou regex
+      poll loop infinie
+      ConsumerRecords
+      Streaming continu
+    Module 2 — Offsets
+      Offset position
+      Commit après traitement
+      Topic __consumer_offsets
+      Reprise après crash
+      Commits batchés
+        Par seuil
+        Par temps
+      Idempotence recommandée
+    Module 3 — Groups
+      Consumer group
+        Partitions partagées
+        Parallélisme
+      Consumers indépendants
+        Chacun lit tout
+        Offsets séparés
+      Limite
+        1 consumer par partition
+        Au max dans un groupe
+      Scalabilité horizontale

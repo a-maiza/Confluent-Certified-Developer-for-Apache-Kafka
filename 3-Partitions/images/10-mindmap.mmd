@@ -1,0 +1,30 @@
+mindmap
+  root((📦 Partitions<br/>Kafka))
+    Définition
+      Subdivision d'un topic
+      Logs indépendants
+      Réparties sur les brokers
+    Pourquoi
+      Scalabilité horizontale
+      Dépasse limite d'1 nœud
+      Stockage et débit accrus
+    Échelle
+      Centaines / milliers
+      ~2M par cluster v4.0
+    Routage
+      Sans clé
+        Round-robin
+        Distribution uniforme
+        Pas d'ordre
+      Avec clé
+        hash key mod N
+        Même clé = même partition
+        Ordre par clé
+    Ordre
+      Global non
+      Par partition oui
+      Par clé oui
+    Pièges
+      Pas d'ordre global
+      Re-partitionnement
+      Choix de la clé

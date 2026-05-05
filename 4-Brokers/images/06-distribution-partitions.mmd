@@ -1,0 +1,31 @@
+flowchart TB
+    subgraph FRAME [" "]
+        direction LR
+        subgraph CASE1 ["📊 Topic A : 3 partitions / 3 brokers"]
+            direction LR
+            CA1["🖥️ Broker 1<br/>📦 P0"]
+            CA2["🖥️ Broker 2<br/>📦 P1"]
+            CA3["🖥️ Broker 3<br/>📦 P2"]
+            CA1 -.->|"✅ équilibré"| OK1["3 brokers utilisés"]
+        end
+
+        subgraph CASE2 ["📊 Topic B : 2 partitions / 3 brokers"]
+            direction LR
+            CB1["🖥️ Broker 1<br/>📦 P0"]
+            CB2["🖥️ Broker 2<br/>📦 P1"]
+            CB3["🖥️ Broker 3<br/>(aucune partition<br/>pour ce topic)"]
+            CB1 -.->|"⚠️ partiel"| OK2["2 brokers utilisés"]
+        end
+    end
+
+    style CASE1 fill:#e8f5e9,stroke:#2e7d32
+    style CASE2 fill:#fff3e0,stroke:#e65100
+    style CA1 fill:#fff8e1,stroke:#f57c00
+    style CA2 fill:#fff8e1,stroke:#f57c00
+    style CA3 fill:#fff8e1,stroke:#f57c00
+    style CB1 fill:#fff8e1,stroke:#f57c00
+    style CB2 fill:#fff8e1,stroke:#f57c00
+    style CB3 fill:#eceff1,stroke:#9e9e9e,stroke-dasharray:3 3
+    style OK1 fill:#a5d6a7
+    style OK2 fill:#ffe082
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

@@ -1,0 +1,32 @@
+flowchart TB
+    subgraph FRAME [" "]
+        direction TB
+        subgraph TOPIC ["📋 Topic : events (3 partitions)"]
+            direction LR
+            subgraph P0 ["📦 Partition 0"]
+                direction LR
+                A1["m1"] --> A2["m4"] --> A3["m7"]
+            end
+            subgraph P1 ["📦 Partition 1"]
+                direction LR
+                B1["m2"] --> B2["m5"] --> B3["m8"]
+            end
+            subgraph P2 ["📦 Partition 2"]
+                direction LR
+                C1["m3"] --> C2["m6"] --> C3["m9"]
+            end
+        end
+
+        P0 -.->|"✅ ordre interne<br/>garanti"| OK1["m1 → m4 → m7"]
+        P1 -.->|"✅ ordre interne<br/>garanti"| OK2["m2 → m5 → m8"]
+        P2 -.->|"✅ ordre interne<br/>garanti"| OK3["m3 → m6 → m9"]
+
+        TOPIC -.->|"❌ pas d'ordre<br/>global garanti"| KO["m1, m2, m3, m4...?<br/>ordre indéterminé"]
+    end
+
+    style TOPIC fill:#e3f2fd,stroke:#0d47a1
+    style OK1 fill:#c8e6c9,color:#000
+    style OK2 fill:#c8e6c9,color:#000
+    style OK3 fill:#c8e6c9,color:#000
+    style KO fill:#ffcdd2,color:#000,stroke:#c62828,stroke-width:2px
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

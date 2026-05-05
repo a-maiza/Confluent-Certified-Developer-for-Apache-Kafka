@@ -1,0 +1,21 @@
+flowchart TB
+    subgraph FRAME [" "]
+        direction TB
+        TRG{"❓ Déclencheur de commit"}
+        TRG -->|"N messages traités"| T1["🔢 Seuil de nombre"]
+        TRG -->|"Δt écoulé"| T2["⏱️ Intervalle de temps"]
+
+        T1 --> CMT["✅ commit groupé"]
+        T2 --> CMT
+
+        CMT -.->|"trop fréquent"| BAD1["🐌 overhead réseau"]
+        CMT -.->|"trop rare"| BAD2["🔁 retraitement important<br/>en cas de panne"]
+    end
+
+    style TRG fill:#fb8c00,color:#fff,stroke:#e65100,stroke-width:3px
+    style T1 fill:#e3f2fd,stroke:#1565c0
+    style T2 fill:#e3f2fd,stroke:#1565c0
+    style CMT fill:#43a047,color:#fff
+    style BAD1 fill:#ffcdd2,color:#000
+    style BAD2 fill:#ffcdd2,color:#000
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

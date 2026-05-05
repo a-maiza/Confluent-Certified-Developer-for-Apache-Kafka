@@ -1,0 +1,25 @@
+flowchart TB
+    subgraph FRAME [" "]
+        direction LR
+        subgraph RR ["🔄 Round-robin (sans clé)"]
+            direction TB
+            RR0["📦 P0<br/>m1, m4, m7"]
+            RR1["📦 P1<br/>m2, m5, m8"]
+            RR2["📦 P2<br/>m3, m6, m9"]
+            RRINFO["⚖️ Distribution uniforme<br/>❌ Pas d'ordre"]
+        end
+
+        subgraph HASH ["#️⃣ Hash de la clé"]
+            direction TB
+            H0["📦 P0<br/>(clés A, D)"]
+            H1["📦 P1<br/>(clés B, E, F)"]
+            H2["📦 P2<br/>(clé C)"]
+            HINFO["🎯 Concentration par clé<br/>✅ Ordre par clé"]
+        end
+    end
+
+    style RR fill:#e3f2fd,stroke:#0d47a1
+    style HASH fill:#f3e5f5,stroke:#6a1b9a
+    style RRINFO fill:#bbdefb,stroke:#1565c0
+    style HINFO fill:#e1bee7,stroke:#6a1b9a
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

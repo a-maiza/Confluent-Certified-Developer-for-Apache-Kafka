@@ -1,0 +1,14 @@
+graph LR
+    P1["🏭 Producteur A"] -->|"écrit selon<br/>schéma v1"| K[("⚡ Kafka")]
+    P2["🏭 Producteur B"] -->|"écrit selon<br/>schéma v2"| K
+
+    SR["📋 Schema Registry<br/>(gouvernance)"] -.->|"valide"| P1
+    SR -.->|"valide"| P2
+    SR -.->|"valide"| C1
+    SR -.->|"valide"| C2
+
+    K -->|"lit avec<br/>compatibilité"| C1["📱 Consommateur X"]
+    K -->|"lit avec<br/>compatibilité"| C2["📱 Consommateur Y"]
+
+    style SR fill:#7b1fa2,color:#fff,stroke:#4a148c,stroke-width:2px
+    style K fill:#1e88e5,color:#fff

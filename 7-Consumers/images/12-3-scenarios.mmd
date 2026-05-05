@@ -1,0 +1,29 @@
+flowchart TB
+    subgraph FRAME [" "]
+        direction LR
+        subgraph S1 ["1️⃣ 1 consumer / 3 partitions"]
+            direction LR
+            S1P0["📦 P0"] --> S1C["📱 Consumer A"]
+            S1P1["📦 P1"] --> S1C
+            S1P2["📦 P2"] --> S1C
+        end
+
+        subgraph S2 ["2️⃣ 2 consumers indépendants"]
+            direction LR
+            S2T["📋 Topic"]
+            S2T --> S2A["📱 Consumer A<br/>(lit tout)"]
+            S2T --> S2B["📱 Consumer B<br/>(lit tout)"]
+        end
+
+        subgraph S3 ["3️⃣ Consumer group (3 membres)"]
+            direction LR
+            S3P0["📦 P0"] --> S3C1["📱 C1"]
+            S3P1["📦 P1"] --> S3C2["📱 C2"]
+            S3P2["📦 P2"] --> S3C3["📱 C3"]
+        end
+    end
+
+    style S1 fill:#e3f2fd,stroke:#1565c0
+    style S2 fill:#fff3e0,stroke:#e65100
+    style S3 fill:#e8f5e9,stroke:#2e7d32
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

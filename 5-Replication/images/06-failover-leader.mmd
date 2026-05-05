@@ -1,0 +1,42 @@
+flowchart TB
+    subgraph FRAME [" "]
+        direction TB
+        subgraph T0 ["🟢 t0 — État sain"]
+            direction LR
+            B1A["🖥️ Broker 1<br/>👑 Leader P0"]
+            B2A["🖥️ Broker 2<br/>🔁 Follower P0"]
+            B3A["🖥️ Broker 3<br/>🔁 Follower P0"]
+        end
+
+        subgraph T1 ["🔴 t1 — Broker 1 tombe"]
+            direction LR
+            B1B["🖥️ Broker 1<br/>💥 KO"]
+            B2B["🖥️ Broker 2<br/>🔁 Follower P0"]
+            B3B["🖥️ Broker 3<br/>🔁 Follower P0"]
+            B1B -.->|"P0 indisponible<br/>brièvement"| TEMP["⏱️ Temporaire"]
+        end
+
+        subgraph T2 ["🟢 t2 — Nouveau leader élu"]
+            direction LR
+            B1C["🖥️ Broker 1<br/>💥 KO"]
+            B2C["🖥️ Broker 2<br/>👑 Leader P0 (nouveau)"]
+            B3C["🖥️ Broker 3<br/>🔁 Follower P0"]
+            B2C -.->|"transparent<br/>pour les clients"| OK["✅ Service rétabli"]
+        end
+
+        T0 --> T1 --> T2
+
+        T2 -.->|"après réparation"| RESTORE["🔧 Reconstitution<br/>des replicas manquants"]
+    end
+
+    style T0 fill:#e8f5e9,stroke:#2e7d32
+    style T1 fill:#ffebee,stroke:#c62828
+    style T2 fill:#e8f5e9,stroke:#2e7d32
+    style B1A fill:#ef5350,color:#fff
+    style B1B fill:#9e9e9e,color:#fff,stroke-dasharray:3 3
+    style B1C fill:#9e9e9e,color:#fff,stroke-dasharray:3 3
+    style B2C fill:#ef5350,color:#fff,stroke:#b71c1c,stroke-width:3px
+    style TEMP fill:#fff9c4
+    style OK fill:#c8e6c9
+    style RESTORE fill:#bbdefb,stroke:#1565c0
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

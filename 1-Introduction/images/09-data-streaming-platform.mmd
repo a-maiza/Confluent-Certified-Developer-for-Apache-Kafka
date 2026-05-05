@@ -1,0 +1,26 @@
+graph TB
+    subgraph DSP ["🌐 Data Streaming Platform"]
+        K[("⚡ Apache Kafka<br/>Broker central")]
+
+        SP["🔧 Stream Processing<br/>Kafka Streams / Flink<br/>Transformer & enrichir"]
+        GOV["📋 Gouvernance<br/>Schema Registry<br/>Qualité & conformité"]
+        CON["🔌 Connecteurs<br/>Kafka Connect<br/>Intégration externe"]
+        CC["☁️ Confluent Cloud<br/>Service managé"]
+
+        K <--> SP
+        K <--> GOV
+        K <--> CON
+        K -.-> CC
+    end
+
+    EXT1[("🗄️ Bases de données<br/>externes")] -->|"source"| CON
+    EXT2[("📦 Systèmes legacy")] -->|"source"| CON
+    CON -->|"sink"| EXT3[("📊 Data Warehouse")]
+    CON -->|"sink"| EXT4[("☁️ Cloud Storage")]
+
+    style K fill:#1e88e5,color:#fff,stroke:#0d47a1,stroke-width:3px
+    style DSP fill:#f5f5f5,stroke:#616161,stroke-width:2px
+    style SP fill:#43a047,color:#fff
+    style GOV fill:#7b1fa2,color:#fff
+    style CON fill:#fb8c00,color:#fff
+    style CC fill:#039be5,color:#fff

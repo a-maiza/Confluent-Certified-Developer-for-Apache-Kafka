@@ -1,0 +1,21 @@
+graph TB
+    subgraph BATCH ["⏳ Approche Batch (traditionnelle)"]
+        direction LR
+        B1["Événement 1"] --> BS[("Stockage<br/>fichiers / DB")]
+        B2["Événement 2"] --> BS
+        B3["Événement N"] --> BS
+        BS -.->|"⏰ Plus tard..."| BP["Traitement<br/>en lot"]
+        BP --> BR["Résultats"]
+    end
+
+    subgraph STREAM ["⚡ Approche Kafka (temps réel)"]
+        direction LR
+        S1["Événement"] --> SK[("Kafka")]
+        SK -->|"Immédiat"| SP["Traitement"]
+        SP --> SR["Résultats<br/>en continu"]
+    end
+
+    style BATCH fill:#fff3e0,stroke:#e65100
+    style STREAM fill:#e3f2fd,stroke:#0d47a1
+    style BS fill:#ffab91
+    style SK fill:#64b5f6,color:#fff

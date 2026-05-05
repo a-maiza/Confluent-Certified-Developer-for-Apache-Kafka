@@ -1,0 +1,12 @@
+graph LR
+    E["⚡ Événement<br/>= Fait horodaté"]
+    E --> A1["🛒 Article vendu<br/>en magasin"]
+    E --> A2["🚗 Clignotant activé<br/>voiture connectée"]
+    E --> A3["🖱️ Clic utilisateur<br/>page web"]
+
+    A1 --> T["⏱️ Timestamp<br/>(instant T)"]
+    A2 --> T
+    A3 --> T
+
+    style E fill:#e53935,color:#fff,stroke:#b71c1c,stroke-width:3px
+    style T fill:#fdd835,color:#000,stroke:#f57f17,stroke-width:2px

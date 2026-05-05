@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CCDAK Prep — Kafka Connect</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #1a1a2e;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 32px 16px;
+  }
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #dde1e9;
+    width: 100%;
+    max-width: 800px;
+    overflow: hidden;
+  }
+  .card-header {
+    background: #1a1a2e;
+    padding: 18px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .card-header h1 { color: #fff; font-size: 1.2rem; letter-spacing: 1px; }
+  .card-header span { color: #aab; font-size: 0.85rem; }
+  .progress-bar-wrap { height: 6px; background: #e9ecef; }
+  .progress-bar-fill { height: 6px; background: #C0392B; transition: width 0.4s; }
+  .card-body { padding: 28px; }
+  .q-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .q-counter { font-size: 0.82rem; color: #888; }
+  .timer {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #C0392B;
+    min-width: 58px;
+    text-align: right;
+  }
+  .timer.warn { color: #e67e22; }
+  .timer.danger { color: #e74c3c; animation: pulse 0.8s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+  .badge-type {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    border-radius: 4px;
+    padding: 2px 8px;
+    margin-bottom: 8px;
+  }
+  .badge-single { background: #eaf4fb; color: #1a6fa8; }
+  .badge-multi  { background: #fef3e2; color: #b05f00; }
+  .badge-source {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    border-radius: 4px;
+    padding: 2px 9px;
+    margin-bottom: 12px;
+    margin-left: 8px;
+  }
+  .badge-cours     { background: #e8f4fd; color: #1a6fa8; }
+  .badge-inference { background: #f0e8fd; color: #6a1ab8; }
+  .q-text {
+    font-size: 1.05rem;
+    color: #1a1a2e;
+    font-weight: 600;
+    line-height: 1.55;
+    margin-bottom: 20px;
+  }
+  .options-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .option-btn {
+    width: 100%;
+    background: #f8f9fb;
+    border: 1.5px solid #dde1e9;
+    border-radius: 8px;
+    padding: 12px 16px;
+    text-align: left;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: #2d3748;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .option-btn:hover:not([disabled]) { background: #eef1f7; border-color: #b0b8cc; }
+  .option-btn.selected { background: #e8f0fe; border-color: #3a6fd8; }
+  .option-btn.correct  { background: #e6f9f0; border-color: #27ae60; color: #145c35; }
+  .option-btn.wrong    { background: #fdecea; border-color: #e74c3c; color: #7b1a1a; }
+  .option-btn.missed   { background: #e6f9f0; border-color: #27ae60; border-style: dashed; color: #145c35; }
+  .option-btn[disabled] { cursor: default; }
+  .opt-letter {
+    font-weight: 700;
+    font-size: 0.9rem;
+    min-width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #dde1e9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #555;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .option-btn.selected .opt-letter { background: #3a6fd8; color: #fff; }
+  .option-btn.correct  .opt-letter { background: #27ae60; color: #fff; }
+  .option-btn.wrong    .opt-letter { background: #e74c3c; color: #fff; }
+  .option-btn.missed   .opt-letter { background: #27ae60; color: #fff; }
+  .actions {
+    margin-top: 22px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .btn-validate, .btn-next, .btn-restart {
+    border: none;
+    border-radius: 7px;
+    padding: 11px 26px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn-validate { background: #C0392B; color: #fff; }
+  .btn-validate:disabled { opacity: 0.4; cursor: default; }
+  .btn-next { background: #1a1a2e; color: #fff; }
+  .btn-next:disabled { opacity: 0.35; cursor: default; }
+  .btn-restart { background: #C0392B; color: #fff; }
+  .timeout-msg { font-size: 0.85rem; color: #e74c3c; font-weight: 600; }
+  .explanation {
+    margin-top: 20px;
+    background: #f7f8fc;
+    border-left: 4px solid #3a6fd8;
+    border-radius: 6px;
+    padding: 16px 18px;
+    font-size: 0.88rem;
+    color: #2d3748;
+    line-height: 1.65;
+    display: none;
+  }
+  .explanation.show { display: block; }
+  .explanation h4 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.5px; color: #3a6fd8; margin-bottom: 5px; margin-top: 12px; }
+  .explanation h4:first-child { margin-top: 0; }
+  .explanation p { margin-bottom: 6px; }
+  .tip-box {
+    margin-top: 10px;
+    background: #fff8e1;
+    border-left: 3px solid #f39c12;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 0.84rem;
+    color: #7a5800;
+  }
+  .score-screen { padding: 32px 28px; text-align: center; }
+  .score-screen h2 { font-size: 1.6rem; color: #1a1a2e; margin-bottom: 8px; }
+  .score-msg { font-size: 1rem; color: #555; margin-bottom: 24px; }
+  .score-bar-wrap { background: #e9ecef; border-radius: 999px; height: 18px; margin-bottom: 24px; overflow: hidden; }
+  .score-bar-fill { height: 18px; border-radius: 999px; transition: width 0.8s; }
+  .score-detail {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 28px;
+    text-align: left;
+  }
+  .score-box {
+    background: #f7f8fc;
+    border-radius: 8px;
+    padding: 14px 16px;
+    border: 1px solid #dde1e9;
+  }
+  .score-box .label { font-size: 0.78rem; color: #888; margin-bottom: 4px; }
+  .score-box .value { font-size: 1.4rem; font-weight: 700; color: #1a1a2e; }
+  .score-box .sub { font-size: 0.8rem; color: #555; margin-top: 2px; }
+  .score-box.blue .value { color: #1a6fa8; }
+  .score-box.purple .value { color: #6a1ab8; }
+  .score-box.orange .value { color: #b05f00; }
+</style>
+</head>
+<body>
+<div class="card" id="app">
+  <div class="card-header">
+    <h1>CCDAK Prep &mdash; Kafka Connect</h1>
+    <span id="headerSub">Module 9</span>
+  </div>
+  <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBar" style="width:0%"></div></div>
+  <div id="quizArea" class="card-body"></div>
+</div>
+
+<script>
+var QUESTIONS = [
+  {
+    source: "cours",
+    text: "What is the primary role of Kafka Connect in a Kafka ecosystem?",
+    multi: false,
+    options: [
+      { text: "To manage Kafka broker replication and leader election", correct: false },
+      { text: "To connect Kafka to external systems by producing to or consuming from Kafka topics", correct: true },
+      { text: "To replace Kafka brokers for high-throughput workloads", correct: false },
+      { text: "To provide an SQL interface over Kafka topics", correct: false }
+    ],
+    explanation: {
+      concept: "Kafka Connect is the official integration API of Apache Kafka. It runs as a client system (producer and/or consumer) outside the brokers and allows data to flow between Kafka and external systems in a declarative, scalable way.",
+      correct: "Option B is correct: Kafka Connect's entire purpose is to stream data between Kafka topics and external systems. It acts as a producer (Source Connectors) or a consumer (Sink Connectors), never as a broker replacement or SQL engine.",
+      incorrect: "A: Broker replication is managed by Kafka's internal controller and ISR mechanism, not Connect. C: Kafka Connect has nothing to do with broker responsibilities. D: KSQL / ksqlDB provides an SQL-like interface — not Connect.",
+      tip: "Remember: Kafka Connect = integration layer. It is always a Kafka CLIENT (producer + consumer) — never a broker."
+    }
+  },
+  {
+    source: "cours",
+    text: "Which of the following statements correctly describes a Source Connector?",
+    multi: false,
+    options: [
+      { text: "It reads from a Kafka topic and writes data to an external system", correct: false },
+      { text: "It reads from an external system and produces data into a Kafka topic", correct: true },
+      { text: "It transforms data between two Kafka topics without any external system", correct: false },
+      { text: "It manages the replication of connector configurations across brokers", correct: false }
+    ],
+    explanation: {
+      concept: "A Source Connector ingests data FROM an external system INTO Kafka. Think: 'source of data → Kafka.'",
+      correct: "B is correct. Source Connectors poll an external system (e.g., a relational database) and publish records to one or more Kafka topics.",
+      incorrect: "A describes a Sink Connector (Kafka → external). C describes inter-topic transformation, which is the role of Kafka Streams or KSQL. D is about internal administration, unrelated to connector type.",
+      tip: "Source = external → Kafka. Sink = Kafka → external. The direction of the arrow matters on the CCDAK exam."
+    }
+  },
+  {
+    source: "cours",
+    text: "Which of the following are valid use cases for Single Message Transforms (SMTs) in Kafka Connect? (Select all that apply)",
+    multi: true,
+    options: [
+      { text: "Renaming a field in a Kafka record", correct: true },
+      { text: "Masking PII data before it reaches the destination", correct: true },
+      { text: "Joining two Kafka streams to enrich messages", correct: false },
+      { text: "Extracting a field value to use as the Kafka message key", correct: true },
+      { text: "Aggregating messages to compute running totals", correct: false }
+    ],
+    explanation: {
+      concept: "SMTs are stateless, per-message transformations applied inside a connector. They cannot maintain any state between messages.",
+      correct: "Renaming (ReplaceField), masking PII (MaskField), and extracting a field as key (ExtractField) are correct — all are single-record, stateless operations that SMTs support natively.",
+      incorrect: "Joining and aggregating require state (joining needs a lookup table; aggregation needs accumulated state). These operations belong to Kafka Streams or Apache Flink, not SMTs.",
+      tip: "CCDAK trap: SMTs = stateless only. If you see 'join', 'aggregate', 'count', or 'window' — SMTs are the wrong answer. Use Kafka Streams or Flink."
+    }
+  },
+  {
+    source: "cours",
+    text: "What configuration format does Kafka Connect use to declare and deploy a connector in distributed mode?",
+    multi: false,
+    options: [
+      { text: "YAML sent via a CLI command", correct: false },
+      { text: "XML configuration files placed in the connector directory", correct: false },
+      { text: "JSON payload sent to the Connect REST API endpoint", correct: true },
+      { text: "Java properties files only, regardless of mode", correct: false }
+    ],
+    explanation: {
+      concept: "Kafka Connect is configured declaratively via JSON in distributed mode. In standalone mode, properties files are used on the command line.",
+      correct: "C is correct. The standard way to deploy connectors in distributed mode is by POSTing a JSON document to the /connectors endpoint of the Connect REST API.",
+      incorrect: "A: Connect does not use YAML. B: XML is not used in Connect. D: Properties files are valid only in standalone mode and are not the primary distributed approach.",
+      tip: "In distributed mode → JSON to REST API. In standalone mode → properties file on the command line. Both are fair exam topics."
+    }
+  },
+  {
+    source: "cours",
+    text: "Approximately how many connectors are available in the Kafka Connect ecosystem on GitHub?",
+    multi: false,
+    options: [
+      { text: "Around 100", correct: false },
+      { text: "Around 500", correct: false },
+      { text: "More than 4,000", correct: true },
+      { text: "More than 10,000", correct: false }
+    ],
+    explanation: {
+      concept: "The Kafka Connect ecosystem follows a power law: a small number of connectors cover the vast majority of real-world integration needs, while a very long tail of niche connectors exists with varying levels of maintenance.",
+      correct: "More than 4,000 connectors on GitHub is correct. Confluent supports 100+ of them, with 80+ fully managed in Confluent Cloud.",
+      incorrect: "100 and 500 significantly underestimate the ecosystem. 10,000+ is an overstatement based on the course material.",
+      tip: "Key numbers for the exam: 4,000+ on GitHub, 100+ supported by Confluent, 80+ fully managed in Confluent Cloud."
+    }
+  },
+  {
+    source: "cours",
+    text: "Which Confluent Cloud offering eliminates the need to operate a Kafka Connect cluster yourself?",
+    multi: false,
+    options: [
+      { text: "Confluent Hub standalone mode", correct: false },
+      { text: "Confluent Cloud fully managed connectors", correct: true },
+      { text: "Confluent Schema Registry", correct: false },
+      { text: "Confluent Control Center", correct: false }
+    ],
+    explanation: {
+      concept: "Operating a Kafka Connect cluster carries an operational burden (patching, scaling, monitoring workers). Confluent Cloud offers fully managed connectors that remove this overhead.",
+      correct: "B is correct. Confluent Cloud provides 80+ fully managed connectors — no Connect cluster to provision or maintain.",
+      incorrect: "A: Confluent Hub is a marketplace for discovering connectors, not a hosted service. C: Schema Registry manages Avro/Protobuf schemas. D: Control Center is a monitoring UI.",
+      tip: "Fully managed vs self-managed Connect is a common exam scenario. If the requirement is 'no infrastructure management', the answer is Confluent Cloud managed connectors."
+    }
+  },
+  {
+    source: "cours",
+    text: "Which statement about Kafka Connect's operational architecture is correct?",
+    multi: false,
+    options: [
+      { text: "Connect runs inside Kafka broker JVMs to minimize network latency", correct: false },
+      { text: "Connect can only run as a single instance; clustering is not supported", correct: false },
+      { text: "Connect runs as a separate client process and can be clustered for fault tolerance and scalability", correct: true },
+      { text: "Connect workers must be co-located with Kafka brokers in the same data center", correct: false }
+    ],
+    explanation: {
+      concept: "Kafka Connect is a standalone client application, separate from brokers. It can be scaled horizontally into a cluster of workers.",
+      correct: "C is correct. Connect runs outside brokers (as a JVM client) and supports distributed mode with multiple worker instances for fault tolerance and horizontal scaling.",
+      incorrect: "A: Connect is never inside a broker JVM. B: Distributed mode is a core feature — clustering is fully supported. D: No co-location requirement exists.",
+      tip: "Kafka Connect in distributed mode = cluster of workers that coordinate via Kafka's own internal topics (config, offset, status)."
+    }
+  },
+  {
+    source: "cours",
+    text: "Which of the following correctly describes the tasks.max parameter in Kafka Connect?",
+    multi: false,
+    options: [
+      { text: "It sets the exact number of tasks the connector will always create", correct: false },
+      { text: "It sets the maximum number of tasks the connector may create, depending on available parallelism", correct: true },
+      { text: "It limits the number of worker nodes in the Connect cluster", correct: false },
+      { text: "It controls the maximum number of records buffered per task", correct: false }
+    ],
+    explanation: {
+      concept: "tasks.max is an upper bound on parallelism, not a fixed count. The connector decides the actual number of tasks based on the source system's capacity for parallelism.",
+      correct: "B is correct. The connector may create fewer tasks than tasks.max if the data source cannot be parallelized further (e.g., a single database table with no partition key).",
+      incorrect: "A: tasks.max is a ceiling, not a guarantee. C: Worker count is separate from task count. D: tasks.max has nothing to do with record buffering.",
+      tip: "tasks.max = maximum parallelism hint to the connector. Actual parallelism depends on the source system's partitionability."
+    }
+  },
+  {
+    source: "cours",
+    text: "Which of the following is a correct use case for a Sink Connector?",
+    multi: false,
+    options: [
+      { text: "Capturing changes from a PostgreSQL table and publishing them to a Kafka topic (CDC)", correct: false },
+      { text: "Reading IoT device data over MQTT and streaming it into Kafka", correct: false },
+      { text: "Consuming messages from a Kafka topic and indexing them in Elasticsearch", correct: true },
+      { text: "Streaming live tweets from the Twitter API directly into Kafka", correct: false }
+    ],
+    explanation: {
+      concept: "A Sink Connector flows data FROM Kafka TO an external system. Any option that describes Kafka as the destination (external → Kafka) is describing a Source Connector instead.",
+      correct: "C is correct. The Elasticsearch Sink Connector reads from a Kafka topic and writes documents to Elasticsearch — a textbook sink pattern.",
+      incorrect: "A (CDC from PostgreSQL → Kafka), B (MQTT → Kafka), and D (Twitter → Kafka) all describe Source Connectors, not Sink Connectors.",
+      tip: "If the external system RECEIVES data from Kafka → Sink. If the external system SENDS data to Kafka → Source."
+    }
+  },
+  {
+    source: "cours",
+    text: "What is the purpose of the errors.tolerance=all configuration in Kafka Connect?",
+    multi: false,
+    options: [
+      { text: "It causes the connector to retry indefinitely on any error", correct: false },
+      { text: "It allows the connector to continue processing even when individual records fail, skipping erroneous records", correct: true },
+      { text: "It enables exactly-once delivery for all connector types", correct: false },
+      { text: "It automatically restarts the connector task whenever an error is encountered", correct: false }
+    ],
+    explanation: {
+      concept: "Kafka Connect has configurable error tolerance. By default (errors.tolerance=none), any error fails the task. errors.tolerance=all skips bad records instead of failing the task.",
+      correct: "B is correct. With errors.tolerance=all, the connector logs or routes the problematic records (optionally to a DLQ) and continues processing subsequent records instead of halting.",
+      incorrect: "A: errors.tolerance=all does not retry; it skips. C: EOS requires separate idempotence/transaction configuration. D: Automatic restart is controlled by restart policies, not errors.tolerance.",
+      tip: "errors.tolerance=none → fail fast (default). errors.tolerance=all → skip and continue (pair with DLQ to avoid silent data loss)."
+    }
+  },
+  {
+    source: "cours",
+    text: "Which of the following correctly characterizes the relationship between Kafka Connect SMTs and Kafka Streams?",
+    multi: false,
+    options: [
+      { text: "Kafka Connect SMTs handle all types of transformations including stateful joins; Kafka Streams is only for sinks", correct: false },
+      { text: "Kafka Connect SMTs handle stateless per-record transforms; Kafka Streams (or Flink) handles stateful operations", correct: true },
+      { text: "Kafka Streams must be used for all transformations; Kafka Connect cannot transform data at all", correct: false },
+      { text: "Both Kafka Connect SMTs and Kafka Streams can perform joins with equal efficiency", correct: false }
+    ],
+    explanation: {
+      concept: "There is a clear division of responsibility: Kafka Connect handles lightweight, stateless record-level transformations (SMTs), while Kafka Streams (or Apache Flink) handles stateful, multi-record operations.",
+      correct: "B is correct. SMTs are strictly stateless — perfect for renaming fields, masking PII, or changing message keys. Joins, aggregations, and windowed operations require Kafka Streams or Flink.",
+      incorrect: "A: Connect SMTs cannot do stateful joins. C: Connect can transform data via SMTs — Streams is not always required. D: SMTs are fundamentally incapable of joins.",
+      tip: "The exam often presents a scenario and asks which tool to use. Stateless per-message transform → SMT. Stateful / multi-record → Kafka Streams or Flink."
+    }
+  },
+  {
+    source: "inference",
+    text: "In Kafka Connect distributed mode, which three internal Kafka topics are used for coordination? (Select all that apply)",
+    multi: true,
+    options: [
+      { text: "config.storage.topic — stores connector and task configurations", correct: true },
+      { text: "offset.storage.topic — tracks source connector progress", correct: true },
+      { text: "status.storage.topic — records connector and task states", correct: true },
+      { text: "__consumer_offsets — used for consumer group offset management", correct: false },
+      { text: "connect-metrics — stores Connect performance metrics", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly covered in the course but is frequently tested at the CCDAK exam. Kafka Connect distributed mode relies on three Kafka topics for its state management.",
+      correct: "config.storage.topic, offset.storage.topic, and status.storage.topic are all correct. These three topics are mandatory for distributed mode and should ideally be created manually with the appropriate replication factor and compaction policy.",
+      incorrect: "__consumer_offsets is the standard consumer group topic, separate from Connect's internal topics. connect-metrics does not exist as an internal Connect topic.",
+      tip: "Exam tip: In distributed mode, these three topics must be pre-created for production deployments. Their names are configured via group.id-specific properties. Know the difference between Connect offsets and consumer group offsets."
+    }
+  },
+  {
+    source: "inference",
+    text: "Which configuration property uniquely identifies a Kafka Connect distributed cluster and groups its worker instances?",
+    multi: false,
+    options: [
+      { text: "cluster.id", correct: false },
+      { text: "group.id", correct: true },
+      { text: "bootstrap.servers", correct: false },
+      { text: "worker.id", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly covered in the course but is frequently tested at the CCDAK exam. In Kafka Connect distributed mode, workers that share the same group.id form a cluster and coordinate work distribution.",
+      correct: "group.id is correct. The group.id property in the Connect distributed worker configuration determines which cluster a worker belongs to, similar to how consumer group IDs work for consumer groups.",
+      incorrect: "cluster.id is a Kafka broker concept. bootstrap.servers points Connect to the Kafka cluster but does not identify the Connect cluster. worker.id is not a standard Kafka Connect property.",
+      tip: "group.id in Connect = Connect cluster identity. bootstrap.servers = which Kafka cluster to connect to. Don't confuse them."
+    }
+  },
+  {
+    source: "inference",
+    text: "A Kafka Connect distributed cluster has 3 worker nodes. One worker node crashes. What happens to the connectors and tasks that were running on the failed worker?",
+    multi: false,
+    options: [
+      { text: "All connectors are paused until the failed worker is manually restarted", correct: false },
+      { text: "The Connect cluster enters FAILED state and requires operator intervention", correct: false },
+      { text: "The remaining workers rebalance and take over the affected tasks automatically", correct: true },
+      { text: "Only tasks with errors.tolerance=all continue; others are permanently stopped", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly covered in the course but is frequently tested at the CCDAK exam. Kafka Connect distributed mode provides automatic fault tolerance through rebalancing, similar to consumer group rebalancing.",
+      correct: "C is correct. When a worker fails, the remaining workers detect the failure and rebalance the work, redistributing tasks across the healthy workers automatically.",
+      incorrect: "A and B are incorrect — no manual intervention is required; the cluster self-heals. D: errors.tolerance controls per-record error handling, not cluster-level rebalancing.",
+      tip: "Distributed mode = self-healing. This is one of the main reasons to choose distributed over standalone. Standalone mode has no fault tolerance — if the process dies, work stops."
+    }
+  },
+  {
+    source: "inference",
+    text: "What is the key difference between Kafka Connect standalone mode and distributed mode regarding offset storage?",
+    multi: false,
+    options: [
+      { text: "Standalone mode stores offsets in ZooKeeper; distributed mode stores offsets in Kafka topics", correct: false },
+      { text: "Standalone mode stores offsets in a local file; distributed mode stores offsets in a Kafka topic", correct: true },
+      { text: "Both modes store offsets in Kafka topics", correct: false },
+      { text: "Standalone mode does not track offsets; distributed mode uses __consumer_offsets", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly covered in the course but is frequently tested at the CCDAK exam. The storage location of offsets differs between Connect deployment modes.",
+      correct: "B is correct. In standalone mode, offsets are persisted to a local file specified by offset.storage.file.filename. In distributed mode, offsets are stored in a replicated Kafka topic (offset.storage.topic).",
+      incorrect: "A: ZooKeeper is not used for Connect offsets. C: Both modes do NOT use Kafka topics — standalone uses a file. D: Standalone does track offsets (in a file), and distributed uses its own internal topic, not __consumer_offsets.",
+      tip: "Standalone = local file (offset.storage.file.filename). Distributed = Kafka topics (offset.storage.topic). This distinction is a classic exam question."
+    }
+  },
+  {
+    source: "inference",
+    text: "Which method must a SourceTask implementation override to fetch data from an external system?",
+    multi: false,
+    options: [
+      { text: "read()", correct: false },
+      { text: "fetch()", correct: false },
+      { text: "poll()", correct: true },
+      { text: "consume()", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly covered in the course but is frequently tested at the CCDAK exam. The SourceTask API defines specific lifecycle methods that developers must implement.",
+      correct: "poll() is correct. SourceTask.poll() is called repeatedly by the Connect framework to retrieve batches of SourceRecord objects from the external system.",
+      incorrect: "read(), fetch(), and consume() are not methods defined in the Kafka Connect SourceTask API. Using them would cause a compilation error.",
+      tip: "SourceTask → poll() returns List of SourceRecord. SinkTask → put() receives Collection of SinkRecord. Memorize these two method names for the exam."
+    }
+  },
+  {
+    source: "inference",
+    text: "Which method must a SinkTask implementation override to write data to an external system?",
+    multi: false,
+    options: [
+      { text: "write()", correct: false },
+      { text: "put()", correct: true },
+      { text: "flush()", correct: false },
+      { text: "send()", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly covered in the course but is frequently tested at the CCDAK exam. The SinkTask API requires implementing put() to receive records from Kafka and write them to the external system.",
+      correct: "put() is correct. SinkTask.put(Collection of SinkRecord) is the primary method for receiving a batch of Kafka records and persisting them to the target system.",
+      incorrect: "write(), and send() are not SinkTask methods in the Kafka Connect API. flush() does exist in SinkTask but is used for committing offsets, not for primary data writing.",
+      tip: "SinkTask.put() = primary write method. SinkTask.flush() = offset commit hook. Both exist; only put() is the main data-writing entry point."
+    }
+  },
+  {
+    source: "inference",
+    text: "Which converter should be used in Kafka Connect when records need to be serialized using Confluent Schema Registry with Avro format?",
+    multi: false,
+    options: [
+      { text: "org.apache.kafka.connect.json.JsonConverter", correct: false },
+      { text: "org.apache.kafka.connect.storage.StringConverter", correct: false },
+      { text: "io.confluent.connect.avro.AvroConverter", correct: true },
+      { text: "org.apache.kafka.connect.converters.ByteArrayConverter", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly covered in the course but is frequently tested at the CCDAK exam. Confluent provides a dedicated AvroConverter that integrates with Schema Registry for schema-based serialization.",
+      correct: "io.confluent.connect.avro.AvroConverter is correct. It serializes Connect data using Avro format and registers/retrieves schemas from Confluent Schema Registry.",
+      incorrect: "JsonConverter uses JSON (no schema enforcement via Schema Registry). StringConverter handles only plain text. ByteArrayConverter passes raw bytes without schema awareness.",
+      tip: "For Schema Registry integration: use AvroConverter (or ProtobufConverter / JsonSchemaConverter). Always configure value.converter.schema.registry.url alongside it."
+    }
+  },
+  {
+    source: "inference",
+    text: "Which property must be set to route failed records to a dead letter queue (DLQ) in Kafka Connect?",
+    multi: false,
+    options: [
+      { text: "errors.log.enable=true", correct: false },
+      { text: "errors.deadletterqueue.topic.name=<topic-name>", correct: true },
+      { text: "errors.tolerance=dlq", correct: false },
+      { text: "dead.letter.queue.topic=<topic-name>", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly covered in the course but is frequently tested at the CCDAK exam. The Dead Letter Queue in Kafka Connect is a Kafka topic that captures records that failed processing.",
+      correct: "errors.deadletterqueue.topic.name=<topic-name> is correct. Setting this property causes failed records to be published to that topic instead of being silently dropped or crashing the connector.",
+      incorrect: "errors.log.enable only logs errors to the Connect log file; it does not route records to a topic. 'errors.tolerance=dlq' is not a valid value for that property. 'dead.letter.queue.topic' is not the correct property name.",
+      tip: "DLQ property = errors.deadletterqueue.topic.name. Combine with errors.tolerance=all so the connector continues on errors. Add errors.deadletterqueue.context.headers.enable=true to include error metadata in DLQ record headers."
+    }
+  },
+  {
+    source: "inference",
+    text: "Which of the following properties are needed to configure Exactly-Once Semantics (EOS) for a Kafka Connect source connector producer? (Select all that apply)",
+    multi: true,
+    options: [
+      { text: "enable.idempotence=true on the connector's producer", correct: true },
+      { text: "acks=all on the connector's producer", correct: true },
+      { text: "isolation.level=read_committed on the connector's consumer", correct: false },
+      { text: "max.in.flight.requests.per.connection=1", correct: true },
+      { text: "auto.offset.reset=earliest", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly covered in the course but is frequently tested at the CCDAK exam. Exactly-once semantics in Kafka Connect require configuring the underlying producer for idempotence and strong acknowledgment.",
+      correct: "enable.idempotence=true ensures no duplicate records from retries. acks=all ensures all in-sync replicas acknowledge writes. max.in.flight.requests.per.connection=1 ensures ordered delivery without duplicates.",
+      incorrect: "isolation.level=read_committed is relevant for EOS in consumers/Kafka Streams, not specifically for a source connector's producer configuration. auto.offset.reset is about where a consumer starts reading, unrelated to EOS.",
+      tip: "EOS producer triad: enable.idempotence=true + acks=all + max.in.flight.requests.per.connection=1. Add transaction.timeout.ms for full transactional EOS."
+    }
+  },
+  {
+    source: "inference",
+    text: "Which of the following are built-in Single Message Transforms (SMTs) available in Kafka Connect? (Select all that apply)",
+    multi: true,
+    options: [
+      { text: "MaskField — replaces a field value with a null or fixed value", correct: true },
+      { text: "ExtractField — extracts a field from a struct to use as the record key or value", correct: true },
+      { text: "AggregateField — computes a sum or count over multiple records", correct: false },
+      { text: "InsertField — adds a new field with a static or computed value", correct: true },
+      { text: "ReplaceField — renames or removes fields", correct: true }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly covered in the course but is frequently tested at the CCDAK exam. Kafka Connect ships with a set of built-in SMTs for common record transformations.",
+      correct: "MaskField, ExtractField, InsertField, and ReplaceField are all real, built-in Kafka Connect SMTs. They are all stateless and operate on a single record at a time.",
+      incorrect: "AggregateField does not exist as an SMT — aggregation requires state and belongs in Kafka Streams or Flink.",
+      tip: "Built-in SMTs to memorize: MaskField, ExtractField, InsertField, ReplaceField, HoistField, Flatten, TimestampConverter, ValueToKey, Filter. None perform aggregation or joins."
+    }
+  },
+  {
+    source: "inference",
+    text: "Which property controls how frequently Kafka Connect source connectors flush their offsets to the offset storage topic?",
+    multi: false,
+    options: [
+      { text: "commit.interval.ms", correct: false },
+      { text: "auto.commit.interval.ms", correct: false },
+      { text: "offset.flush.interval.ms", correct: true },
+      { text: "offset.sync.interval.ms", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly covered in the course but is frequently tested at the CCDAK exam. Kafka Connect periodically flushes source connector offsets to ensure fault tolerance and resume-ability after restarts.",
+      correct: "offset.flush.interval.ms is correct. Its default value is 60000 ms (1 minute). It controls how often the Connect worker commits source connector offsets to the offset storage topic.",
+      incorrect: "commit.interval.ms and auto.commit.interval.ms are consumer-level properties unrelated to Connect offset management. offset.sync.interval.ms is not a standard Connect property.",
+      tip: "offset.flush.interval.ms default = 60 seconds. Lower values reduce data re-processing on restart but increase Kafka write load. This is a common performance-tuning topic on the exam."
+    }
+  }
+];
+
+// Global state
+var qIdx = 0;
+var selected = [];
+var answered = false;
+var score = 0;
+var scoresCours = { correct: 0, total: 0 };
+var scoresInfer = { correct: 0, total: 0 };
+var timerInterval = null;
+var timeLeft = 90;
+var timesPerQ = [];
+var startTime = 0;
+
+function shuffle(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+function shuffleAllOptions() {
+  for (var i = 0; i < QUESTIONS.length; i++) {
+    QUESTIONS[i].options = shuffle(QUESTIONS[i].options);
+  }
+}
+
+function startTimer() {
+  clearInterval(timerInterval);
+  timeLeft = 90;
+  startTime = Date.now();
+  paintTimer();
+  timerInterval = setInterval(function() {
+    timeLeft--;
+    paintTimer();
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      autoSubmit();
+    }
+  }, 1000);
+}
+
+function paintTimer() {
+  var el = document.getElementById('timer');
+  if (!el) return;
+  var m = Math.floor(timeLeft / 60);
+  var s = timeLeft % 60;
+  el.textContent = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  el.className = 'timer';
+  if (timeLeft <= 15) el.className = 'timer danger';
+  else if (timeLeft <= 30) el.className = 'timer warn';
+}
+
+function autoSubmit() {
+  timesPerQ.push(90);
+  answered = true;
+  selected = [];
+  var q = QUESTIONS[qIdx];
+  if (q.source === 'cours') scoresCours.total++;
+  else scoresInfer.total++;
+  paintAnswered(true);
+}
+
+function pickOption(idx) {
+  if (answered) return;
+  var q = QUESTIONS[qIdx];
+  if (q.multi) {
+    var pos = selected.indexOf(idx);
+    if (pos === -1) selected.push(idx);
+    else selected.splice(pos, 1);
+  } else {
+    selected = [idx];
+  }
+  paintOptions();
+  document.getElementById('btnValidate').disabled = selected.length === 0;
+}
+
+function validate() {
+  if (answered || selected.length === 0) return;
+  clearInterval(timerInterval);
+  timesPerQ.push(Math.max(1, 90 - timeLeft));
+  answered = true;
+  recordScore();
+  paintAnswered(false);
+}
+
+function recordScore() {
+  var q = QUESTIONS[qIdx];
+  var correctIdxs = [];
+  for (var i = 0; i < q.options.length; i++) {
+    if (q.options[i].correct) correctIdxs.push(i);
+  }
+  var isCorrect = false;
+  if (selected.length === correctIdxs.length) {
+    var allMatch = true;
+    for (var j = 0; j < correctIdxs.length; j++) {
+      if (selected.indexOf(correctIdxs[j]) === -1) { allMatch = false; break; }
+    }
+    isCorrect = allMatch;
+  }
+  if (isCorrect) score++;
+  if (q.source === 'cours') {
+    scoresCours.total++;
+    if (isCorrect) scoresCours.correct++;
+  } else {
+    scoresInfer.total++;
+    if (isCorrect) scoresInfer.correct++;
+  }
+}
+
+function paintAnswered(timedOut) {
+  paintOptions();
+  var el = document.getElementById('explanation');
+  if (el) el.classList.add('show');
+  document.getElementById('btnValidate').disabled = true;
+  document.getElementById('btnNext').disabled = false;
+  if (timedOut) {
+    var tm = document.getElementById('timeoutMsg');
+    if (tm) tm.style.display = 'inline';
+  }
+}
+
+function paintOptions() {
+  var q = QUESTIONS[qIdx];
+  var correctIdxs = [];
+  for (var i = 0; i < q.options.length; i++) {
+    if (q.options[i].correct) correctIdxs.push(i);
+  }
+  for (var i = 0; i < q.options.length; i++) {
+    var btn = document.getElementById('opt_' + i);
+    if (!btn) continue;
+    btn.className = 'option-btn';
+    if (!answered) {
+      if (selected.indexOf(i) !== -1) btn.className += ' selected';
+    } else {
+      btn.disabled = true;
+      var isCorrect = correctIdxs.indexOf(i) !== -1;
+      var isSelected = selected.indexOf(i) !== -1;
+      if (isCorrect && isSelected) btn.className += ' correct';
+      else if (!isCorrect && isSelected) btn.className += ' wrong';
+      else if (isCorrect && !isSelected) btn.className += ' missed';
+    }
+  }
+}
+
+function suivante() {
+  qIdx++;
+  if (qIdx >= QUESTIONS.length) {
+    showScore();
+    return;
+  }
+  selected = [];
+  answered = false;
+  render();
+  startTimer();
+}
+
+function recommencer() {
+  qIdx = 0;
+  selected = [];
+  answered = false;
+  score = 0;
+  scoresCours = { correct: 0, total: 0 };
+  scoresInfer = { correct: 0, total: 0 };
+  timesPerQ = [];
+  shuffleAllOptions();
+  render();
+  startTimer();
+}
+
+var LETTERS = ['A','B','C','D','E','F'];
+
+function render() {
+  var q = QUESTIONS[qIdx];
+  var pct = Math.round((qIdx / QUESTIONS.length) * 100);
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('headerSub').textContent = 'Q' + (qIdx+1) + ' / ' + QUESTIONS.length;
+
+  var sourceBadge = q.source === 'cours'
+    ? '<span class="badge-source badge-cours">📘 Du cours</span>'
+    : '<span class="badge-source badge-inference">🔍 Au-delà du cours</span>';
+  var typeBadge = q.multi
+    ? '<span class="badge-type badge-multi">Réponses multiples</span>'
+    : '<span class="badge-type badge-single">Réponse unique</span>';
+
+  var optionsHTML = '<ul class="options-list">';
+  for (var i = 0; i < q.options.length; i++) {
+    optionsHTML += '<li><button class="option-btn" id="opt_' + i + '" onclick="pickOption(' + i + ')">'
+      + '<span class="opt-letter">' + LETTERS[i] + '</span>'
+      + '<span>' + q.options[i].text + '</span>'
+      + '</button></li>';
+  }
+  optionsHTML += '</ul>';
+
+  var exp = q.explanation;
+  var explHTML = '<div class="explanation" id="explanation">'
+    + '<h4>💡 Concept clé</h4><p>' + exp.concept + '</p>'
+    + '<h4>✅ Pourquoi c\'est correct</h4><p>' + exp.correct + '</p>'
+    + '<h4>❌ Pourquoi c\'est incorrect</h4><p>' + exp.incorrect + '</p>'
+    + '<div class="tip-box">📌 À retenir pour l\'examen : ' + exp.tip + '</div>'
+    + '</div>';
+
+  document.getElementById('quizArea').innerHTML =
+    '<div class="q-meta">'
+    + '<span class="q-counter">Question ' + (qIdx+1) + ' sur ' + QUESTIONS.length + '</span>'
+    + '<span class="timer" id="timer">01:30</span>'
+    + '</div>'
+    + typeBadge + sourceBadge
+    + '<div class="q-text">' + q.text + '</div>'
+    + optionsHTML
+    + '<div class="actions">'
+    + '<button class="btn-validate" id="btnValidate" onclick="validate()" disabled>Valider</button>'
+    + '<button class="btn-next" id="btnNext" onclick="suivante()" disabled>Question suivante →</button>'
+    + '<span class="timeout-msg" id="timeoutMsg" style="display:none">⏰ Temps écoulé !</span>'
+    + '</div>'
+    + explHTML;
+}
+
+function showScore() {
+  clearInterval(timerInterval);
+  document.getElementById('progressBar').style.width = '100%';
+  document.getElementById('headerSub').textContent = 'Résultats';
+  var pct = Math.round((score / QUESTIONS.length) * 100);
+  var color = pct >= 80 ? '#27ae60' : pct >= 60 ? '#f39c12' : '#e74c3c';
+  var msg = pct >= 80 ? '🎉 Excellent ! Vous êtes prêt(e) pour l\'examen CCDAK.'
+    : pct >= 60 ? '👍 Bon travail ! Quelques révisions supplémentaires recommandées.'
+    : '📚 Continuez à réviser — vous progressez !';
+
+  var avgTime = 0;
+  if (timesPerQ.length > 0) {
+    var total = 0;
+    for (var i = 0; i < timesPerQ.length; i++) total += timesPerQ[i];
+    avgTime = Math.round(total / timesPerQ.length);
+  }
+
+  document.getElementById('quizArea').innerHTML =
+    '<div class="score-screen">'
+    + '<h2>' + score + ' / ' + QUESTIONS.length + ' &mdash; ' + pct + '%</h2>'
+    + '<p class="score-msg">' + msg + '</p>'
+    + '<div class="score-bar-wrap"><div class="score-bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div>'
+    + '<div class="score-detail">'
+    + '<div class="score-box blue"><div class="label">📘 Du cours</div><div class="value">' + scoresCours.correct + '/' + scoresCours.total + '</div><div class="sub">Questions directes du cours</div></div>'
+    + '<div class="score-box purple"><div class="label">🔍 Au-delà du cours</div><div class="value">' + scoresInfer.correct + '/' + scoresInfer.total + '</div><div class="sub">Questions inférées CCDAK</div></div>'
+    + '<div class="score-box"><div class="label">Score global</div><div class="value">' + pct + '%</div><div class="sub">Seuil CCDAK recommandé : 80%</div></div>'
+    + '<div class="score-box orange"><div class="label">⏱ Temps moyen / question</div><div class="value">' + avgTime + 's</div><div class="sub">90s alloués par question</div></div>'
+    + '</div>'
+    + '<button class="btn-restart" onclick="recommencer()">🔄 Recommencer le test</button>'
+    + '</div>';
+}
+
+shuffleAllOptions();
+render();
+startTimer();
+</script>
+</body>
+</html>

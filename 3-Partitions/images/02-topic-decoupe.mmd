@@ -1,0 +1,37 @@
+flowchart TB
+    subgraph FRAME [" "]
+        direction TB
+        TOPIC["📋 Topic : orders"]
+
+        subgraph CLUSTER ["🌐 Cluster Kafka"]
+            direction LR
+            subgraph BR1 ["🖥️ Broker 1"]
+                P0["📦 Partition 0<br/>[m0, m1, m2...]"]
+                P3["📦 Partition 3<br/>[m0, m1, m2...]"]
+            end
+            subgraph BR2 ["🖥️ Broker 2"]
+                P1["📦 Partition 1<br/>[m0, m1, m2...]"]
+                P4["📦 Partition 4<br/>[m0, m1, m2...]"]
+            end
+            subgraph BR3 ["🖥️ Broker 3"]
+                P2["📦 Partition 2<br/>[m0, m1, m2...]"]
+                P5["📦 Partition 5<br/>[m0, m1, m2...]"]
+            end
+        end
+
+        TOPIC --> P0
+        TOPIC --> P1
+        TOPIC --> P2
+        TOPIC --> P3
+        TOPIC --> P4
+        TOPIC --> P5
+    end
+
+    style TOPIC fill:#1e88e5,color:#fff,stroke:#0d47a1,stroke-width:3px
+    style P0 fill:#fff8e1,stroke:#f57c00
+    style P1 fill:#fff8e1,stroke:#f57c00
+    style P2 fill:#fff8e1,stroke:#f57c00
+    style P3 fill:#fff8e1,stroke:#f57c00
+    style P4 fill:#fff8e1,stroke:#f57c00
+    style P5 fill:#fff8e1,stroke:#f57c00
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5

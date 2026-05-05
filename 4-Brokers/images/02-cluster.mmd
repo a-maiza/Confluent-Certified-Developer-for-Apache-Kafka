@@ -1,0 +1,21 @@
+flowchart TB
+    subgraph FRAME [" "]
+        direction TB
+        subgraph CLUSTER ["🌐 Cluster Kafka"]
+            direction LR
+            B1[("🖥️ Broker 1")]
+            B2[("🖥️ Broker 2")]
+            B3[("🖥️ Broker 3")]
+            B1 <-->|"réplication<br/>coordination"| B2
+            B2 <-->|"réplication<br/>coordination"| B3
+            B1 <-->|"réplication<br/>coordination"| B3
+        end
+        CLUSTER -.->|"objectifs"| GOALS["⚖️ Distribution de charge<br/>🛡️ Réplication / tolérance aux pannes"]
+    end
+
+    style CLUSTER fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style B1 fill:#fff8e1,stroke:#f57c00
+    style B2 fill:#fff8e1,stroke:#f57c00
+    style B3 fill:#fff8e1,stroke:#f57c00
+    style GOALS fill:#c8e6c9,stroke:#1b5e20
+    style FRAME fill:#fafafa,stroke:#90caf9,stroke-width:2px,stroke-dasharray:5 5
