@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Kafka SASL &amp; Security — Configuration Complète</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;700;800&display=swap');
+
+        :root {
+          --bg: #080c14;
+          --surface: #0d1420;
+          --surface2: #111b2e;
+          --text: #e2e8f0;
+          --muted: #64748b;
+          --muted2: #94a3b8;
+          --border: #1e293b;
+          --accent: #06b6d4;
+          --producer: #3b82f6;
+          --broker: #ef4444;
+          --sasl: #a855f7;
+          --sasl2: #7c3aed;
+          --kerberos: #f59e0b;
+          --plain: #10b981;
+          --scram: #ec4899;
+          --ssl: #3b82f6;
+          --warn: #f97316;
+          --ok: #22c55e;
+        }
+
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+          background: var(--bg); color: var(--text);
+          font-family: 'Syne', sans-serif;
+          padding: 40px 24px 80px; overflow-x: hidden;
+        }
+        body::before {
+          content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+          background:
+            radial-gradient(ellipse 700px 400px at 20% 10%, rgba(168,85,247,0.06) 0%, transparent 65%),
+            radial-gradient(ellipse 600px 400px at 80% 80%, rgba(6,182,212,0.05) 0%, transparent 65%),
+            radial-gradient(ellipse 400px 300px at 50% 40%, rgba(245,158,11,0.03) 0%, transparent 70%);
+        }
+        .wrapper { position:relative; z-index:1; max-width:1180px; margin:0 auto; }
+
+        @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+        .a0{animation:fadeUp .45s .00s ease both}
+        .a1{animation:fadeUp .45s .07s ease both}
+        .a2{animation:fadeUp .45s .14s ease both}
+        .a3{animation:fadeUp .45s .21s ease both}
+        .a4{animation:fadeUp .45s .28s ease both}
+        .a5{animation:fadeUp .45s .35s ease both}
+        .a6{animation:fadeUp .45s .42s ease both}
+
+        /* ── HEADER ── */
+        header { text-align:center; margin-bottom:52px; }
+        .badge {
+          display:inline-block; font-family:'JetBrains Mono',monospace;
+          font-size:10px; color:var(--sasl); border:1px solid rgba(168,85,247,0.4);
+          border-radius:4px; padding:3px 12px; letter-spacing:3px;
+          margin-bottom:16px; text-transform:uppercase; background:rgba(168,85,247,0.05);
+        }
+        h1 { font-size:clamp(26px,5vw,44px); font-weight:800; letter-spacing:-1.5px; line-height:1.1; }
+        h1 .purple { color:var(--sasl); }
+        h1 .cyan   { color:var(--accent); }
+        .subtitle  { color:var(--muted); font-size:13px; margin-top:10px; font-family:'JetBrains Mono',monospace; }
+
+        /* ── SECTION TITLE ── */
+        .sec {
+          font-size:11px; font-weight:700; letter-spacing:2.5px; text-transform:uppercase;
+          color:var(--accent); margin-bottom:20px; display:flex; align-items:center; gap:10px;
+        }
+        .sec::after { content:''; flex:1; height:1px; background:linear-gradient(90deg,rgba(6,182,212,.3),transparent); }
+
+        /* ── TAGS ── */
+        .tag { font-size:9px; font-family:'JetBrains Mono',monospace; padding:2px 7px; border-radius:3px; font-weight:700; letter-spacing:.5px; }
+        .t-plain    { background:rgba(16,185,129,.15);  color:#34d399; border:1px solid rgba(16,185,129,.35); }
+        .t-gssapi   { background:rgba(245,158,11,.15);  color:#fbbf24; border:1px solid rgba(245,158,11,.35); }
+        .t-scram    { background:rgba(236,72,153,.15);  color:#f472b6; border:1px solid rgba(236,72,153,.35); }
+        .t-oauthb   { background:rgba(6,182,212,.15);   color:#22d3ee; border:1px solid rgba(6,182,212,.35); }
+        .t-ssl      { background:rgba(59,130,246,.15);  color:#93c5fd; border:1px solid rgba(59,130,246,.35); }
+        .t-sasl     { background:rgba(168,85,247,.15);  color:#c084fc; border:1px solid rgba(168,85,247,.35); }
+        .t-warn     { background:rgba(249,115,22,.15);  color:#fb923c; border:1px solid rgba(249,115,22,.35); }
+        .t-ok       { background:rgba(34,197,94,.15);   color:#86efac; border:1px solid rgba(34,197,94,.35); }
+        .t-req      { background:rgba(239,68,68,.15);   color:#fca5a5; border:1px solid rgba(239,68,68,.35); }
+
+        /* ── SECURITY.PROTOCOL TABLE ── */
+        .proto-section { margin-bottom:28px; }
+        .proto-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px; }
+
+        .proto-card {
+          border-radius:12px; border:1px solid var(--border);
+          background:var(--surface); padding:16px; transition:border-color .2s;
+        }
+        .proto-card:hover { border-color:rgba(168,85,247,.3); }
+        .proto-name {
+          font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700;
+          margin-bottom:8px; display:flex; align-items:center; gap:8px;
+        }
+        .proto-desc { font-size:11px; color:var(--muted2); font-family:'JetBrains Mono',monospace; line-height:1.65; margin-bottom:10px; }
+        .proto-badges { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+        .proto-details { display:flex; flex-direction:column; gap:4px; }
+        .pd { display:flex; gap:8px; font-size:10px; font-family:'JetBrains Mono',monospace; padding:3px 8px; background:rgba(0,0,0,.2); border-radius:4px; }
+        .pd .pk { color:var(--accent); min-width:80px; flex-shrink:0; }
+        .pd .pv { color:var(--muted2); }
+
+        .proto-plaintext { border-color:rgba(239,68,68,.25); }
+        .proto-plaintext .proto-name { color:#f87171; }
+        .proto-ssl       { border-color:rgba(59,130,246,.25); }
+        .proto-ssl .proto-name { color:#93c5fd; }
+        .proto-sasl-plain { border-color:rgba(168,85,247,.25); }
+        .proto-sasl-plain .proto-name { color:#c084fc; }
+        .proto-sasl-ssl   { border-color:rgba(34,197,94,.25); }
+        .proto-sasl-ssl .proto-name { color:#86efac; }
+
+        /* ── PARAMS CARDS ── */
+        .params-section { margin-bottom:28px; }
+        .params-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:16px; }
+
+        .param-card {
+          border-radius:12px; border:1px solid var(--border);
+          background:var(--surface); padding:16px; transition:border-color .2s;
+        }
+        .param-card:hover { border-color:rgba(168,85,247,.3); }
+        .param-header { display:flex; align-items:flex-start; gap:10px; margin-bottom:10px; }
+        .param-icon { font-size:20px; flex-shrink:0; margin-top:2px; }
+        .param-name { font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:var(--sasl); margin-bottom:3px; }
+        .param-scope { font-size:9px; color:var(--muted); font-family:'JetBrains Mono',monospace; letter-spacing:.5px; }
+        .param-desc { font-size:11px; color:var(--muted2); font-family:'JetBrains Mono',monospace; line-height:1.65; margin-bottom:10px; }
+        .param-impact {
+          font-size:10px; font-family:'JetBrains Mono',monospace; padding:5px 9px;
+          border-radius:5px; background:rgba(249,115,22,.08); border-left:2px solid var(--warn); color:#fb923c;
+          margin-bottom:8px;
+        }
+        .param-values { display:flex; flex-direction:column; gap:4px; margin-bottom:8px; }
+        .val-row { display:flex; gap:8px; font-size:10px; font-family:'JetBrains Mono',monospace; padding:4px 8px; background:rgba(0,0,0,.2); border-radius:4px; align-items:flex-start; }
+        .val-row .vk { color:var(--accent); flex-shrink:0; min-width:70px; }
+        .val-row .vv { color:var(--muted2); }
+        .val-row .vv b { color:var(--text); }
+        .param-example {
+          font-size:10px; font-family:'JetBrains Mono',monospace; padding:6px 10px;
+          border-radius:5px; background:rgba(0,0,0,.3); color:var(--muted2);
+          border:1px solid var(--border); white-space:pre-wrap; word-break:break-all;
+        }
+        .param-example .ek { color:#94a3b8; }
+        .param-example .ev { color:#86efac; }
+        .param-example .ec { color:#64748b; }
+
+        /* ── SASL MECHANISMS ── */
+        .mech-section { margin-bottom:28px; }
+        .mech-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(270px,1fr)); gap:16px; }
+
+        .mech-card {
+          border-radius:12px; border:1px solid var(--border);
+          background:var(--surface); padding:16px; transition:border-color .2s;
+        }
+        .mech-name { font-size:15px; font-weight:800; margin-bottom:4px; }
+        .mech-subtitle { font-size:10px; font-family:'JetBrains Mono',monospace; color:var(--muted); margin-bottom:12px; }
+        .mech-list { display:flex; flex-direction:column; gap:5px; margin-bottom:12px; }
+        .mech-item { display:flex; gap:8px; font-size:11px; font-family:'JetBrains Mono',monospace; color:var(--muted2); padding:5px 9px; border-radius:5px; background:var(--surface2); align-items:flex-start; }
+        .mech-verdict { font-size:10px; font-family:'JetBrains Mono',monospace; padding:6px 10px; border-radius:5px; font-style:italic; }
+
+        .mech-plain { border-color:rgba(16,185,129,.3); }
+        .mech-plain .mech-name { color:#34d399; }
+        .mech-plain .mech-verdict { background:rgba(16,185,129,.07); color:#6ee7b7; border-left:2px solid #10b981; }
+
+        .mech-gssapi { border-color:rgba(245,158,11,.3); }
+        .mech-gssapi .mech-name { color:#fbbf24; }
+        .mech-gssapi .mech-verdict { background:rgba(245,158,11,.07); color:#fde68a; border-left:2px solid #f59e0b; }
+
+        .mech-scram { border-color:rgba(236,72,153,.3); }
+        .mech-scram .mech-name { color:#f472b6; }
+        .mech-scram .mech-verdict { background:rgba(236,72,153,.07); color:#fbcfe8; border-left:2px solid #ec4899; }
+
+        .mech-oauth { border-color:rgba(6,182,212,.3); }
+        .mech-oauth .mech-name { color:#22d3ee; }
+        .mech-oauth .mech-verdict { background:rgba(6,182,212,.07); color:#a5f3fc; border-left:2px solid #06b6d4; }
+
+        /* ── JAAS CONFIG SECTION ── */
+        .jaas-section { margin-bottom:28px; }
+        .jaas-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+        @media(max-width:750px){ .jaas-grid{grid-template-columns:1fr;} }
+
+        .jaas-card {
+          border-radius:12px; border:1px solid var(--border);
+          background:var(--surface); padding:16px;
+        }
+        .jaas-title { font-size:13px; font-weight:700; margin-bottom:4px; }
+        .jaas-sub   { font-size:10px; font-family:'JetBrains Mono',monospace; color:var(--muted); margin-bottom:12px; }
+        .code-block {
+          font-family:'JetBrains Mono',monospace; font-size:10px; line-height:1.7;
+          padding:12px; background:#050810; border-radius:8px; border:1px solid var(--border);
+          white-space:pre-wrap; word-break:break-all; overflow-x:auto;
+        }
+        .c-key  { color:#93c5fd; }
+        .c-val  { color:#86efac; }
+        .c-str  { color:#fde68a; }
+        .c-com  { color:#475569; }
+        .c-cls  { color:#c084fc; }
+        .c-req  { color:#f472b6; }
+
+        /* ── FLOW DIAGRAM ── */
+        .flow-section { margin-bottom:28px; }
+        .flow-wrap {
+          border:1px solid var(--border); border-radius:14px;
+          background:var(--surface); padding:24px;
+        }
+        .flow-protocols { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+        @media(max-width:700px){ .flow-protocols{grid-template-columns:1fr 1fr;} }
+
+        .flow-proto {
+          border-radius:10px; padding:14px; text-align:center;
+          border:1px solid var(--border);
+        }
+        .fp-name { font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; margin-bottom:6px; }
+        .fp-layers { display:flex; flex-direction:column; gap:4px; }
+        .fp-layer {
+          font-size:10px; font-family:'JetBrains Mono',monospace; padding:4px 6px;
+          border-radius:4px; font-weight:600;
+        }
+        .layer-app   { background:rgba(100,116,139,.2); color:#94a3b8; }
+        .layer-sasl  { background:rgba(168,85,247,.2);  color:#c084fc; }
+        .layer-ssl   { background:rgba(59,130,246,.2);  color:#93c5fd; }
+        .layer-tcp   { background:rgba(30,41,59,.6);    color:#475569; }
+        .layer-none  { background:rgba(239,68,68,.1);   color:#f87171; font-style:italic; }
+
+        .fp-plain { border-color:rgba(239,68,68,.3); }
+        .fp-plain .fp-name { color:#f87171; }
+        .fp-ssl   { border-color:rgba(59,130,246,.3); }
+        .fp-ssl .fp-name { color:#93c5fd; }
+        .fp-sp    { border-color:rgba(168,85,247,.3); }
+        .fp-sp .fp-name { color:#c084fc; }
+        .fp-ss    { border-color:rgba(34,197,94,.3); }
+        .fp-ss .fp-name { color:#86efac; }
+
+        /* ── KERBEROS FLOW ── */
+        .kerb-section { margin-bottom:28px; }
+        .kerb-flow {
+          border:1px solid rgba(245,158,11,.25); border-radius:14px;
+          background:var(--surface); padding:24px;
+        }
+        .kerb-steps { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; }
+        .kerb-step {
+          border-radius:10px; border:1px solid var(--border);
+          background:var(--surface2); padding:13px;
+          display:flex; gap:10px; align-items:flex-start;
+        }
+        .kerb-num {
+          width:30px; height:30px; border-radius:50%; flex-shrink:0;
+          background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.3);
+          display:flex; align-items:center; justify-content:center;
+          font-family:'JetBrains Mono',monospace; font-weight:700; font-size:12px; color:#fbbf24;
+        }
+        .kerb-title { font-size:12px; font-weight:700; color:#fbbf24; margin-bottom:4px; }
+        .kerb-desc  { font-size:10px; color:var(--muted2); font-family:'JetBrains Mono',monospace; line-height:1.6; }
+        .kerb-actor { font-size:10px; margin-top:5px; display:flex; gap:4px; align-items:center; font-family:'JetBrains Mono',monospace; }
+        .kerb-actor .ka { color:var(--producer); font-weight:700; }
+        .kerb-actor .kb { color:var(--broker);   font-weight:700; }
+        .kerb-actor .kk { color:#fbbf24;         font-weight:700; }
+
+        /* ── COMPARE TABLE ── */
+        .compare-section { margin-bottom:28px; }
+        .cmp-table { width:100%; border-collapse:collapse; font-size:11px; }
+        .cmp-table th { padding:10px 12px; font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; border-bottom:2px solid var(--border); background:var(--surface2); text-align:left; }
+        .cmp-table td { padding:9px 12px; border-bottom:1px solid var(--border); font-family:'JetBrains Mono',monospace; vertical-align:top; background:var(--surface); }
+        .cmp-table tr:hover td { background:rgba(255,255,255,.015); }
+        .cmp-table td.prop { color:var(--accent); font-weight:700; font-size:11px; min-width:100px; }
+        .sub { font-size:9px; color:var(--muted); margin-top:2px; }
+        .ok2  { color:#34d399; font-weight:700; }
+        .no2  { color:#f87171; font-weight:700; }
+        .med  { color:#fbbf24; font-weight:700; }
+
+        /* ── MITM SECTION ── */
+        .mitm-section { margin-bottom:28px; }
+        .mitm-card {
+          border:1px solid rgba(6,182,212,.25); border-radius:14px;
+          background:var(--surface); padding:20px;
+        }
+        .mitm-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px; }
+        @media(max-width:700px){ .mitm-grid{grid-template-columns:1fr;} }
+        .mitm-col { display:flex; flex-direction:column; gap:8px; }
+        .mitm-row {
+          display:flex; gap:10px; align-items:flex-start; padding:10px 12px;
+          border-radius:8px; background:var(--surface2); border:1px solid var(--border);
+          font-size:11px; font-family:'JetBrains Mono',monospace;
+        }
+        .mitm-row .mr-icon { font-size:16px; flex-shrink:0; }
+        .mitm-row .mr-title { font-weight:700; margin-bottom:3px; }
+        .mitm-row .mr-desc { color:var(--muted2); line-height:1.6; font-size:10px; }
+        .mitm-row.attack { border-color:rgba(239,68,68,.3); background:rgba(239,68,68,.04); }
+        .mitm-row.defend { border-color:rgba(34,197,94,.3); background:rgba(34,197,94,.04); }
+
+        /* ── ERRORS ── */
+        .errors-section { margin-bottom:28px; }
+        .errors-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px; }
+        .error-card { border-radius:9px; border:1px solid rgba(239,68,68,.2); background:rgba(239,68,68,.04); padding:13px; }
+        .error-code  { font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; color:#f87171; margin-bottom:5px; }
+        .error-cause { font-size:11px; color:var(--muted2); font-family:'JetBrains Mono',monospace; line-height:1.6; margin-bottom:6px; }
+        .error-fix   { font-size:10px; font-family:'JetBrains Mono',monospace; color:#86efac; padding:4px 8px; background:rgba(16,185,129,.07); border-radius:4px; border-left:2px solid #10b981; }
+
+        /* ── LEGEND ── */
+        .legend-section { border:1px solid var(--border); border-radius:14px; background:var(--surface); padding:24px; }
+        .legend-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:10px; }
+        .legend-item { display:flex; align-items:flex-start; gap:10px; padding:11px 13px; border-radius:8px; background:var(--surface2); border:1px solid var(--border); }
+        .ldot  { width:9px;height:9px;border-radius:50%;margin-top:4px;flex-shrink:0; }
+        .llbl  { font-size:12px; font-weight:700; margin-bottom:2px; }
+        .ldesc { font-size:10px; color:var(--muted); font-family:'JetBrains Mono',monospace; line-height:1.5; }
+
+        .sep { border:none; border-top:1px solid var(--border); margin:28px 0; }
+    </style>
+</head>
+<body>
+<div class="wrapper">
+
+    <!-- HEADER -->
+    <header class="a0">
+        <div class="badge">Apache Kafka · Authentification</div>
+        <h1><span class="purple">SASL</span> &amp; <span class="cyan">Security Protocol</span><br>Configuration Kafka</h1>
+        <p class="subtitle">sasl.mechanism · sasl.jaas.config · security.protocol · ssl.endpoint.identification · Kerberos</p>
+    </header>
+
+    <!-- 1. SECURITY.PROTOCOL — Les 4 modes -->
+    <div class="proto-section a1">
+        <div class="sec">&#x1F6E1;&#xFE0F; security.protocol — Les 4 modes de communication</div>
+        <p style="font-size:12px;color:var(--muted2);font-family:'JetBrains Mono',monospace;margin-bottom:16px;line-height:1.7;">
+            Ce parametre est le <b style="color:var(--text)">point d'entree</b> de toute la securite Kafka. Il definit quelles couches de securite sont actives entre le client et le broker.
+        </p>
+        <div class="proto-grid">
+
+            <div class="proto-card proto-plaintext">
+                <div class="proto-name">&#x1F534; PLAINTEXT</div>
+                <div class="proto-badges"><span class="tag t-warn">AUCUN CHIFFREMENT</span><span class="tag t-warn">AUCUNE AUTH</span></div>
+                <div class="proto-desc">Connexion TCP brute sans aucune securite. Toutes les donnees transitent en clair. A eviter absolument en production.</div>
+                <div class="proto-details">
+                    <div class="pd"><span class="pk">Chiffrement</span><span class="pv" style="color:#f87171">NON</span></div>
+                    <div class="pd"><span class="pk">Auth client</span><span class="pv" style="color:#f87171">NON</span></div>
+                    <div class="pd"><span class="pk">Port defaut</span><span class="pv">9092</span></div>
+                    <div class="pd"><span class="pk">Usage</span><span class="pv">Dev local uniquement</span></div>
+                </div>
+            </div>
+
+            <div class="proto-card proto-ssl">
+                <div class="proto-name">&#x1F535; SSL</div>
+                <div class="proto-badges"><span class="tag t-ssl">CHIFFREMENT TLS</span><span class="tag t-ok">CERT BROKER</span></div>
+                <div class="proto-desc">Chiffrement TLS du trafic + authentification du broker par certificat. Optionnellement mTLS si ssl.client.auth=required.</div>
+                <div class="proto-details">
+                    <div class="pd"><span class="pk">Chiffrement</span><span class="pv" style="color:#34d399">OUI (TLS)</span></div>
+                    <div class="pd"><span class="pk">Auth client</span><span class="pv" style="color:#fbbf24">Optionnel (mTLS)</span></div>
+                    <div class="pd"><span class="pk">Port defaut</span><span class="pv">9093</span></div>
+                    <div class="pd"><span class="pk">Usage</span><span class="pv">Chiffrement sans SASL</span></div>
+                </div>
+            </div>
+
+            <div class="proto-card proto-sasl-plain">
+                <div class="proto-name">&#x1F7E3; SASL_PLAINTEXT</div>
+                <div class="proto-badges"><span class="tag t-sasl">AUTH SASL</span><span class="tag t-warn">TRAFIC NON CHIFFRE</span></div>
+                <div class="proto-desc">Authentification SASL (PLAIN, SCRAM, Kerberos...) mais sans chiffrement TLS. Les credentials voyagent en clair sauf si GSSAPI/SCRAM. A eviter en prod.</div>
+                <div class="proto-details">
+                    <div class="pd"><span class="pk">Chiffrement</span><span class="pv" style="color:#f87171">NON</span></div>
+                    <div class="pd"><span class="pk">Auth client</span><span class="pv" style="color:#34d399">OUI (SASL)</span></div>
+                    <div class="pd"><span class="pk">Port defaut</span><span class="pv">9094</span></div>
+                    <div class="pd"><span class="pk">Usage</span><span class="pv">Reseau interne de confiance</span></div>
+                </div>
+            </div>
+
+            <div class="proto-card proto-sasl-ssl">
+                <div class="proto-name">&#x1F7E2; SASL_SSL</div>
+                <div class="proto-badges"><span class="tag t-sasl">AUTH SASL</span><span class="tag t-ssl">CHIFFREMENT TLS</span><span class="tag t-ok">RECOMMANDE</span></div>
+                <div class="proto-desc">Combinaison maximale : chiffrement TLS + authentification SASL. Standard de production. Toutes les donnees sont chiffrees ET les clients authentifies.</div>
+                <div class="proto-details">
+                    <div class="pd"><span class="pk">Chiffrement</span><span class="pv" style="color:#34d399">OUI (TLS)</span></div>
+                    <div class="pd"><span class="pk">Auth client</span><span class="pv" style="color:#34d399">OUI (SASL)</span></div>
+                    <div class="pd"><span class="pk">Port defaut</span><span class="pv">9095</span></div>
+                    <div class="pd"><span class="pk">Usage</span><span class="pv">Production — Zero Trust</span></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- STACK LAYERS VISUAL -->
+    <div class="flow-section a1">
+        <div class="flow-wrap">
+            <div class="sec" style="margin-bottom:16px;">&#x1F4E6; Couches de protocole par mode</div>
+            <div class="flow-protocols">
+                <div class="flow-proto fp-plain">
+                    <div class="fp-name">PLAINTEXT</div>
+                    <div class="fp-layers">
+                        <div class="fp-layer layer-app">Kafka App</div>
+                        <div class="fp-layer layer-none">— aucune securite —</div>
+                        <div class="fp-layer layer-tcp">TCP</div>
+                    </div>
+                </div>
+                <div class="flow-proto fp-ssl">
+                    <div class="fp-name">SSL</div>
+                    <div class="fp-layers">
+                        <div class="fp-layer layer-app">Kafka App</div>
+                        <div class="fp-layer layer-ssl">TLS (chiffrement)</div>
+                        <div class="fp-layer layer-tcp">TCP</div>
+                    </div>
+                </div>
+                <div class="flow-proto fp-sp">
+                    <div class="fp-name">SASL_PLAINTEXT</div>
+                    <div class="fp-layers">
+                        <div class="fp-layer layer-app">Kafka App</div>
+                        <div class="fp-layer layer-sasl">SASL (auth)</div>
+                        <div class="fp-layer layer-none">— pas de TLS —</div>
+                        <div class="fp-layer layer-tcp">TCP</div>
+                    </div>
+                </div>
+                <div class="flow-proto fp-ss">
+                    <div class="fp-name">SASL_SSL &#x2605;</div>
+                    <div class="fp-layers">
+                        <div class="fp-layer layer-app">Kafka App</div>
+                        <div class="fp-layer layer-sasl">SASL (auth)</div>
+                        <div class="fp-layer layer-ssl">TLS (chiffrement)</div>
+                        <div class="fp-layer layer-tcp">TCP</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. SASL MECHANISMS -->
+    <div class="mech-section a2">
+        <div class="sec">&#x1F511; sasl.mechanism — Les mecanismes d'authentification</div>
+        <div class="mech-grid">
+
+            <div class="mech-card mech-plain">
+                <div class="mech-name">PLAIN</div>
+                <div class="mech-subtitle">Username + Password en base64</div>
+                <div class="mech-list">
+                    <div class="mech-item"><span>&#x1F4AC;</span> Envoie username/password en clair (base64 non chiffre)</div>
+                    <div class="mech-item"><span>&#x26A0;&#xFE0F;</span> Doit absolument etre combine avec SSL (SASL_SSL)</div>
+                    <div class="mech-item"><span>&#x2705;</span> Simple a configurer, compatible partout</div>
+                    <div class="mech-item"><span>&#x2699;&#xFE0F;</span> Login module : PlainLoginModule</div>
+                    <div class="mech-item"><span>&#x1F3AF;</span> Cas d'usage : dev/test, cloud managed Kafka</div>
+                </div>
+                <div class="mech-verdict">Facile mais risque si sans TLS. Toujours utiliser SASL_SSL.</div>
+            </div>
+
+            <div class="mech-card mech-gssapi">
+                <div class="mech-name">GSSAPI (Kerberos)</div>
+                <div class="mech-subtitle">Generic Security Services API</div>
+                <div class="mech-list">
+                    <div class="mech-item"><span>&#x1F3F0;</span> S'appuie sur un KDC (Key Distribution Center)</div>
+                    <div class="mech-item"><span>&#x1F3AA;</span> Tickets Kerberos, pas de mots de passe transmis</div>
+                    <div class="mech-item"><span>&#x2705;</span> Authentification mutuelle native</div>
+                    <div class="mech-item"><span>&#x2699;&#xFE0F;</span> Login module : Krb5LoginModule</div>
+                    <div class="mech-item"><span>&#x1F4CC;</span> Necessite sasl.kerberos.service.name</div>
+                    <div class="mech-item"><span>&#x1F3AF;</span> Cas d'usage : enterprise, Hadoop/HDP, LDAP/AD</div>
+                </div>
+                <div class="mech-verdict">Le plus securise pour les entreprises avec Active Directory / KDC.</div>
+            </div>
+
+            <div class="mech-card mech-scram">
+                <div class="mech-name">SCRAM-SHA-256/512</div>
+                <div class="mech-subtitle">Salted Challenge Response Auth</div>
+                <div class="mech-list">
+                    <div class="mech-item"><span>&#x1F9EA;</span> Challenge-response, jamais le mdp en clair</div>
+                    <div class="mech-item"><span>&#x1F512;</span> Creds stockes hashes + sales dans Zookeeper/KRaft</div>
+                    <div class="mech-item"><span>&#x2705;</span> Resistance aux attaques replay et MITM</div>
+                    <div class="mech-item"><span>&#x2699;&#xFE0F;</span> Login module : ScramLoginModule</div>
+                    <div class="mech-item"><span>&#x1F3AF;</span> Cas d'usage : sans Kerberos, securite renforcee</div>
+                </div>
+                <div class="mech-verdict">Meilleur compromis securite/simplicite sans infrastructure Kerberos.</div>
+            </div>
+
+            <div class="mech-card mech-oauth">
+                <div class="mech-name">OAUTHBEARER</div>
+                <div class="mech-subtitle">OAuth 2.0 Bearer Token</div>
+                <div class="mech-list">
+                    <div class="mech-item"><span>&#x1F511;</span> Utilise des JWT Bearer tokens OAuth 2.0</div>
+                    <div class="mech-item"><span>&#x1F501;</span> Tokens a courte duree de vie (expiration auto)</div>
+                    <div class="mech-item"><span>&#x2705;</span> Ideal pour microservices et cloud-native</div>
+                    <div class="mech-item"><span>&#x2699;&#xFE0F;</span> Necessite sasl.login.callback.handler.class</div>
+                    <div class="mech-item"><span>&#x1F3AF;</span> Cas d'usage : K8s, cloud (MSK, Confluent Cloud)</div>
+                </div>
+                <div class="mech-verdict">Standard moderne pour les architectures cloud et microservices.</div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 3. PARAMETRES DETAILLES -->
+    <div class="params-section a3">
+        <div class="sec">&#x2699;&#xFE0F; Parametres SASL — detail complet</div>
+        <div class="params-grid">
+
+            <!-- sasl.mechanism -->
+            <div class="param-card">
+                <div class="param-header">
+                    <div class="param-icon">&#x1F511;</div>
+                    <div>
+                        <div class="param-name">sasl.mechanism</div>
+                        <div class="param-scope">TYPE: string &middot; SCOPE: Producer + Consumer + Broker</div>
+                    </div>
+                </div>
+                <div class="param-desc">Definit le protocole SASL utilise pour s'authentifier. Doit correspondre exactement a ce que le broker declare dans sasl.enabled.mechanisms. La valeur est case-sensitive.</div>
+                <div class="param-values">
+                    <div class="val-row"><span class="vk">PLAIN</span><span class="vv">Username/password base64 — <b>necessite TLS</b></span></div>
+                    <div class="val-row"><span class="vk">GSSAPI</span><span class="vv">Kerberos — entreprise, Active Directory</span></div>
+                    <div class="val-row"><span class="vk">SCRAM-SHA-256</span><span class="vv">Challenge-response — recommande</span></div>
+                    <div class="val-row"><span class="vk">SCRAM-SHA-512</span><span class="vv">SCRAM avec hash plus fort</span></div>
+                    <div class="val-row"><span class="vk">OAUTHBEARER</span><span class="vv">JWT OAuth 2.0 — cloud-native</span></div>
+                </div>
+                <div class="param-impact">&#x26A0;&#xFE0F; Mismatch avec le broker = connexion refusee avec SASL authentication failed</div>
+                <div class="param-example"><span class="ek">sasl.mechanism</span>=<span class="ev">SCRAM-SHA-256</span></div>
+            </div>
+
+            <!-- sasl.jaas.config -->
+            <div class="param-card">
+                <div class="param-header">
+                    <div class="param-icon">&#x1F4CB;</div>
+                    <div>
+                        <div class="param-name">sasl.jaas.config</div>
+                        <div class="param-scope">TYPE: string (JAAS) &middot; SCOPE: Producer + Consumer</div>
+                    </div>
+                </div>
+                <div class="param-desc">Configuration JAAS (Java Authentication and Authorization Service) en ligne. Specifie le LoginModule a utiliser et ses options. Remplace le fichier jaas.conf externe. Contient les credentials.</div>
+                <div class="param-values">
+                    <div class="val-row"><span class="vk">LoginModule</span><span class="vv">Classe Java qui gere l'auth (PlainLoginModule, Krb5LoginModule...)</span></div>
+                    <div class="val-row"><span class="vk">required/optional</span><span class="vv">Niveau de contrainte du module</span></div>
+                    <div class="val-row"><span class="vk">Options</span><span class="vv">username, password, keyTab, serviceName...</span></div>
+                </div>
+                <div class="param-impact">&#x26A0;&#xFE0F; Contient les credentials — ne jamais logger ou exposer cette valeur</div>
+            </div>
+
+            <!-- security.protocol -->
+            <div class="param-card">
+                <div class="param-header">
+                    <div class="param-icon">&#x1F6E1;&#xFE0F;</div>
+                    <div>
+                        <div class="param-name">security.protocol</div>
+                        <div class="param-scope">TYPE: string &middot; SCOPE: Producer + Consumer + Admin</div>
+                    </div>
+                </div>
+                <div class="param-desc">Protocole de communication avec le broker. Combine ou separe chiffrement (TLS) et authentification (SASL). Doit correspondre au listener configure sur le broker (listeners= dans server.properties).</div>
+                <div class="param-values">
+                    <div class="val-row"><span class="vk">PLAINTEXT</span><span class="vv" style="color:#f87171">Aucune securite — dev local</span></div>
+                    <div class="val-row"><span class="vk">SSL</span><span class="vv">TLS uniquement, pas de SASL</span></div>
+                    <div class="val-row"><span class="vk">SASL_PLAINTEXT</span><span class="vv">SASL sans TLS — reseau interne</span></div>
+                    <div class="val-row"><span class="vk">SASL_SSL</span><span class="vv" style="color:#34d399">SASL + TLS — recommande production</span></div>
+                </div>
+                <div class="param-impact">&#x26A0;&#xFE0F; Doit correspondre exactement au listener broker sinon Connection refused</div>
+                <div class="param-example"><span class="ek">security.protocol</span>=<span class="ev">SASL_SSL</span></div>
+            </div>
+
+            <!-- ssl.endpoint.identification.algorithm -->
+            <div class="param-card">
+                <div class="param-header">
+                    <div class="param-icon">&#x1F50D;</div>
+                    <div>
+                        <div class="param-name">ssl.endpoint.identification.algorithm</div>
+                        <div class="param-scope">TYPE: string &middot; SCOPE: Producer + Consumer + Admin</div>
+                    </div>
+                </div>
+                <div class="param-desc">Algorithme de verification du hostname du broker dans son certificat SSL. Quand defini a "https", verifie que le CN ou un SAN du certificat correspond au hostname de connexion. Protege contre les attaques MITM.</div>
+                <div class="param-values">
+                    <div class="val-row"><span class="vk">https</span><span class="vv" style="color:#34d399">Verification hostname active (RECOMMANDE)</span></div>
+                    <div class="val-row"><span class="vk">(vide "")</span><span class="vv" style="color:#f87171">Verification desactivee — DANGEREUX en prod</span></div>
+                </div>
+                <div class="param-impact">&#x26A0;&#xFE0F; Desactiver = vulnerable aux attaques Man-In-The-Middle meme avec TLS actif</div>
+                <div class="param-example"><span class="ek">ssl.endpoint.identification.algorithm</span>=<span class="ev">https</span>
+                    <span class="ec"># Pour desactiver (dev uniquement):</span>
+                    <span class="ek">ssl.endpoint.identification.algorithm</span>=<span class="ev"></span></div>
+            </div>
+
+            <!-- sasl.login.callback.handler.class -->
+            <div class="param-card">
+                <div class="param-header">
+                    <div class="param-icon">&#x1F527;</div>
+                    <div>
+                        <div class="param-name">sasl.login.callback.handler.class</div>
+                        <div class="param-scope">TYPE: class &middot; SCOPE: Producer + Consumer</div>
+                    </div>
+                </div>
+                <div class="param-desc">Classe Java personnalisee implementant AuthenticateCallbackHandler pour gerer les challenges SASL. Utile pour OAUTHBEARER (recuperer/renouveler un token JWT), ou pour des systemes d'auth custom.</div>
+                <div class="param-values">
+                    <div class="val-row"><span class="vk">null</span><span class="vv">Handler par defaut (PLAIN/SCRAM/GSSAPI)</span></div>
+                    <div class="val-row"><span class="vk">Custom class</span><span class="vv">Pour OAUTHBEARER ou auth non standard</span></div>
+                    <div class="val-row"><span class="vk">Confluent</span><span class="vv">io.confluent.kafka.clients.plugins.auth.token.TokenUserLoginCallbackHandler</span></div>
+                </div>
+                <div class="param-impact">&#x26A0;&#xFE0F; Classe mal implementee = fuite de credentials ou echec auth silencieux</div>
+                <div class="param-example"><span class="ek">sasl.login.callback.handler.class</span>=<span class="ev">\
+  com.example.CustomOAuthCallbackHandler</span></div>
+            </div>
+
+            <!-- sasl.kerberos.service.name -->
+            <div class="param-card">
+                <div class="param-header">
+                    <div class="param-icon">&#x1F3F0;</div>
+                    <div>
+                        <div class="param-name">sasl.kerberos.service.name</div>
+                        <div class="param-scope">TYPE: string &middot; SCOPE: Producer + Consumer (GSSAPI)</div>
+                    </div>
+                </div>
+                <div class="param-desc">Nom du service Kerberos du broker Kafka. Utilise pour construire le SPN (Service Principal Name) sous la forme kafka/hostname@REALM. Doit correspondre exactement au principal enregistre dans le KDC.</div>
+                <div class="param-values">
+                    <div class="val-row"><span class="vk">Valeur type</span><span class="vv">"kafka" (defaut Kafka)</span></div>
+                    <div class="val-row"><span class="vk">SPN construit</span><span class="vv">kafka/broker-host.domain@REALM</span></div>
+                    <div class="val-row"><span class="vk">Cote broker</span><span class="vv">doit matcher sasl.kerberos.principal</span></div>
+                </div>
+                <div class="param-impact">&#x26A0;&#xFE0F; Mismatch avec le KDC = GSS initiate failed / kinit errors</div>
+                <div class="param-example"><span class="ek">sasl.kerberos.service.name</span>=<span class="ev">kafka</span>
+                    <span class="ec"># SPN resultant: kafka/broker.corp.local@CORP.LOCAL</span></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 4. JAAS CONFIG EXEMPLES -->
+    <div class="jaas-section a3">
+        <div class="sec">&#x1F4CB; sasl.jaas.config — Exemples par mecanisme</div>
+        <div class="jaas-grid">
+
+            <div class="jaas-card">
+                <div class="jaas-title" style="color:#34d399">PLAIN — Username/Password</div>
+                <div class="jaas-sub">org.apache.kafka.common.security.plain.PlainLoginModule</div>
+                <div class="code-block"><span class="c-key">sasl.jaas.config</span>=<span class="c-cls">org.apache.kafka.common.security.plain.PlainLoginModule</span> <span class="c-req">required</span>
+                    <span class="c-key">username</span>=<span class="c-str">"my-producer"</span>
+                    <span class="c-key">password</span>=<span class="c-str">"my-secret-password"</span>;
+                    <span class="c-com">
+# ATTENTION : le point-virgule final est OBLIGATOIRE
+# Toujours combiner avec security.protocol=SASL_SSL</span></div>
+            </div>
+
+            <div class="jaas-card">
+                <div class="jaas-title" style="color:#f472b6">SCRAM-SHA-256 — Challenge-Response</div>
+                <div class="jaas-sub">org.apache.kafka.common.security.scram.ScramLoginModule</div>
+                <div class="code-block"><span class="c-key">sasl.jaas.config</span>=<span class="c-cls">org.apache.kafka.common.security.scram.ScramLoginModule</span> <span class="c-req">required</span>
+                    <span class="c-key">username</span>=<span class="c-str">"my-producer"</span>
+                    <span class="c-key">password</span>=<span class="c-str">"my-secret-password"</span>;
+                    <span class="c-com">
+# Le mdp ne transite JAMAIS en clair (challenge-response)
+# Enregistrer le user cote broker :
+# kafka-configs.sh --alter --add-config \
+#   'SCRAM-SHA-256=[password=my-secret-password]' \
+#   --entity-type users --entity-name my-producer</span></div>
+            </div>
+
+            <div class="jaas-card">
+                <div class="jaas-title" style="color:#fbbf24">GSSAPI — Kerberos (keytab)</div>
+                <div class="jaas-sub">com.sun.security.auth.module.Krb5LoginModule</div>
+                <div class="code-block"><span class="c-key">sasl.jaas.config</span>=<span class="c-cls">com.sun.security.auth.module.Krb5LoginModule</span> <span class="c-req">required</span>
+                    <span class="c-key">useKeyTab</span>=<span class="c-str">true</span>
+                    <span class="c-key">storeKey</span>=<span class="c-str">true</span>
+                    <span class="c-key">keyTab</span>=<span class="c-str">"/etc/security/keytabs/producer.keytab"</span>
+                    <span class="c-key">principal</span>=<span class="c-str">"producer@CORP.LOCAL"</span>;
+                    <span class="c-com">
+# sasl.kerberos.service.name=kafka obligatoire
+# Le keytab est genere par l'admin Kerberos/AD</span></div>
+            </div>
+
+            <div class="jaas-card">
+                <div class="jaas-title" style="color:#22d3ee">OAUTHBEARER — JWT Token</div>
+                <div class="jaas-sub">org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule</div>
+                <div class="code-block"><span class="c-key">sasl.jaas.config</span>=<span class="c-cls">org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule</span> <span class="c-req">required</span>;
+                    <span class="c-com">
+# La logique de token est dans le callback handler :
+</span><span class="c-key">sasl.login.callback.handler.class</span>=<span class="c-cls">com.example.OAuthCallbackHandler</span>
+                    <span class="c-com">
+# Le handler recupere le JWT aupres du serveur OAuth
+# et le renouvelle avant expiration automatiquement</span></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 5. KERBEROS FLOW -->
+    <div class="kerb-section a4">
+        <div class="kerb-flow">
+            <div class="sec" style="margin-bottom:16px;">&#x1F3F0; Flux Kerberos (GSSAPI) — Comment ca fonctionne</div>
+            <div class="kerb-steps">
+
+                <div class="kerb-step">
+                    <div class="kerb-num">1</div>
+                    <div>
+                        <div class="kerb-title">AS-REQ — Demande TGT</div>
+                        <div class="kerb-desc">Le producer s'authentifie aupres du KDC avec son keytab. Il recoit un Ticket Granting Ticket (TGT) chiffre. Aucun mot de passe ne transite.</div>
+                        <div class="kerb-actor"><span class="ka">Producer</span>&rarr;<span class="kk">KDC</span></div>
+                    </div>
+                </div>
+
+                <div class="kerb-step">
+                    <div class="kerb-num">2</div>
+                    <div>
+                        <div class="kerb-title">TGS-REQ — Demande Service Ticket</div>
+                        <div class="kerb-desc">Le producer presente son TGT au KDC et demande un ticket de service pour kafka/broker-host@REALM (SPN construit depuis sasl.kerberos.service.name).</div>
+                        <div class="kerb-actor"><span class="ka">Producer</span>&rarr;<span class="kk">KDC</span></div>
+                    </div>
+                </div>
+
+                <div class="kerb-step">
+                    <div class="kerb-num">3</div>
+                    <div>
+                        <div class="kerb-title">TGS-REP — Reception Service Ticket</div>
+                        <div class="kerb-desc">Le KDC retourne un Service Ticket chiffre avec la cle secrete du broker Kafka. Le producer ne peut pas le lire — seul le broker peut le dechiffrer.</div>
+                        <div class="kerb-actor"><span class="kk">KDC</span>&rarr;<span class="ka">Producer</span></div>
+                    </div>
+                </div>
+
+                <div class="kerb-step">
+                    <div class="kerb-num">4</div>
+                    <div>
+                        <div class="kerb-title">AP-REQ — Presentation au Broker</div>
+                        <div class="kerb-desc">Le producer envoie le Service Ticket au broker Kafka. Le broker le dechiffre avec son keytab et valide l'identite du producer. Auth mutuelle complete.</div>
+                        <div class="kerb-actor"><span class="ka">Producer</span>&rarr;<span class="kb">Broker</span></div>
+                    </div>
+                </div>
+
+                <div class="kerb-step">
+                    <div class="kerb-num">5</div>
+                    <div>
+                        <div class="kerb-title">Session etablie</div>
+                        <div class="kerb-desc">Le broker confirme l'authentification. La session est etablie avec des cles de session derivees. Les tickets Kerberos ont une duree de vie limitee (typiquement 8-24h).</div>
+                        <div class="kerb-actor"><span class="kb">Broker</span>&rarr;<span class="ka">Producer</span></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- 6b. OAUTHBEARER FLOW DIAGRAM -->
+    <div class="oauth-section a4" style="margin-bottom:28px;">
+        <div class="sec">&#x1F511; Flux OAUTHBEARER — Comment recuperer et utiliser le JWT</div>
+        <div style="border:1px solid rgba(6,182,212,.25); border-radius:14px; background:var(--surface); padding:24px;">
+
+            <!-- ENTITES -->
+            <p style="font-size:12px;color:var(--muted2);font-family:'JetBrains Mono',monospace;line-height:1.7;margin-bottom:24px;">
+                Le flux OAUTHBEARER implique <b style="color:var(--text)">3 entites</b> : le <b style="color:#3b82f6">Producer/Consumer</b>, le <b style="color:#22d3ee">Authorization Server (AS)</b> (ex: Keycloak, Okta, Azure AD), et le <b style="color:#ef4444">Broker Kafka</b>.
+            </p>
+
+            <!-- ACTORS ROW -->
+            <div style="display:grid;grid-template-columns:1fr 40px 1fr 40px 1fr;gap:0;align-items:center;margin-bottom:32px;">
+
+                <!-- Producer -->
+                <div style="border:1px solid rgba(59,130,246,.4);border-radius:12px;background:rgba(59,130,246,.06);padding:16px;text-align:center;">
+                    <div style="font-size:28px;margin-bottom:8px;">&#x26A1;</div>
+                    <div style="font-size:13px;font-weight:800;color:#3b82f6;margin-bottom:4px;">Producer / Consumer</div>
+                    <div style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;line-height:1.5;">Client Kafka<br>avec OAuthBearerLoginModule<br>+ Callback Handler</div>
+                    <div style="margin-top:10px;display:flex;flex-direction:column;gap:4px;">
+                        <div style="font-size:9px;font-family:'JetBrains Mono',monospace;padding:3px 8px;background:rgba(59,130,246,.1);border-radius:4px;color:#93c5fd;">client_id</div>
+                        <div style="font-size:9px;font-family:'JetBrains Mono',monospace;padding:3px 8px;background:rgba(59,130,246,.1);border-radius:4px;color:#93c5fd;">client_secret</div>
+                    </div>
+                </div>
+
+                <!-- Arrow 1 -->
+                <div style="text-align:center;color:var(--muted);font-size:20px;">&#x21C4;</div>
+
+                <!-- Auth Server -->
+                <div style="border:1px solid rgba(6,182,212,.4);border-radius:12px;background:rgba(6,182,212,.06);padding:16px;text-align:center;">
+                    <div style="font-size:28px;margin-bottom:8px;">&#x1F3DB;&#xFE0F;</div>
+                    <div style="font-size:13px;font-weight:800;color:#22d3ee;margin-bottom:4px;">Authorization Server</div>
+                    <div style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;line-height:1.5;">Keycloak / Okta<br>Azure AD / Auth0<br>Google IAM</div>
+                    <div style="margin-top:10px;display:flex;flex-direction:column;gap:4px;">
+                        <div style="font-size:9px;font-family:'JetBrains Mono',monospace;padding:3px 8px;background:rgba(6,182,212,.1);border-radius:4px;color:#22d3ee;">/token endpoint</div>
+                        <div style="font-size:9px;font-family:'JetBrains Mono',monospace;padding:3px 8px;background:rgba(6,182,212,.1);border-radius:4px;color:#22d3ee;">/jwks endpoint</div>
+                    </div>
+                </div>
+
+                <!-- Arrow 2 -->
+                <div style="text-align:center;color:var(--muted);font-size:20px;">&#x21C4;</div>
+
+                <!-- Broker -->
+                <div style="border:1px solid rgba(239,68,68,.4);border-radius:12px;background:rgba(239,68,68,.06);padding:16px;text-align:center;">
+                    <div style="font-size:28px;margin-bottom:8px;">&#x1F5A5;&#xFE0F;</div>
+                    <div style="font-size:13px;font-weight:800;color:#ef4444;margin-bottom:4px;">Broker Kafka</div>
+                    <div style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;line-height:1.5;">Valide le JWT<br>via cle publique AS<br>ou introspection</div>
+                    <div style="margin-top:10px;display:flex;flex-direction:column;gap:4px;">
+                        <div style="font-size:9px;font-family:'JetBrains Mono',monospace;padding:3px 8px;background:rgba(239,68,68,.1);border-radius:4px;color:#fca5a5;">JWKS / public key</div>
+                        <div style="font-size:9px;font-family:'JetBrains Mono',monospace;padding:3px 8px;background:rgba(239,68,68,.1);border-radius:4px;color:#fca5a5;">OAuthBearerValidatorCH</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STEPS -->
+            <div style="display:flex;flex-direction:column;gap:10px;">
+
+                <!-- Step 1 -->
+                <div style="display:grid;grid-template-columns:32px 1fr;gap:12px;align-items:flex-start;">
+                    <div style="width:32px;height:32px;border-radius:50%;background:rgba(6,182,212,.12);border:1px solid rgba(6,182,212,.35);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;color:var(--accent);flex-shrink:0;">1</div>
+                    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:12px;">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap;">
+                            <span style="font-size:12px;font-weight:700;">Token Request — Client Credentials Grant</span>
+                            <span style="font-size:9px;font-family:'JetBrains Mono',monospace;padding:2px 6px;border-radius:3px;background:rgba(59,130,246,.15);color:#93c5fd;border:1px solid rgba(59,130,246,.3);">Producer &#x2192; Auth Server</span>
+                        </div>
+                        <div style="font-size:11px;color:var(--muted2);font-family:'JetBrains Mono',monospace;line-height:1.65;margin-bottom:8px;">
+                            Le <b style="color:#3b82f6">Callback Handler</b> appelle le endpoint <code style="color:#22d3ee">/token</code> de l'Authorization Server via HTTP POST avec les credentials du client (client_id + client_secret ou certificate). C'est le <b style="color:var(--text)">seul moment</b> ou les credentials sont utilises.
+                        </div>
+                        <div style="font-size:10px;font-family:'JetBrains Mono',monospace;padding:8px 12px;background:#050810;border-radius:6px;border:1px solid var(--border);color:var(--muted2);">
+                            <span style="color:#94a3b8;">POST</span> <span style="color:#22d3ee;">https://auth-server/token</span><br>
+                            <span style="color:#86efac;">grant_type</span>=<span style="color:#fde68a;">client_credentials</span><br>
+                            <span style="color:#86efac;">client_id</span>=<span style="color:#fde68a;">kafka-producer-app</span><br>
+                            <span style="color:#86efac;">client_secret</span>=<span style="color:#fde68a;">s3cr3t</span><br>
+                            <span style="color:#86efac;">scope</span>=<span style="color:#fde68a;">kafka-read kafka-write</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2 -->
+                <div style="display:grid;grid-template-columns:32px 1fr;gap:12px;align-items:flex-start;">
+                    <div style="width:32px;height:32px;border-radius:50%;background:rgba(6,182,212,.12);border:1px solid rgba(6,182,212,.35);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;color:var(--accent);flex-shrink:0;">2</div>
+                    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:12px;">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap;">
+                            <span style="font-size:12px;font-weight:700;">Token Response — Reception du JWT</span>
+                            <span style="font-size:9px;font-family:'JetBrains Mono',monospace;padding:2px 6px;border-radius:3px;background:rgba(6,182,212,.15);color:#22d3ee;border:1px solid rgba(6,182,212,.3);">Auth Server &#x2192; Producer</span>
+                        </div>
+                        <div style="font-size:11px;color:var(--muted2);font-family:'JetBrains Mono',monospace;line-height:1.65;margin-bottom:8px;">
+                            L'Authorization Server retourne un <b style="color:#22d3ee">JWT (JSON Web Token)</b> signe avec sa cle privee. Le JWT contient : l'identite du producer (sub), les scopes/permissions, et la date d'expiration (exp).
+                        </div>
+                        <div style="font-size:10px;font-family:'JetBrains Mono',monospace;padding:8px 12px;background:#050810;border-radius:6px;border:1px solid var(--border);color:var(--muted2);">
+                            <span style="color:#94a3b8;">HTTP 200 OK</span><br>
+                            {<br>
+                            &nbsp;&nbsp;<span style="color:#86efac;">"access_token"</span>: <span style="color:#fde68a;">"eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJrYWZrYS1wcm9kdWNlci1hcHAiLCJzY29wZXMiOlsia2Fma2Etd3JpdGUiXSwiZXhwIjoxNjk5OTk5OTk5fQ.SIGNATURE"</span>,<br>
+                            &nbsp;&nbsp;<span style="color:#86efac;">"token_type"</span>: <span style="color:#fde68a;">"Bearer"</span>,<br>
+                            &nbsp;&nbsp;<span style="color:#86efac;">"expires_in"</span>: <span style="color:#93c5fd;">3600</span><br>
+                            }
+                        </div>
+                        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+                            <div style="font-size:9px;font-family:'JetBrains Mono',monospace;padding:3px 8px;background:rgba(139,92,246,.1);border-radius:4px;color:#a78bfa;border:1px solid rgba(139,92,246,.25);">Header: algo + type</div>
+                            <div style="font-size:9px;font-family:'JetBrains Mono',monospace;padding:3px 8px;background:rgba(139,92,246,.1);border-radius:4px;color:#a78bfa;border:1px solid rgba(139,92,246,.25);">Payload: sub, scopes, exp, iat</div>
+                            <div style="font-size:9px;font-family:'JetBrains Mono',monospace;padding:3px 8px;background:rgba(139,92,246,.1);border-radius:4px;color:#a78bfa;border:1px solid rgba(139,92,246,.25);">Signature: RS256 / ES256</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3 -->
+                <div style="display:grid;grid-template-columns:32px 1fr;gap:12px;align-items:flex-start;">
+                    <div style="width:32px;height:32px;border-radius:50%;background:rgba(6,182,212,.12);border:1px solid rgba(6,182,212,.35);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;color:var(--accent);flex-shrink:0;">3</div>
+                    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:12px;">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap;">
+                            <span style="font-size:12px;font-weight:700;">SASL Handshake — Envoi du JWT au Broker</span>
+                            <span style="font-size:9px;font-family:'JetBrains Mono',monospace;padding:2px 6px;border-radius:3px;background:rgba(59,130,246,.15);color:#93c5fd;border:1px solid rgba(59,130,246,.3);">Producer &#x2192; Broker</span>
+                        </div>
+                        <div style="font-size:11px;color:var(--muted2);font-family:'JetBrains Mono',monospace;line-height:1.65;">
+                            Le producer envoie le JWT Bearer Token au broker dans le message SASL <code style="color:#22d3ee;">OAuthBearerClientInitialResponse</code>. Le token voyage dans la couche SASL, protege par TLS (SASL_SSL). Le broker ne connait pas le client_secret.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4 -->
+                <div style="display:grid;grid-template-columns:32px 1fr;gap:12px;align-items:flex-start;">
+                    <div style="width:32px;height:32px;border-radius:50%;background:rgba(6,182,212,.12);border:1px solid rgba(6,182,212,.35);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;color:var(--accent);flex-shrink:0;">4</div>
+                    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:12px;">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap;">
+                            <span style="font-size:12px;font-weight:700;">Validation JWT par le Broker</span>
+                            <span style="font-size:9px;font-family:'JetBrains Mono',monospace;padding:2px 6px;border-radius:3px;background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.3);">Broker &#x2192; Auth Server (JWKS)</span>
+                        </div>
+                        <div style="font-size:11px;color:var(--muted2);font-family:'JetBrains Mono',monospace;line-height:1.65;margin-bottom:8px;">
+                            Le broker valide la signature JWT en recuperant la <b style="color:#fca5a5">cle publique</b> de l'Authorization Server via l'endpoint <code style="color:#22d3ee;">/jwks</code> (JSON Web Key Set). Il verifie aussi : expiration (exp), issuer (iss), audience (aud).
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                            <div style="font-size:10px;font-family:'JetBrains Mono',monospace;padding:7px 10px;background:rgba(34,197,94,.06);border-radius:6px;border:1px solid rgba(34,197,94,.2);">
+                                <div style="color:#34d399;font-weight:700;margin-bottom:4px;">&#x2705; Verifications</div>
+                                <div style="color:var(--muted2);">Signature RS256/ES256<br>exp &gt; now()<br>iss = auth server URL<br>aud = kafka</div>
+                            </div>
+                            <div style="font-size:10px;font-family:'JetBrains Mono',monospace;padding:7px 10px;background:rgba(239,68,68,.06);border-radius:6px;border:1px solid rgba(239,68,68,.2);">
+                                <div style="color:#f87171;font-weight:700;margin-bottom:4px;">&#x274C; Rejete si</div>
+                                <div style="color:var(--muted2);">Signature invalide<br>Token expire<br>Mauvais iss ou aud<br>Token revoque</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 5 -->
+                <div style="display:grid;grid-template-columns:32px 1fr;gap:12px;align-items:flex-start;">
+                    <div style="width:32px;height:32px;border-radius:50%;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;color:#34d399;flex-shrink:0;">5</div>
+                    <div style="background:var(--surface2);border:1px solid rgba(16,185,129,.2);border-radius:9px;padding:12px;">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap;">
+                            <span style="font-size:12px;font-weight:700;color:#34d399;">&#x2705; Session etablie — Produce / Consume</span>
+                            <span style="font-size:9px;font-family:'JetBrains Mono',monospace;padding:2px 6px;border-radius:3px;background:rgba(16,185,129,.15);color:#34d399;border:1px solid rgba(16,185,129,.3);">Broker &#x2192; Producer</span>
+                        </div>
+                        <div style="font-size:11px;color:var(--muted2);font-family:'JetBrains Mono',monospace;line-height:1.65;">
+                            Le broker accepte la connexion. L'identite du producer est connue (sub du JWT). Les ACL Kafka peuvent etre basees sur le <code style="color:#22d3ee;">sub</code> ou les <code style="color:#22d3ee;">scopes</code> du token. La session dure jusqu'a expiration du token.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 6 — Renouvellement -->
+                <div style="display:grid;grid-template-columns:32px 1fr;gap:12px;align-items:flex-start;">
+                    <div style="width:32px;height:32px;border-radius:50%;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;color:#fbbf24;flex-shrink:0;">&#x21BB;</div>
+                    <div style="background:var(--surface2);border:1px solid rgba(245,158,11,.2);border-radius:9px;padding:12px;">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap;">
+                            <span style="font-size:12px;font-weight:700;color:#fbbf24;">Renouvellement automatique du token</span>
+                            <span style="font-size:9px;font-family:'JetBrains Mono',monospace;padding:2px 6px;border-radius:3px;background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.3);">Callback Handler (background)</span>
+                        </div>
+                        <div style="font-size:11px;color:var(--muted2);font-family:'JetBrains Mono',monospace;line-height:1.65;">
+                            Avant expiration du JWT, le <b style="color:#fbbf24">Callback Handler</b> redemande automatiquement un nouveau token a l'Authorization Server (retour etape 1). Sans cela, le producer est deconnecte a l'expiration. Le parametre <code style="color:#22d3ee;">sasl.login.refresh.buffer.seconds</code> controle la marge de renouvellement.
+                        </div>
+                        <div style="margin-top:8px;font-size:10px;font-family:'JetBrains Mono',monospace;padding:5px 9px;background:rgba(245,158,11,.07);border-left:2px solid #f59e0b;border-radius:4px;color:#fde68a;">
+                            &#x26A0;&#xFE0F; sasl.login.refresh.buffer.seconds=30 (defaut) — renouvelle 30s avant expiration
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- CONFIG RECAP -->
+            <div style="margin-top:20px;padding:16px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);">
+                <div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:12px;letter-spacing:1px;">&#x1F4CB; Configuration complete OAUTHBEARER</div>
+                <div style="font-size:10px;font-family:'JetBrains Mono',monospace;padding:12px;background:#050810;border-radius:8px;border:1px solid var(--border);line-height:1.9;color:var(--muted2);">
+                    <span style="color:#94a3b8;"># Protocole</span><br>
+                    <span style="color:#86efac;">security.protocol</span>=<span style="color:#fde68a;">SASL_SSL</span><br>
+                    <span style="color:#86efac;">sasl.mechanism</span>=<span style="color:#fde68a;">OAUTHBEARER</span><br><br>
+                    <span style="color:#94a3b8;"># Module JAAS (vide — logique dans le handler)</span><br>
+                    <span style="color:#86efac;">sasl.jaas.config</span>=<span style="color:#c084fc;">org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule</span> <span style="color:#f472b6;">required</span>;<br><br>
+                    <span style="color:#94a3b8;"># Callback Handler — recupere et renouvelle le token</span><br>
+                    <span style="color:#86efac;">sasl.login.callback.handler.class</span>=<span style="color:#fde68a;">com.example.OAuthCallbackHandler</span><br><br>
+                    <span style="color:#94a3b8;"># Cote broker — valide le token JWT</span><br>
+                    <span style="color:#86efac;">sasl.server.callback.handler.class</span>=<span style="color:#fde68a;">com.example.OAuthValidatorHandler</span><br><br>
+                    <span style="color:#94a3b8;"># Renouvellement (30s avant expiration)</span><br>
+                    <span style="color:#86efac;">sasl.login.refresh.buffer.seconds</span>=<span style="color:#fde68a;">30</span><br>
+                    <span style="color:#86efac;">sasl.login.refresh.min.period.seconds</span>=<span style="color:#fde68a;">60</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 7. TABLEAU COMPARATIF MECANISMES -->
+    <div class="compare-section a5">
+        <div class="sec">&#x2696;&#xFE0F; Comparaison des mecanismes SASL</div>
+        <table class="cmp-table">
+            <thead>
+            <tr>
+                <th style="color:var(--accent)">Mecanisme</th>
+                <th style="color:#34d399">Securite</th>
+                <th style="color:#93c5fd">Credentials transit</th>
+                <th style="color:#fbbf24">Complexite</th>
+                <th style="color:#c084fc">Infrastructure</th>
+                <th style="color:#f472b6">Cas d'usage</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td class="prop">PLAIN</td>
+                <td><span class="med">MOYENNE</span><div class="sub">Dependante du TLS</div></td>
+                <td>Base64 (clair si pas TLS)</td>
+                <td><span class="ok2">FAIBLE</span></td>
+                <td>Aucune</td>
+                <td>Dev, cloud managed</td>
+            </tr>
+            <tr>
+                <td class="prop">SCRAM-SHA-256</td>
+                <td><span class="ok2">BONNE</span><div class="sub">Challenge-response</div></td>
+                <td>Jamais en clair</td>
+                <td><span class="ok2">FAIBLE</span></td>
+                <td>ZooKeeper/KRaft</td>
+                <td>Production sans Kerberos</td>
+            </tr>
+            <tr>
+                <td class="prop">SCRAM-SHA-512</td>
+                <td><span class="ok2">TRES BONNE</span><div class="sub">Hash plus fort</div></td>
+                <td>Jamais en clair</td>
+                <td><span class="ok2">FAIBLE</span></td>
+                <td>ZooKeeper/KRaft</td>
+                <td>Production haute securite</td>
+            </tr>
+            <tr>
+                <td class="prop">GSSAPI (Kerberos)</td>
+                <td><span class="ok2">MAXIMALE</span><div class="sub">Auth mutuelle</div></td>
+                <td>Tickets (pas de mdp)</td>
+                <td><span class="no2">ELEVEE</span></td>
+                <td>KDC, keytabs, AD</td>
+                <td>Enterprise, Hadoop</td>
+            </tr>
+            <tr>
+                <td class="prop">OAUTHBEARER</td>
+                <td><span class="ok2">BONNE</span><div class="sub">Tokens expirables</div></td>
+                <td>JWT Bearer token</td>
+                <td><span class="med">MOYENNE</span></td>
+                <td>Auth server OAuth2</td>
+                <td>Cloud, microservices, K8s</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 8. ERREURS COURANTES -->
+    <div class="errors-section a5">
+        <div class="sec">&#x1F6A8; Erreurs SASL courantes &amp; solutions</div>
+        <div class="errors-grid">
+            <div class="error-card">
+                <div class="error-code">&#x274C; SASL authentication failed</div>
+                <div class="error-cause">sasl.mechanism du client ne correspond pas a sasl.enabled.mechanisms du broker, ou credentials incorrects.</div>
+                <div class="error-fix">&#x2705; Verifier la coherence des mecanismes et les credentials dans sasl.jaas.config</div>
+            </div>
+            <div class="error-card">
+                <div class="error-code">&#x274C; Connection refused / listener not found</div>
+                <div class="error-cause">security.protocol du client (ex: SASL_SSL) ne correspond pas au listener configure sur le broker.</div>
+                <div class="error-fix">&#x2705; Verifier listeners= et advertised.listeners= dans server.properties du broker</div>
+            </div>
+            <div class="error-card">
+                <div class="error-code">&#x274C; GSS initiate failed (Kerberos)</div>
+                <div class="error-cause">sasl.kerberos.service.name incorrect, keytab expire, ou SPN kafka/hostname@REALM non enregistre dans le KDC.</div>
+                <div class="error-fix">&#x2705; Verifier kinit -kt producer.keytab et le SPN avec klist -e</div>
+            </div>
+            <div class="error-card">
+                <div class="error-code">&#x274C; SSL hostname verification failed</div>
+                <div class="error-cause">ssl.endpoint.identification.algorithm=https actif mais le hostname de connexion ne correspond pas au CN/SAN du certificat broker.</div>
+                <div class="error-fix">&#x2705; Ajouter le hostname comme SAN dans le certificat broker (regenerer le cert)</div>
+            </div>
+            <div class="error-card">
+                <div class="error-code">&#x274C; IllegalArgumentException: No JAAS config</div>
+                <div class="error-cause">sasl.jaas.config absent ou mal formate (point-virgule final manquant, espace avant le ;).</div>
+                <div class="error-fix">&#x2705; Le point-virgule final de la config JAAS est OBLIGATOIRE : ...password="x";</div>
+            </div>
+            <div class="error-card">
+                <div class="error-code">&#x274C; OAuthBearer token expired</div>
+                <div class="error-cause">Le callback handler OAUTHBEARER ne renouvelle pas le token avant son expiration. Le producer est deconnecte.</div>
+                <div class="error-fix">&#x2705; Implenter le rafraichissement proactif dans le callback handler (avant expiry)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 9. LEGENDE -->
+    <div class="legend-section a6">
+        <div class="sec">&#x1F4CC; Resume — Quelle combinaison choisir ?</div>
+        <div class="legend-grid">
+            <div class="legend-item"><div class="ldot" style="background:#f87171"></div><div><div class="llbl" style="color:#f87171">Dev local</div><div class="ldesc">PLAINTEXT — aucune securite, deploy local uniquement</div></div></div>
+            <div class="legend-item"><div class="ldot" style="background:#93c5fd"></div><div><div class="llbl" style="color:#93c5fd">Chiffrement seul</div><div class="ldesc">security.protocol=SSL — chiffre le trafic sans auth SASL</div></div></div>
+            <div class="legend-item"><div class="ldot" style="background:#f472b6"></div><div><div class="llbl" style="color:#f472b6">Production standard</div><div class="ldesc">SASL_SSL + SCRAM-SHA-256 — securite solide sans Kerberos</div></div></div>
+            <div class="legend-item"><div class="ldot" style="background:#fbbf24"></div><div><div class="llbl" style="color:#fbbf24">Enterprise / AD</div><div class="ldesc">SASL_SSL + GSSAPI (Kerberos) — auth mutuelle maximale</div></div></div>
+            <div class="legend-item"><div class="ldot" style="background:#22d3ee"></div><div><div class="llbl" style="color:#22d3ee">Cloud / K8s</div><div class="ldesc">SASL_SSL + OAUTHBEARER — JWT tokens, microservices</div></div></div>
+            <div class="legend-item"><div class="ldot" style="background:#a855f7"></div><div><div class="llbl" style="color:#a855f7">sasl.jaas.config</div><div class="ldesc">Toujours terminer par un point-virgule. Ne jamais logger.</div></div></div>
+            <div class="legend-item"><div class="ldot" style="background:#06b6d4"></div><div><div class="llbl" style="color:#06b6d4">ssl.endpoint.identification</div><div class="ldesc">Toujours "https" en production. Vide = vulnerable MITM.</div></div></div>
+            <div class="legend-item"><div class="ldot" style="background:#86efac"></div><div><div class="llbl" style="color:#86efac">Combinaison optimale</div><div class="ldesc">SASL_SSL + SCRAM-SHA-256 + ssl.endpoint.identification=https</div></div></div>
+        </div>
+    </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>SSL/TLS Kafka — Producer & Broker</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;700;800&display=swap');
+
+        :root {
+          --bg: #080c14;
+          --surface: #0d1420;
+          --surface2: #111b2e;
+          --surface3: #0a1020;
+          --producer: #3b82f6;
+          --broker: #ef4444;
+          --keystore: #f59e0b;
+          --truststore: #10b981;
+          --ca: #8b5cf6;
+          --text: #e2e8f0;
+          --muted: #64748b;
+          --muted2: #94a3b8;
+          --border: #1e293b;
+          --accent: #06b6d4;
+          --warn: #f97316;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+          background: var(--bg);
+          color: var(--text);
+          font-family: 'Syne', sans-serif;
+          min-height: 100vh;
+          padding: 40px 24px 60px;
+          overflow-x: hidden;
+        }
+
+        body::before {
+          content: '';
+          position: fixed; inset: 0;
+          background:
+            radial-gradient(ellipse 700px 500px at 10% 15%, rgba(59,130,246,0.055) 0%, transparent 65%),
+            radial-gradient(ellipse 700px 500px at 90% 75%, rgba(239,68,68,0.055) 0%, transparent 65%),
+            radial-gradient(ellipse 400px 300px at 50% 50%, rgba(6,182,212,0.03) 0%, transparent 70%);
+          pointer-events: none; z-index: 0;
+        }
+
+        .wrapper { position: relative; z-index: 1; max-width: 1160px; margin: 0 auto; }
+
+        @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+        .anim   { animation: fadeUp 0.5s ease both; }
+        .anim-1 { animation-delay:0.05s; }
+        .anim-2 { animation-delay:0.12s; }
+        .anim-3 { animation-delay:0.20s; }
+        .anim-4 { animation-delay:0.28s; }
+        .anim-5 { animation-delay:0.36s; }
+
+        /* HEADER */
+        header { text-align: center; margin-bottom: 52px; }
+        .badge {
+          display: inline-block; font-family: 'JetBrains Mono', monospace;
+          font-size: 10px; color: var(--accent); border: 1px solid rgba(6,182,212,0.4);
+          border-radius: 4px; padding: 3px 12px; letter-spacing: 3px;
+          margin-bottom: 16px; text-transform: uppercase; background: rgba(6,182,212,0.05);
+        }
+        header h1 { font-size: clamp(28px,5vw,46px); font-weight: 800; letter-spacing:-1.5px; line-height:1.1; }
+        .blue { color: var(--producer); }
+        .red  { color: var(--broker); }
+        header .subtitle { color: var(--muted); font-size:13px; margin-top:10px; font-family:'JetBrains Mono',monospace; }
+
+        .section-title {
+          font-size: 11px; font-weight: 700; letter-spacing: 2.5px;
+          text-transform: uppercase; color: var(--accent); margin-bottom: 20px;
+          display: flex; align-items: center; gap: 10px;
+        }
+        .section-title::after { content:''; flex:1; height:1px; background:linear-gradient(90deg,rgba(6,182,212,0.3),transparent); }
+
+        /* TAGS */
+        .tag { font-size: 9px; font-family:'JetBrains Mono',monospace; padding: 2px 7px; border-radius: 3px; font-weight:700; letter-spacing:0.5px; }
+        .tag-priv  { background:rgba(245,158,11,0.15);  color:#fbbf24; border:1px solid rgba(245,158,11,0.35); }
+        .tag-pub   { background:rgba(6,182,212,0.12);   color:#22d3ee; border:1px solid rgba(6,182,212,0.3); }
+        .tag-ca    { background:rgba(139,92,246,0.18);  color:#a78bfa; border:1px solid rgba(139,92,246,0.35); }
+        .tag-mtls  { background:rgba(16,185,129,0.15);  color:#34d399; border:1px solid rgba(16,185,129,0.35); }
+        .tag-rsa   { background:rgba(236,72,153,0.12);  color:#f472b6; border:1px solid rgba(236,72,153,0.3); }
+
+        /* MAIN GRID */
+        .main-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:28px; }
+        @media(max-width:750px){ .main-grid{grid-template-columns:1fr;} }
+
+        .entity { border-radius:14px; border:1px solid var(--border); background:var(--surface); overflow:hidden; }
+
+        .entity-header {
+          display:flex; align-items:center; gap:10px;
+          padding:16px 20px; font-size:15px; font-weight:800;
+          letter-spacing:1px; text-transform:uppercase; border-bottom:1px solid var(--border);
+        }
+        .entity-header .dot { width:10px;height:10px;border-radius:50%;flex-shrink:0; }
+        .producer-header { background:linear-gradient(90deg,rgba(59,130,246,0.14),transparent); color:var(--producer); }
+        .producer-header .dot { background:var(--producer); box-shadow:0 0 10px var(--producer); }
+        .broker-header   { background:linear-gradient(90deg,rgba(239,68,68,0.14),transparent); color:var(--broker); }
+        .broker-header .dot { background:var(--broker); box-shadow:0 0 10px var(--broker); }
+
+        .entity-body { padding:16px; display:flex; flex-direction:column; gap:14px; }
+
+        .store { border-radius:10px; border:1px solid var(--border); overflow:hidden; }
+        .store-header { display:flex; align-items:center; gap:8px; padding:10px 14px; font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; }
+        .ks-header { background:rgba(245,158,11,0.11); color:var(--keystore); border-bottom:1px solid rgba(245,158,11,0.2); }
+        .ts-header { background:rgba(16,185,129,0.11); color:var(--truststore); border-bottom:1px solid rgba(16,185,129,0.2); }
+
+        .store-items { padding:10px; display:flex; flex-direction:column; gap:8px; background:var(--surface2); }
+
+        .item { padding:11px 13px; border-radius:8px; border:1px solid transparent; transition:border-color 0.2s; }
+        .item:hover { border-color:var(--border); }
+        .item-row { display:flex; align-items:flex-start; gap:10px; }
+        .item-icon { font-size:17px; flex-shrink:0; margin-top:2px; }
+        .item-title { font-size:13px; font-weight:700; display:flex; align-items:center; flex-wrap:wrap; gap:5px; margin-bottom:5px; }
+        .item-desc { font-size:11px; color:var(--muted2); font-family:'JetBrains Mono',monospace; line-height:1.65; }
+        .item-details { margin-top:8px; display:flex; flex-direction:column; gap:4px; }
+        .detail-row { display:flex; gap:8px; align-items:flex-start; font-size:10px; font-family:'JetBrains Mono',monospace; color:var(--muted); padding:4px 8px; background:rgba(0,0,0,0.2); border-radius:4px; }
+        .detail-row .dk { color:var(--accent); flex-shrink:0; min-width:90px; }
+        .detail-row .dv { color:var(--muted2); }
+
+        .item-private { background:rgba(245,158,11,0.04); }
+        .item-cert    { background:rgba(6,182,212,0.04); }
+        .item-ca-bg   { background:rgba(139,92,246,0.04); }
+
+        .param-badge { display:inline-flex; align-items:center; gap:4px; margin-top:7px; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--keystore); background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.2); border-radius:4px; padding:3px 8px; }
+        .ts-param { color:var(--truststore); background:rgba(16,185,129,0.08); border-color:rgba(16,185,129,0.2); }
+
+        .store-footer { padding:7px 14px 9px; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--muted); background:var(--surface2); border-top:1px solid var(--border); }
+        .store-footer .fp { color:var(--keystore); }
+        .ts-footer .fp { color:var(--truststore); }
+
+        .note-box { padding:10px 14px; border-radius:7px; font-family:'JetBrains Mono',monospace; font-size:11px; line-height:1.6; }
+        .note-producer { background:rgba(59,130,246,0.07); border-left:3px solid var(--producer); color:#93c5fd; }
+        .note-broker   { background:rgba(239,68,68,0.07); border-left:3px solid var(--broker); color:#fca5a5; }
+
+        /* COMPARE TABLE */
+        .compare-section { margin-bottom:28px; }
+        .compare-table { width:100%; border-collapse:collapse; font-size:12px; }
+        .compare-table th { padding:10px 14px; font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; border-bottom:2px solid var(--border); background:var(--surface2); text-align:left; }
+        .compare-table th.col-p { color:var(--producer); }
+        .compare-table th.col-b { color:var(--broker); }
+        .compare-table th.col-h { color:var(--accent); }
+        .compare-table td { padding:10px 14px; border-bottom:1px solid var(--border); font-family:'JetBrains Mono',monospace; vertical-align:top; background:var(--surface); }
+        .compare-table tr:hover td { background:rgba(255,255,255,0.015); }
+        .compare-table td.prop { color:var(--accent); font-weight:600; font-size:11px; }
+        .compare-table td.vp  { color:#93c5fd; }
+        .compare-table td.vb  { color:#fca5a5; }
+        .compare-table td.same { color:var(--muted2); font-style:italic; }
+        .compare-table .sub { font-size:10px; color:var(--muted); margin-top:3px; }
+        .yes  { color:#34d399; font-weight:700; }
+        .no   { color:#f87171; font-weight:700; }
+        .cond { color:#fbbf24; font-weight:700; }
+
+        /* HANDSHAKE */
+        .handshake-section { border:1px solid var(--border); border-radius:14px; background:var(--surface); padding:24px; margin-bottom:28px; }
+        .steps-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+        @media(max-width:750px){ .steps-grid{grid-template-columns:1fr;} }
+
+        .step-card { border-radius:10px; border:1px solid var(--border); background:var(--surface2); padding:14px; display:flex; gap:12px; align-items:flex-start; transition:border-color 0.2s; }
+        .step-card:hover { border-color:rgba(6,182,212,0.3); }
+        .step-card.full { grid-column:1/-1; }
+
+        .step-num { width:34px; height:34px; border-radius:50%; flex-shrink:0; background:rgba(6,182,212,0.1); border:1px solid rgba(6,182,212,0.3); display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-weight:700; font-size:13px; color:var(--accent); }
+        .step-num.done { background:rgba(16,185,129,0.1); border-color:rgba(16,185,129,0.3); color:#34d399; }
+
+        .step-title { font-size:13px; font-weight:700; margin-bottom:5px; }
+        .step-desc  { font-size:11px; color:var(--muted2); font-family:'JetBrains Mono',monospace; line-height:1.65; }
+        .step-flow  { margin-top:7px; display:flex; align-items:center; gap:6px; font-size:11px; flex-wrap:wrap; }
+        .step-flow .from { color:var(--producer); font-weight:700; font-family:'JetBrains Mono',monospace; }
+        .step-flow .to   { color:var(--broker);   font-weight:700; font-family:'JetBrains Mono',monospace; }
+        .step-flow .arr  { color:var(--muted); }
+        .step-flow .used { font-size:10px; color:var(--muted); font-family:'JetBrains Mono',monospace; }
+        .step-details { margin-top:8px; display:flex; flex-direction:column; gap:3px; }
+        .step-detail { font-size:10px; font-family:'JetBrains Mono',monospace; padding:3px 8px; border-radius:4px; background:rgba(0,0,0,0.25); color:var(--muted2); }
+        .step-detail .sd-k { color:var(--accent); }
+
+        /* PARAMS */
+        .params-section { border:1px solid var(--border); border-radius:14px; background:var(--surface); padding:24px; margin-bottom:28px; }
+        .params-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:14px; }
+        .param-card { border-radius:10px; border:1px solid var(--border); background:var(--surface2); padding:14px; transition:border-color 0.2s; }
+        .param-card:hover { border-color:rgba(245,158,11,0.3); }
+        .param-name { font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:var(--keystore); margin-bottom:6px; display:flex; align-items:center; gap:6px; }
+        .param-type { font-size:9px; color:var(--muted); font-family:'JetBrains Mono',monospace; margin-bottom:8px; }
+        .param-desc { font-size:11px; color:var(--muted2); font-family:'JetBrains Mono',monospace; line-height:1.65; margin-bottom:8px; }
+        .param-impact { font-size:10px; font-family:'JetBrains Mono',monospace; padding:5px 9px; border-radius:5px; background:rgba(249,115,22,0.08); border-left:2px solid var(--warn); color:#fb923c; }
+        .param-example { margin-top:7px; font-size:10px; font-family:'JetBrains Mono',monospace; padding:5px 9px; border-radius:5px; background:rgba(0,0,0,0.3); color:var(--muted2); border:1px solid var(--border); }
+        .param-example .ex-k { color:#94a3b8; }
+        .param-example .ex-v { color:#86efac; }
+
+        /* MODES */
+        .modes-section { margin-bottom:28px; }
+        .modes-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+        @media(max-width:750px){ .modes-grid{grid-template-columns:1fr;} }
+        .mode-card { border-radius:12px; border:1px solid var(--border); background:var(--surface); padding:18px; }
+        .mode-card.tls-one { border-color:rgba(59,130,246,0.3); }
+        .mode-card.tls-mut { border-color:rgba(16,185,129,0.3); }
+        .mode-title { font-size:14px; font-weight:800; margin-bottom:4px; }
+        .mode-sub   { font-size:11px; font-family:'JetBrains Mono',monospace; color:var(--muted); margin-bottom:14px; }
+        .mode-list  { display:flex; flex-direction:column; gap:6px; }
+        .mode-item  { display:flex; gap:8px; align-items:flex-start; font-size:11px; font-family:'JetBrains Mono',monospace; color:var(--muted2); padding:6px 10px; border-radius:6px; background:var(--surface2); }
+        .mode-verdict { margin-top:12px; font-size:11px; font-family:'JetBrains Mono',monospace; padding:7px 12px; border-radius:6px; font-style:italic; }
+        .verdict-one { background:rgba(59,130,246,0.08); color:#93c5fd; border-left:3px solid var(--producer); }
+        .verdict-mut { background:rgba(16,185,129,0.08); color:#6ee7b7; border-left:3px solid var(--truststore); }
+
+        /* ERRORS */
+        .errors-section { border:1px solid var(--border); border-radius:14px; background:var(--surface); padding:24px; margin-bottom:28px; }
+        .errors-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px; }
+        .error-card { border-radius:9px; border:1px solid rgba(239,68,68,0.2); background:rgba(239,68,68,0.04); padding:13px; }
+        .error-code { font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; color:#f87171; margin-bottom:5px; }
+        .error-cause { font-size:11px; color:var(--muted2); font-family:'JetBrains Mono',monospace; line-height:1.6; margin-bottom:6px; }
+        .error-fix { font-size:10px; font-family:'JetBrains Mono',monospace; color:#86efac; padding:4px 8px; background:rgba(16,185,129,0.07); border-radius:4px; border-left:2px solid var(--truststore); }
+
+        /* LEGEND */
+        .legend-section { border:1px solid var(--border); border-radius:14px; background:var(--surface); padding:24px; }
+        .legend-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; }
+        .legend-item { display:flex; align-items:flex-start; gap:10px; padding:11px 13px; border-radius:8px; background:var(--surface2); border:1px solid var(--border); }
+        .ldot  { width:9px;height:9px;border-radius:50%;margin-top:4px;flex-shrink:0; }
+        .llbl  { font-size:12px; font-weight:700; margin-bottom:2px; }
+        .ldesc { font-size:10px; color:var(--muted); font-family:'JetBrains Mono',monospace; line-height:1.5; }
+    </style>
+</head>
+<body>
+<div class="wrapper">
+
+    <!-- HEADER -->
+    <header class="anim">
+        <div class="badge">Apache Kafka · Securite</div>
+        <h1><span class="blue">SSL / TLS</span> Encryption<br><span class="red">Producer</span> &harr; Broker</h1>
+        <p class="subtitle">Keystore &amp; Truststore &middot; Handshake detaille &middot; Parametres &middot; Erreurs courantes</p>
+    </header>
+
+    <!-- 1. KEYSTORE / TRUSTSTORE -->
+    <div class="main-grid anim anim-1">
+
+        <!-- PRODUCER -->
+        <div class="entity">
+            <div class="entity-header producer-header">
+                <div class="dot"></div> &#x26A1; Producer
+            </div>
+            <div class="entity-body">
+
+                <div class="store">
+                    <div class="store-header ks-header">&#x1F510; &nbsp;Keystore</div>
+                    <div class="store-items">
+                        <div class="item item-private">
+                            <div class="item-row">
+                                <div class="item-icon">&#x1F511;</div>
+                                <div>
+                                    <div class="item-title">Cle privee du Producer <span class="tag tag-priv">PRIVEE</span> <span class="tag tag-rsa">RSA/ECDSA</span></div>
+                                    <div class="item-desc">Jamais transmise sur le reseau. Stockee chiffree dans le keystore. Sert uniquement lors du handshake mTLS pour prouver l'identite du producer par signature.</div>
+                                    <div class="item-details">
+                                        <div class="detail-row"><span class="dk">Algorithme</span><span class="dv">RSA 2048+ ou ECDSA P-256</span></div>
+                                        <div class="detail-row"><span class="dk">Usage</span><span class="dv">Signer le CertificateVerify (mTLS)</span></div>
+                                        <div class="detail-row"><span class="dk">Protegee par</span><span class="dv">ssl.key.password</span></div>
+                                    </div>
+                                    <div class="param-badge">&#x1F512; ssl.key.password</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item item-cert">
+                            <div class="item-row">
+                                <div class="item-icon">&#x1F4DC;</div>
+                                <div>
+                                    <div class="item-title">Certificat public du Producer <span class="tag tag-pub">PUBLIC</span> <span class="tag tag-ca">SIGNE CA</span> <span class="tag tag-mtls">mTLS ONLY</span></div>
+                                    <div class="item-desc">Envoye au broker uniquement si mTLS est active (ssl.client.auth=required). Contient la cle publique, CN/SAN, duree de validite, et la signature de la CA.</div>
+                                    <div class="item-details">
+                                        <div class="detail-row"><span class="dk">Format</span><span class="dv">X.509 v3 (.pem / .crt)</span></div>
+                                        <div class="detail-row"><span class="dk">Contient</span><span class="dv">Cle publique, CN, SAN, expiration, signature CA</span></div>
+                                        <div class="detail-row"><span class="dk">Valide par</span><span class="dv">Truststore du broker</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="store-footer">
+                        <span class="fp">ssl.keystore.location</span> &nbsp;&middot;&nbsp; <span class="fp">ssl.keystore.password</span>
+                    </div>
+                </div>
+
+                <div class="store">
+                    <div class="store-header ts-header">&#x1F6E1;&#xFE0F; &nbsp;Truststore</div>
+                    <div class="store-items">
+                        <div class="item item-ca-bg">
+                            <div class="item-row">
+                                <div class="item-icon">&#x1F3DB;&#xFE0F;</div>
+                                <div>
+                                    <div class="item-title">Certificat(s) CA racine / intermediaire <span class="tag tag-ca">CA</span></div>
+                                    <div class="item-desc">Utilise pour valider le certificat X.509 presente par le broker lors du ServerHello. Verifie la chaine de confiance complete jusqu'a la CA racine.</div>
+                                    <div class="item-details">
+                                        <div class="detail-row"><span class="dk">Validation</span><span class="dv">Chaine CA racine -> CA inter -> cert broker</span></div>
+                                        <div class="detail-row"><span class="dk">Verifie aussi</span><span class="dv">Expiration, revocation CRL/OCSP</span></div>
+                                        <div class="detail-row"><span class="dk">Peut contenir</span><span class="dv">Plusieurs CA si multi-cluster</span></div>
+                                    </div>
+                                    <div class="param-badge ts-param">&#x1F6E1;&#xFE0F; ssl.truststore.password</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="store-footer ts-footer">
+                        <span class="fp">ssl.truststore.location</span> &nbsp;&middot;&nbsp; <span class="fp">ssl.truststore.password</span>
+                    </div>
+                </div>
+
+                <div class="note-box note-producer">
+                    &#x1F4AC; "Le broker que je contacte a-t-il ete signe par une CA que je reconnais ?"
+                </div>
+            </div>
+        </div>
+
+        <!-- BROKER -->
+        <div class="entity">
+            <div class="entity-header broker-header">
+                <div class="dot"></div> &#x1F5A5;&#xFE0F; Broker
+            </div>
+            <div class="entity-body">
+
+                <div class="store">
+                    <div class="store-header ks-header">&#x1F510; &nbsp;Keystore</div>
+                    <div class="store-items">
+                        <div class="item item-private">
+                            <div class="item-row">
+                                <div class="item-icon">&#x1F511;</div>
+                                <div>
+                                    <div class="item-title">Cle privee du Broker <span class="tag tag-priv">PRIVEE</span> <span class="tag tag-rsa">RSA/ECDSA</span></div>
+                                    <div class="item-desc">Jamais transmise. Utilisee lors du TLS handshake pour dechiffrer le pre-master secret (RSA) ou signer (ECDHE). Toujours requise, meme en TLS simple.</div>
+                                    <div class="item-details">
+                                        <div class="detail-row"><span class="dk">Algorithme</span><span class="dv">RSA 2048+ ou ECDSA P-256</span></div>
+                                        <div class="detail-row"><span class="dk">Usage</span><span class="dv">Dechiffrement RSA ou signature ECDHE</span></div>
+                                        <div class="detail-row"><span class="dk">Protegee par</span><span class="dv">ssl.key.password</span></div>
+                                    </div>
+                                    <div class="param-badge">&#x1F512; ssl.key.password</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item item-cert">
+                            <div class="item-row">
+                                <div class="item-icon">&#x1F4DC;</div>
+                                <div>
+                                    <div class="item-title">Certificat public du Broker <span class="tag tag-pub">PUBLIC</span> <span class="tag tag-ca">SIGNE CA</span></div>
+                                    <div class="item-desc">Envoye au producer des le ServerHello. Toujours obligatoire. Le producer verifie l'identite du broker et que le CN/SAN correspond au hostname Kafka.</div>
+                                    <div class="item-details">
+                                        <div class="detail-row"><span class="dk">Format</span><span class="dv">X.509 v3 (.pem / .crt)</span></div>
+                                        <div class="detail-row"><span class="dk">Contient</span><span class="dv">Cle publique, CN=broker-host, SAN, expiration</span></div>
+                                        <div class="detail-row"><span class="dk">Valide par</span><span class="dv">Truststore du producer</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="store-footer">
+                        <span class="fp">ssl.keystore.location</span> &nbsp;&middot;&nbsp; <span class="fp">ssl.keystore.password</span>
+                    </div>
+                </div>
+
+                <div class="store">
+                    <div class="store-header ts-header">&#x1F6E1;&#xFE0F; &nbsp;Truststore</div>
+                    <div class="store-items">
+                        <div class="item item-ca-bg">
+                            <div class="item-row">
+                                <div class="item-icon">&#x1F3DB;&#xFE0F;</div>
+                                <div>
+                                    <div class="item-title">Certificat(s) CA racine / intermediaire <span class="tag tag-ca">CA</span> <span class="tag tag-mtls">mTLS ONLY</span></div>
+                                    <div class="item-desc">Utilise pour valider le certificat presente par le producer lors du mTLS. Uniquement necessaire si ssl.client.auth=required ou requested. Non requis en TLS simple.</div>
+                                    <div class="item-details">
+                                        <div class="detail-row"><span class="dk">Validation</span><span class="dv">Chaine CA -> cert producer</span></div>
+                                        <div class="detail-row"><span class="dk">Controle par</span><span class="dv">ssl.client.auth (required/requested/none)</span></div>
+                                        <div class="detail-row"><span class="dk">Peut contenir</span><span class="dv">CA de tous les producers autorises</span></div>
+                                    </div>
+                                    <div class="param-badge ts-param">&#x1F6E1;&#xFE0F; ssl.truststore.password</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="store-footer ts-footer">
+                        <span class="fp">ssl.truststore.location</span> &nbsp;&middot;&nbsp; <span class="fp">ssl.truststore.password</span>
+                    </div>
+                </div>
+
+                <div class="note-box note-broker">
+                    &#x1F4AC; "Ce producer qui se connecte a-t-il ete signe par une CA que j'autorise ?"
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. TABLEAU COMPARATIF -->
+    <div class="compare-section anim anim-2">
+        <div class="section-title">&#x2696;&#xFE0F; Tableau comparatif Producer vs Broker</div>
+        <table class="compare-table">
+            <thead>
+            <tr>
+                <th class="col-h" style="width:22%">Propriete</th>
+                <th class="col-p">&#x26A1; Producer</th>
+                <th class="col-b">&#x1F5A5;&#xFE0F; Broker</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td class="prop">Keystore requis ?</td>
+                <td class="vp"><span class="cond">COND.</span><div class="sub">Uniquement si mTLS active</div></td>
+                <td class="vb"><span class="yes">TOUJOURS</span><div class="sub">Obligatoire meme en TLS simple</div></td>
+            </tr>
+            <tr>
+                <td class="prop">Truststore requis ?</td>
+                <td class="vp"><span class="yes">TOUJOURS</span><div class="sub">Pour valider le cert du broker</div></td>
+                <td class="vb"><span class="cond">COND.</span><div class="sub">Uniquement si mTLS active</div></td>
+            </tr>
+            <tr>
+                <td class="prop">Cle privee</td>
+                <td class="vp">Cle du producer<div class="sub">Signe le CertificateVerify (mTLS)</div></td>
+                <td class="vb">Cle du broker<div class="sub">Dechiffre pre-master ou signe ECDHE</div></td>
+            </tr>
+            <tr>
+                <td class="prop">Certificat public</td>
+                <td class="vp">Cert producer signe CA<div class="sub">Envoye au broker si mTLS</div></td>
+                <td class="vb">Cert broker signe CA<div class="sub">Envoye au producer a chaque connexion</div></td>
+            </tr>
+            <tr>
+                <td class="prop">CA dans truststore</td>
+                <td class="vp">CA du broker<div class="sub">Verifie l'identite du broker</div></td>
+                <td class="vb">CA du producer<div class="sub">Verifie l'identite du producer (mTLS)</div></td>
+            </tr>
+            <tr>
+                <td class="prop">Parametre auth</td>
+                <td class="same">N/A cote producer</td>
+                <td class="vb">ssl.client.auth<div class="sub">none / requested / required</div></td>
+            </tr>
+            <tr>
+                <td class="prop">Format fichier</td>
+                <td class="same" colspan="2">JKS (Java KeyStore) ou PKCS#12 (.p12) — recommande PKCS#12 (plus portable)</td>
+            </tr>
+            <tr>
+                <td class="prop">Renouvellement</td>
+                <td class="same" colspan="2">Avant expiration du certificat — surveiller avec : keytool -list -keystore fichier.jks</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 3. HANDSHAKE -->
+    <div class="handshake-section anim anim-3">
+        <div class="section-title">&#x1F91D; TLS Handshake — etapes detaillees</div>
+        <div class="steps-grid">
+
+            <div class="step-card">
+                <div class="step-num">1</div>
+                <div>
+                    <div class="step-title">ClientHello</div>
+                    <div class="step-desc">Le producer initie la connexion TCP puis le handshake TLS. Il envoie la liste des cipher suites supportees, la version TLS max, et un nonce aleatoire (client_random).</div>
+                    <div class="step-flow"><span class="from">Producer</span><span class="arr">&rarr;</span><span class="to">Broker</span></div>
+                    <div class="step-details">
+                        <div class="step-detail"><span class="sd-k">Contient :</span> TLS version, cipher suites, client_random, SNI</div>
+                        <div class="step-detail"><span class="sd-k">Fichier utilise :</span> aucun</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="step-card">
+                <div class="step-num">2</div>
+                <div>
+                    <div class="step-title">ServerHello + Certificate</div>
+                    <div class="step-desc">Le broker choisit le cipher suite, genere son nonce (server_random) et envoie son certificat public depuis son keystore. Envoie aussi ServerKeyExchange si ECDHE.</div>
+                    <div class="step-flow"><span class="to">Broker</span><span class="arr">&rarr;</span><span class="from">Producer</span></div>
+                    <div class="step-details">
+                        <div class="step-detail"><span class="sd-k">Source :</span> Keystore broker (certificat public)</div>
+                        <div class="step-detail"><span class="sd-k">Verifie par :</span> Truststore producer (CA)</div>
+                        <div class="step-detail"><span class="sd-k">Verifie aussi :</span> CN/SAN = hostname du broker</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="step-card">
+                <div class="step-num">3</div>
+                <div>
+                    <div class="step-title">CertificateRequest (mTLS)</div>
+                    <div class="step-desc">Si ssl.client.auth=required, le broker demande le certificat du producer et envoie la liste des CA acceptees pour que le producer sache quel certificat presenter.</div>
+                    <div class="step-flow"><span class="to">Broker</span><span class="arr">&rarr;</span><span class="from">Producer</span> <span class="used">[ mTLS uniquement ]</span></div>
+                    <div class="step-details">
+                        <div class="step-detail"><span class="sd-k">Declenche par :</span> ssl.client.auth = required/requested</div>
+                        <div class="step-detail"><span class="sd-k">Contient :</span> Liste CA acceptees par le broker</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="step-card">
+                <div class="step-num">4</div>
+                <div>
+                    <div class="step-title">ClientKeyExchange + Certificate</div>
+                    <div class="step-desc">Le producer genere le pre-master secret, le chiffre avec la cle publique du broker, et envoie son propre certificat public si mTLS est requis.</div>
+                    <div class="step-flow"><span class="from">Producer</span><span class="arr">&rarr;</span><span class="to">Broker</span></div>
+                    <div class="step-details">
+                        <div class="step-detail"><span class="sd-k">Source :</span> Keystore producer (certificat public — mTLS)</div>
+                        <div class="step-detail"><span class="sd-k">Verifie par :</span> Truststore broker (CA)</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="step-card">
+                <div class="step-num">5</div>
+                <div>
+                    <div class="step-title">CertificateVerify (mTLS)</div>
+                    <div class="step-desc">Le producer signe le transcript du handshake avec sa cle privee (ssl.key.password). Le broker verifie cette signature avec la cle publique du certificat producer. Preuve de possession de la cle privee.</div>
+                    <div class="step-flow"><span class="from">Producer</span><span class="arr">&rarr;</span><span class="to">Broker</span> <span class="used">[ mTLS uniquement ]</span></div>
+                    <div class="step-details">
+                        <div class="step-detail"><span class="sd-k">Utilise :</span> Cle privee producer (keystore)</div>
+                        <div class="step-detail"><span class="sd-k">Algo :</span> RSA-PSS ou ECDSA selon le certificat</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="step-card">
+                <div class="step-num">6</div>
+                <div>
+                    <div class="step-title">Master Secret &rarr; Cles de session</div>
+                    <div class="step-desc">Les deux parties derivent le master secret depuis client_random + server_random + pre-master. Puis generent les cles de session AES symetriques pour chiffrer le trafic.</div>
+                    <div class="step-flow"><span class="from">Producer</span><span class="arr">&harr;</span><span class="to">Broker</span> <span class="used">[ calcul local des deux cotes ]</span></div>
+                    <div class="step-details">
+                        <div class="step-detail"><span class="sd-k">Resultat :</span> 4 cles symetriques (write/read x client/server)</div>
+                        <div class="step-detail"><span class="sd-k">Algo :</span> AES-128-GCM ou AES-256-GCM</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="step-card full">
+                <div class="step-num done">&#x2713;</div>
+                <div>
+                    <div class="step-title">Finished — Canal chiffre etabli &middot; Produce / Consume</div>
+                    <div class="step-desc">Les deux parties s'envoient un message Finished chiffre avec les nouvelles cles de session pour confirmer le handshake. Tous les messages Kafka suivants (ProduceRequest, FetchRequest, metadata...) sont chiffres avec AES-GCM. Les cles asymetriques (keystore) ne sont plus utilisees jusqu'a la prochaine connexion.</div>
+                    <div class="step-flow"><span class="from">Producer</span><span class="arr">&harr;</span><span class="to">Broker</span></div>
+                    <div class="step-details">
+                        <div class="step-detail"><span class="sd-k">Chiffrement :</span> AES-128-GCM ou AES-256-GCM (symetrique)</div>
+                        <div class="step-detail"><span class="sd-k">Integrite :</span> HMAC-SHA256 ou SHA384 selon cipher suite</div>
+                        <div class="step-detail"><span class="sd-k">Session :</span> Duree configurable via ssl.session.timeout.ms</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 4. PARAMETRES -->
+    <div class="params-section anim anim-3">
+        <div class="section-title">&#x2699;&#xFE0F; Parametres SSL — detail complet</div>
+        <div class="params-grid">
+
+            <div class="param-card">
+                <div class="param-name">&#x1F511; ssl.key.password</div>
+                <div class="param-type">Type : string &middot; Scope : Producer + Broker</div>
+                <div class="param-desc">Mot de passe protegeant specifiquement la cle privee a l'interieur du keystore. Optionnel : si absent, ssl.keystore.password est utilise. Permet une securite a deux niveaux.</div>
+                <div class="param-impact">&#x26A0;&#xFE0F; Si compromis : la cle privee est exposee &rarr; usurpation d'identite possible</div>
+                <div class="param-example"><span class="ex-k">ssl.key.password</span>=<span class="ex-v">my-key-secret-456</span></div>
+            </div>
+
+            <div class="param-card">
+                <div class="param-name">&#x1F4C1; ssl.keystore.location</div>
+                <div class="param-type">Type : string (chemin) &middot; Scope : Producer + Broker</div>
+                <div class="param-desc">Chemin absolu vers le fichier keystore (.jks ou .p12) contenant la cle privee et le certificat public. Doit etre lisible par le processus Kafka. Preferer PKCS#12 (plus portable).</div>
+                <div class="param-impact">&#x26A0;&#xFE0F; Si absent cote broker : TLS impossible. Cote producer : mTLS impossible</div>
+                <div class="param-example"><span class="ex-k">ssl.keystore.location</span>=<span class="ex-v">/etc/kafka/certs/producer.p12</span></div>
+            </div>
+
+            <div class="param-card">
+                <div class="param-name">&#x1F510; ssl.keystore.password</div>
+                <div class="param-type">Type : string &middot; Scope : Producer + Broker</div>
+                <div class="param-desc">Mot de passe pour ouvrir le fichier keystore entier. Requis des que ssl.keystore.location est defini. Premier niveau de protection du fichier .jks/.p12.</div>
+                <div class="param-impact">&#x26A0;&#xFE0F; Si compromis : acces au fichier keystore (cle privee encore protegee par ssl.key.password)</div>
+                <div class="param-example"><span class="ex-k">ssl.keystore.password</span>=<span class="ex-v">keystore-pass-123</span></div>
+            </div>
+
+            <div class="param-card">
+                <div class="param-name">&#x1F3DB;&#xFE0F; ssl.truststore.location</div>
+                <div class="param-type">Type : string (chemin) &middot; Scope : Producer + Broker</div>
+                <div class="param-desc">Chemin absolu vers le fichier truststore contenant les certificats des CA de confiance. Utilise pour valider le certificat de l'interlocuteur lors du handshake TLS.</div>
+                <div class="param-impact">&#x26A0;&#xFE0F; Si absent cote producer : impossible de valider le broker &rarr; connexion refusee</div>
+                <div class="param-example"><span class="ex-k">ssl.truststore.location</span>=<span class="ex-v">/etc/kafka/certs/truststore.jks</span></div>
+            </div>
+
+            <div class="param-card">
+                <div class="param-name">&#x1F6E1;&#xFE0F; ssl.truststore.password</div>
+                <div class="param-type">Type : string &middot; Scope : Producer + Broker</div>
+                <div class="param-desc">Mot de passe pour ouvrir le fichier truststore. Protege l'integrite des CA de confiance. Si un attaquant modifie le truststore sans ce mot de passe, la falsification est detectee.</div>
+                <div class="param-impact">&#x26A0;&#xFE0F; Si compromis : modification possible des CA de confiance &rarr; attaque MITM</div>
+                <div class="param-example"><span class="ex-k">ssl.truststore.password</span>=<span class="ex-v">truststore-pass-789</span></div>
+            </div>
+
+            <div class="param-card">
+                <div class="param-name">&#x1F512; ssl.client.auth</div>
+                <div class="param-type">Type : string &middot; Scope : Broker uniquement</div>
+                <div class="param-desc">Controle si le broker exige un certificat client. <b>none</b> = TLS simple, <b>requested</b> = demande mais optionnel, <b>required</b> = mTLS obligatoire. Cle de l'activation du mTLS.</div>
+                <div class="param-impact">&#x26A0;&#xFE0F; none = pas d'authentification producer. required = tous les producers doivent avoir un certificat valide</div>
+                <div class="param-example"><span class="ex-k">ssl.client.auth</span>=<span class="ex-v">required</span> <span style="color:#64748b"># none | requested | required</span></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 5. TLS vs mTLS -->
+    <div class="modes-section anim anim-4">
+        <div class="section-title">&#x1F500; TLS simple vs mTLS — quelle difference ?</div>
+        <div class="modes-grid">
+
+            <div class="mode-card tls-one">
+                <div class="mode-title" style="color:var(--producer)">TLS Simple (One-Way)</div>
+                <div class="mode-sub">ssl.client.auth = none</div>
+                <div class="mode-list">
+                    <div class="mode-item"><span>&#x2705;</span> Producer possede un <b>truststore</b> (valide le broker)</div>
+                    <div class="mode-item"><span>&#x274C;</span> Producer n'a PAS besoin de keystore</div>
+                    <div class="mode-item"><span>&#x2705;</span> Broker possede un <b>keystore</b> (presente son cert)</div>
+                    <div class="mode-item"><span>&#x274C;</span> Broker n'a PAS besoin de truststore</div>
+                    <div class="mode-item"><span>&#x1F510;</span> Chiffrement du trafic : <b>OUI</b> (AES-GCM)</div>
+                    <div class="mode-item"><span>&#x1F464;</span> Authentification producer : <b>NON</b></div>
+                    <div class="mode-item"><span>&#x1F3AF;</span> Cas d'usage : chiffrement seul, sans ACL certificat</div>
+                </div>
+                <div class="mode-verdict verdict-one">Le broker ne sait pas QUI se connecte, seulement que la connexion est chiffree.</div>
+            </div>
+
+            <div class="mode-card tls-mut">
+                <div class="mode-title" style="color:var(--truststore)">mTLS (Mutual TLS)</div>
+                <div class="mode-sub">ssl.client.auth = required</div>
+                <div class="mode-list">
+                    <div class="mode-item"><span>&#x2705;</span> Producer possede un <b>truststore</b> ET un <b>keystore</b></div>
+                    <div class="mode-item"><span>&#x2705;</span> Broker possede un <b>keystore</b> ET un <b>truststore</b></div>
+                    <div class="mode-item"><span>&#x1F510;</span> Chiffrement du trafic : <b>OUI</b> (AES-GCM)</div>
+                    <div class="mode-item"><span>&#x1F464;</span> Authentification producer : <b>OUI</b> (via certificat)</div>
+                    <div class="mode-item"><span>&#x1F3AF;</span> Cas d'usage : production securisee, zero-trust</div>
+                    <div class="mode-item"><span>&#x2699;&#xFE0F;</span> Compatible ACL Kafka par CN du certificat</div>
+                </div>
+                <div class="mode-verdict verdict-mut">Le broker sait exactement QUI se connecte et peut autoriser/refuser selon le CN du certificat.</div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 6. ERREURS -->
+    <div class="errors-section anim anim-4">
+        <div class="section-title">&#x1F6A8; Erreurs SSL courantes &amp; solutions</div>
+        <div class="errors-grid">
+
+            <div class="error-card">
+                <div class="error-code">&#x274C; SSL handshake failed</div>
+                <div class="error-cause">Cause : Le producer ne peut pas valider le certificat du broker. La CA du broker n'est pas dans le truststore producer.</div>
+                <div class="error-fix">&#x2705; Fix : Importer le cert CA du broker dans ssl.truststore.location du producer</div>
+            </div>
+
+            <div class="error-card">
+                <div class="error-code">&#x274C; Certificate expired</div>
+                <div class="error-cause">Cause : Le certificat du broker ou producer a depasse sa date de validite. Arret complet de toutes les connexions SSL.</div>
+                <div class="error-fix">&#x2705; Fix : Renouveler le certificat et recharger le keystore (rolling restart)</div>
+            </div>
+
+            <div class="error-card">
+                <div class="error-code">&#x274C; PKIX path building failed</div>
+                <div class="error-cause">Cause : Chaine de certificats incomplete. Certificat intermediaire manquant dans le keystore ou truststore.</div>
+                <div class="error-fix">&#x2705; Fix : Inclure la chaine complete CA-root &rarr; CA-inter &rarr; cert dans le keystore</div>
+            </div>
+
+            <div class="error-card">
+                <div class="error-code">&#x274C; No subject alternative names</div>
+                <div class="error-cause">Cause : Le hostname du broker ne correspond pas au CN/SAN du certificat. La verification hostname echoue.</div>
+                <div class="error-fix">&#x2705; Fix : Ajouter le SAN correct au certificat ou desactiver ssl.endpoint.identification.algorithm (non recommande)</div>
+            </div>
+
+            <div class="error-card">
+                <div class="error-code">&#x274C; SSLPeerUnverifiedException</div>
+                <div class="error-cause">Cause mTLS : Le broker a recu un certificat producer non signe par une CA de son truststore.</div>
+                <div class="error-fix">&#x2705; Fix : Importer la CA producer dans le truststore broker, ou verifier ssl.client.auth</div>
+            </div>
+
+            <div class="error-card">
+                <div class="error-code">&#x274C; Keystore was tampered with</div>
+                <div class="error-cause">Cause : Mauvais ssl.keystore.password, ou fichier keystore corrompu / incompatible (JKS vs PKCS12).</div>
+                <div class="error-fix">&#x2705; Fix : Verifier le mot de passe avec : keytool -list -keystore fichier.jks</div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 7. LEGENDE -->
+    <div class="legend-section anim anim-5">
+        <div class="section-title">&#x1F4CC; Resume mnémotechnique</div>
+        <div class="legend-grid">
+            <div class="legend-item"><div class="ldot" style="background:#f59e0b"></div><div><div class="llbl" style="color:#f59e0b">KEYSTORE = "Qui suis-je ?"</div><div class="ldesc">Cle privee + certificat public a presenter a l'interlocuteur</div></div></div>
+            <div class="legend-item"><div class="ldot" style="background:#10b981"></div><div><div class="llbl" style="color:#10b981">TRUSTSTORE = "A qui je fais confiance ?"</div><div class="ldesc">CA dont j'accepte et valide les certificats signes</div></div></div>
+            <div class="legend-item"><div class="ldot" style="background:#3b82f6"></div><div><div class="llbl" style="color:#3b82f6">TLS Simple</div><div class="ldesc">Broker keystore + Producer truststore. Chiffrement sans auth producer.</div></div></div>
+            <div class="legend-item"><div class="ldot" style="background:#10b981"></div><div><div class="llbl" style="color:#10b981">mTLS</div><div class="ldesc">Les deux ont keystore + truststore. Auth bidirectionnelle par certificat.</div></div></div>
+            <div class="legend-item"><div class="ldot" style="background:#f59e0b"></div><div><div class="llbl" style="color:#f59e0b">ssl.keystore.password</div><div class="ldesc">Deverrouille le conteneur keystore entier (.jks / .p12)</div></div></div>
+            <div class="legend-item"><div class="ldot" style="background:#fbbf24"></div><div><div class="llbl" style="color:#fbbf24">ssl.key.password</div><div class="ldesc">Protection supplementaire de la cle privee dans le keystore</div></div></div>
+            <div class="legend-item"><div class="ldot" style="background:#8b5cf6"></div><div><div class="llbl" style="color:#8b5cf6">Format recommande</div><div class="ldesc">PKCS#12 (.p12) plus portable que JKS (Java-only)</div></div></div>
+            <div class="legend-item"><div class="ldot" style="background:#f97316"></div><div><div class="llbl" style="color:#f97316">ssl.client.auth</div><div class="ldesc">Propriete broker qui active le mTLS : none / requested / required</div></div></div>
+        </div>
+    </div>
+
+</div>
+</body>
+</html>
