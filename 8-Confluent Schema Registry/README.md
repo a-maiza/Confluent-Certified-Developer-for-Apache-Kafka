@@ -38,32 +38,34 @@ Du point de vue du cluster Kafka, le Schema Registry est simplement une applicat
 ### Architecture générale
 
 ```mermaid
-graph TB
-    subgraph Kafka["Apache Kafka Cluster"]
-        Broker1["Broker 1"]
-        Broker2["Broker 2"]
-        Topic["Topic Kafka<br/>(Données + Schema ID)"]
-        SchemaTopicInternal["_schemas<br/>(Topic interne)"]
-        Broker1 --> Topic
-        Broker2 --> Topic
-        Broker1 --> SchemaTopicInternal
-    end
-    
-    subgraph SR["Schema Registry"]
-        API["API REST"]
-        Cache["Cache de schémas"]
-        API --> Cache
-    end
-    
+flowchart LR
+
     Producer["Producteur"]
     Consumer["Consommateur"]
-    
-    Producer -->|1. Enregistre schéma| API
-    API -->|2. Retourne Schema ID| Producer
-    Producer -->|3. Produit message<br/>avec Schema ID| Topic
-    Topic -->|4. Consomme message| Consumer
-    Consumer -->|5. Vérifie compatibilité| API
-    SR -->|Persiste schémas| SchemaTopicInternal
+
+    subgraph SR["Schema Registry"]
+        API["API REST"]
+        Cache["Cache local"]
+        API --> Cache
+    end
+
+    subgraph Kafka["Apache Kafka Cluster"]
+        Topic["Topic métier\n(Messages + Schema ID)"]
+        Schemas["_schemas\n(Topic interne)"]
+    end
+
+    Producer -->|"1. Enregistre le schéma"| API
+    API -->|"2. Retourne Schema ID"| Producer
+
+    Producer -->|"3. Produit le message"| Topic
+
+    API -->|"Persiste les schémas"| Schemas
+    Schemas -->|"Synchronisation"| Cache
+
+    Topic -->|"4. Lit le message"| Consumer
+
+    Consumer -->|"5. Récupère le schéma"| API
+    API -->|"6. Retourne le schéma"| Consumer
 ```
 
 ---

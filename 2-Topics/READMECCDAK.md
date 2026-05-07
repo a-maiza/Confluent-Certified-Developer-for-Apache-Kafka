@@ -19,6 +19,8 @@ Kafka topics are categorized into partitions for scalability and replicated acro
 
 After adding partitions later, it cannot be guaranteed that old messages will be on the same partition as new messages with the same key.
 
+![Kafka-Key-Points-on-Topics.png](Kafka-Key-Points-on-Topics.png)
+
 ### Important Topic Properties
 
 #### `acks`
@@ -246,6 +248,7 @@ You choose based on your use case:
     Changelog Topic (backup, compacted)
 
 ---
+![Kafka Streams-State-Store-Changelog-Compaction.png](Kafka%20Streams-State-Store-Changelog-Compaction.png)
 
 ## 🧠 Simple Summary
 
@@ -257,7 +260,6 @@ You choose based on your use case:
 #### Segment Management and Efficiency
 
 - **`segment.ms`**: Configures the time Kafka waits before closing the current log segment and starting a new one. Segment management affects storage and can impact log compaction and retention behavior.
-- # Kafka — Segment Management, Compaction et Retention
 
 # Kafka — Segment Management, Compaction, and Retention
 
@@ -266,7 +268,8 @@ You choose based on your use case:
 - A segment contains **multiple messages**.
 - Kafka writes to an active segment, then closes it and creates a new one.
 - `segment.ms` defines **how long before a segment is rotated**.
-
+- 
+![Kafka-Segment-Management-and-Efficiency.png](Kafka-Segment-Management-and-Efficiency.png)
 ---
 
 ## 🔁 Log Compaction (`cleanup.policy=compact`)
