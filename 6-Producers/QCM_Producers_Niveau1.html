@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CCDAK Prep – Kafka Producers</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:#1a1a2e;
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
+  min-height:100vh;
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  padding:32px 16px;
+}
+.card{
+  background:#fff;
+  border-radius:12px;
+  border:1px solid #e0e0e0;
+  max-width:780px;
+  width:100%;
+  padding:32px;
+  box-shadow:0 8px 32px rgba(0,0,0,.4);
+}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.title{font-size:22px;font-weight:800;color:#C0392B;letter-spacing:1.5px;text-transform:uppercase}
+.subtitle{font-size:13px;color:#888;margin-bottom:16px}
+.timer{font-size:22px;font-weight:800;color:#C0392B;min-width:64px;text-align:right;font-variant-numeric:tabular-nums}
+.timer.warning{color:#e67e22}
+.timer.danger{color:#e74c3c;animation:pulse .8s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.progress-bar-wrap{background:#f0f0f0;border-radius:6px;height:8px;margin-bottom:24px;overflow:hidden}
+.progress-bar{height:100%;background:linear-gradient(90deg,#C0392B,#e74c3c);border-radius:6px;transition:width .35s ease}
+.question-meta{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.q-num{font-size:13px;color:#999;font-weight:600}
+.badge{font-size:12px;font-weight:700;padding:3px 11px;border-radius:20px}
+.badge-single{background:#eafaf1;color:#1e8449}
+.badge-multiple{background:#fef9e7;color:#b7950b}
+.badge-cours{background:#e8f4fd;color:#1a6fa8}
+.badge-inference{background:#f0e8fd;color:#6a1ab8}
+.question-text{font-size:17px;font-weight:700;color:#1a1a2e;margin-bottom:22px;line-height:1.55}
+.option{display:flex;align-items:flex-start;gap:14px;padding:13px 18px;border:2px solid #e8e8e8;border-radius:9px;margin-bottom:10px;cursor:pointer;transition:border-color .15s,background .15s;user-select:none;-webkit-user-select:none}
+.option:hover{border-color:#C0392B;background:#fff8f7}
+.option.selected{border-color:#C0392B;background:#fff5f5}
+.option.correct{border-color:#27ae60;background:#eafaf1;cursor:default}
+.option.incorrect{border-color:#e74c3c;background:#fdf2f2;cursor:default}
+.option.missed{border-color:#27ae60;background:#eafaf1;border-style:dashed;cursor:default}
+.option.disabled{cursor:default}
+.opt-letter{font-weight:800;font-size:14px;color:#bbb;min-width:22px;padding-top:1px}
+.option.selected  .opt-letter{color:#C0392B}
+.option.correct   .opt-letter{color:#27ae60}
+.option.incorrect .opt-letter{color:#e74c3c}
+.option.missed    .opt-letter{color:#27ae60}
+.opt-text{font-size:15px;color:#2c2c2c;line-height:1.45}
+code{background:#f5f5f5;padding:1px 6px;border-radius:4px;font-size:13px;font-family:'Courier New',Consolas,monospace;color:#C0392B}
+.explanation{display:none;margin-top:20px;padding:18px 20px;background:#f9fafb;border-radius:10px;border-left:5px solid #C0392B}
+.exp-warn{background:#fff8e1;border:1px solid #ffc107;border-radius:6px;padding:8px 12px;font-size:13px;color:#7d5700;margin-bottom:14px;font-weight:600}
+.explanation h4{font-size:13px;font-weight:800;color:#C0392B;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;margin-top:14px}
+.explanation h4:first-child{margin-top:0}
+.explanation p{font-size:14px;color:#3a3a3a;line-height:1.65}
+.timeout-msg{display:none;color:#e74c3c;font-size:14px;font-weight:700;margin-top:12px}
+.btn-row{display:flex;gap:12px;margin-top:22px;flex-wrap:wrap}
+button{padding:11px 24px;border-radius:8px;border:none;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .2s,transform .1s}
+button:active{transform:scale(.97)}
+button:disabled{opacity:.3;cursor:not-allowed;transform:none}
+.btn-primary{background:#C0392B;color:#fff}
+.btn-primary:hover:not(:disabled){opacity:.88}
+.btn-secondary{background:#f0f0f0;color:#333}
+.btn-secondary:hover:not(:disabled){background:#e2e2e2}
+.score-screen{display:none}
+.score-title{font-size:28px;font-weight:900;color:#1a1a2e;margin-bottom:6px}
+.score-sub{font-size:14px;color:#888;margin-bottom:20px}
+.score-bar-wrap{background:#f0f0f0;border-radius:8px;height:18px;margin-bottom:6px;overflow:hidden}
+.score-bar{height:100%;border-radius:8px;transition:width .9s ease}
+.score-bar.great{background:linear-gradient(90deg,#27ae60,#2ecc71)}
+.score-bar.ok{background:linear-gradient(90deg,#f39c12,#f1c40f)}
+.score-bar.fail{background:linear-gradient(90deg,#e74c3c,#C0392B)}
+.score-pct{text-align:right;font-size:13px;color:#888;margin-bottom:20px}
+.score-msg{font-size:20px;font-weight:800;color:#1a1a2e;margin-bottom:24px}
+.score-cards{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:28px}
+.score-card{flex:1;min-width:150px;background:#f8f9fa;border-radius:10px;padding:16px;text-align:center;border:1px solid #e8e8e8}
+.sc-label{font-size:12px;color:#888;margin-bottom:6px;font-weight:600}
+.sc-val{font-size:26px;font-weight:900;color:#1a1a2e}
+.sc-sub{font-size:12px;color:#bbb;margin-top:2px}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div class="title">CCDAK Prep</div>
+      <div class="subtitle">Kafka Producers &mdash; Level 1</div>
+    </div>
+    <div class="timer" id="timerEl">01:30</div>
+  </div>
+  <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
+
+  <div id="quizScreen">
+    <div class="question-meta" id="questionMeta"></div>
+    <div class="question-text" id="questionText"></div>
+    <div id="optionsContainer"></div>
+    <div class="explanation" id="explanation"></div>
+    <div class="timeout-msg" id="timeoutMsg">&#9200; Time&apos;s up! Auto-validated.</div>
+    <div class="btn-row">
+      <button class="btn-primary" id="btnValidate" onclick="valider()">Validate</button>
+      <button class="btn-secondary" id="btnNext" onclick="suivante()" disabled>Next Question &rarr;</button>
+    </div>
+  </div>
+
+  <div class="score-screen" id="scoreScreen">
+    <div class="score-title" id="scoreTitle"></div>
+    <div class="score-sub">Kafka Producers &mdash; CCDAK Certification Prep</div>
+    <div class="score-bar-wrap"><div class="score-bar" id="scoreBar"></div></div>
+    <div class="score-pct" id="scorePct"></div>
+    <div class="score-msg" id="scoreMsg"></div>
+    <div class="score-cards" id="scoreCards"></div>
+    <button class="btn-primary" onclick="recommencer()">&#x1F504; Restart Test</button>
+  </div>
+</div>
+
+<script>
+var LETTERS = ['A','B','C','D','E'];
+
+var QUESTIONS_RAW = [
+
+/* ==================== FROM COURSE ==================== */
+
+{
+  source:"cours", type:"single",
+  text:"A developer configures a new Kafka producer to connect to a production cluster running 50 brokers. How many broker addresses should be listed in the bootstrap.servers property?",
+  options:[
+    {text:"All 50 brokers, to maximize connection redundancy", correct:false},
+    {text:"Only 1 broker, to keep configuration minimal", correct:false},
+    {text:"2 to 3 brokers — enough to establish the initial connection and discover the full cluster metadata", correct:true},
+    {text:"Exactly 10% of all brokers (5 in this case)", correct:false}
+  ],
+  explanation:{
+    concept:"bootstrap.servers is used only for the initial connection. Once connected, the producer retrieves full cluster metadata and communicates with all relevant brokers directly — the bootstrap list is no longer used.",
+    correct_why:"2 to 3 brokers provide sufficient redundancy for the initial bootstrap. If one is temporarily unavailable, the others serve the metadata request. More entries are unnecessary and can cause config management headaches.",
+    incorrect_why:"Listing all 50 brokers is redundant — the producer only needs to reach one for metadata. Listing only 1 broker is risky: if it's down at startup, the producer can't connect at all. There is no '10% rule' — this is a distractor.",
+    retenir:"bootstrap.servers = initial entry points only, not a full broker list. 2–3 entries provide redundancy without maintenance overhead. The producer discovers the rest via metadata after first contact."
+  }
+},
+
+{
+  source:"cours", type:"single",
+  text:"A developer creates a ProducerRecord to publish a message. They want to set only the minimum required fields. Which field is the ONLY mandatory one?",
+  options:[
+    {text:"key — required to determine the target partition", correct:false},
+    {text:"value — required since messages must have content", correct:false},
+    {text:"topic — the only mandatory field; all others are optional", correct:true},
+    {text:"partition — required so the producer knows where to write", correct:false}
+  ],
+  explanation:{
+    concept:"ProducerRecord wraps a Kafka message. It requires a target topic, but all other fields (key, value, partition, timestamp, headers) are optional and have sensible defaults.",
+    correct_why:"Only topic is mandatory — it identifies where the message should go. You can create a ProducerRecord(topic) with just a topic and no key or value (value would be null).",
+    incorrect_why:"Key is optional — null keys trigger round-robin or sticky partitioning. Value can be null (a tombstone message in log compaction). Partition is optional — the partitioner computes it if not set.",
+    retenir:"ProducerRecord(topic, key, value) is the common constructor, but ProducerRecord(topic, value) and even ProducerRecord(topic, null, null) are valid. Only topic is required."
+  }
+},
+
+{
+  source:"cours", type:"single",
+  text:"A Kafka producer sends a message with key='customer-456'. How does the default partitioner determine the target partition?",
+  options:[
+    {text:"Round-robin: the message goes to the next available partition in sequence", correct:false},
+    {text:"hash(key) % numberOfPartitions — consistent hashing maps the key to a specific partition", correct:true},
+    {text:"The broker selects the partition after receiving the message", correct:false},
+    {text:"All messages with the same key go to partition 0 by default", correct:false}
+  ],
+  explanation:{
+    concept:"The default Kafka partitioner applies a hash function to the message key, then uses modulo the number of partitions to determine the target. This guarantees all messages with the same non-null key land in the same partition.",
+    correct_why:"hash(key) % N ensures deterministic, consistent routing. 'customer-456' always maps to the same partition (for a fixed partition count), preserving ordering for all events belonging to that customer.",
+    incorrect_why:"Round-robin applies only when the key is null. The broker never decides the partition — this decision is made by the producer client library before sending. All-to-partition-0 is not a Kafka behavior.",
+    retenir:"Key != null → hash(key) % N → same partition always (ordering guaranteed per key). Key == null → sticky or round-robin → messages distributed across partitions (no ordering guarantee)."
+  }
+},
+
+{
+  source:"cours", type:"single",
+  text:"A developer does not explicitly set the acks property on their Kafka producer. What value does it default to?",
+  options:[
+    {text:"acks=0 — fire-and-forget, maximum throughput", correct:false},
+    {text:"acks=1 — leader acknowledges after writing to its local log", correct:true},
+    {text:"acks=all — waits for all in-sync replicas to acknowledge", correct:false},
+    {text:"acks=-1 — same as 'all'", correct:false}
+  ],
+  explanation:{
+    concept:"The acks parameter controls how many broker acknowledgments the producer waits for before considering a write successful. The default is 1: the partition leader writes the record and acknowledges immediately, without waiting for followers.",
+    correct_why:"acks=1 is the default — a balance between throughput and durability. The leader acknowledges as soon as it writes to its log. If the leader fails before followers replicate, the message may be lost.",
+    incorrect_why:"acks=0 is the most performant but offers no durability guarantee. acks=all/-1 maximizes durability but increases latency (waits for all ISR replicas). These are valid values but not the default.",
+    retenir:"acks default=1. Exam trade-off: acks=0 (max throughput, data loss possible), acks=1 (default, leader only), acks=all/-1 (max durability, higher latency, required for idempotence)."
+  }
+},
+
+{
+  source:"cours", type:"single",
+  text:"A developer sets linger.ms=50 on their Kafka producer. What is the PRIMARY effect of this configuration on producer behavior?",
+  options:[
+    {text:"Reduces latency by sending each message immediately as it arrives", correct:false},
+    {text:"Increases throughput by allowing more messages to accumulate into a single batch, at the cost of added latency", correct:true},
+    {text:"Increases reliability by waiting 50ms for broker acknowledgment before retrying", correct:false},
+    {text:"Disables batching and forces one-message-per-request", correct:false}
+  ],
+  explanation:{
+    concept:"linger.ms adds an artificial delay before a batch is sent, giving more messages time to arrive and be included in the same batch. Default is 0 (send as soon as possible). Higher values improve throughput but add latency.",
+    correct_why:"With linger.ms=50, the producer waits up to 50ms for the current batch to fill. More messages per batch means fewer network requests and better compression efficiency — at the cost of 50ms additional latency per message.",
+    incorrect_why:"linger.ms=0 (default) is what sends immediately. linger.ms has nothing to do with broker acknowledgment timeouts (that's request.timeout.ms). It does not disable batching — it extends the accumulation window.",
+    retenir:"linger.ms + batch.size = throughput tuning duo. linger.ms=0 → minimum latency. linger.ms>0 → larger batches → higher throughput. Batch fires when EITHER batch.size OR linger.ms is reached — whichever comes first."
+  }
+},
+
+{
+  source:"cours", type:"single",
+  text:"A developer enables enable.idempotence=true on a Kafka producer. What specific guarantee does this provide?",
+  options:[
+    {text:"Exactly-once delivery end-to-end, including consumer processing", correct:false},
+    {text:"No duplicate records are written to a partition, even when the producer retries due to network errors", correct:true},
+    {text:"All messages are written atomically across multiple partitions in a single transaction", correct:false},
+    {text:"Increased throughput through optimized batching", correct:false}
+  ],
+  explanation:{
+    concept:"Idempotent producer assigns a unique Producer ID (PID) and sequence number to each message. The broker deduplicates retried messages using these identifiers, ensuring exactly-once delivery at the producer level.",
+    correct_why:"Without idempotence, a retry after a network timeout can cause the same message to be written twice (at-least-once). With enable.idempotence=true, duplicate writes are detected and discarded by the broker — exactly-once per partition.",
+    incorrect_why:"Idempotence only covers the producer-to-broker path for a single partition. Full end-to-end EOS (including consumers) requires transactions (transactional.id). Atomic multi-partition writes also require transactions. Idempotence does not affect throughput significantly.",
+    retenir:"enable.idempotence=true = exactly-once per partition per producer session. It prevents duplicates from retries. It does NOT cover multi-partition atomicity (use transactions for that)."
+  }
+},
+
+{
+  source:"cours", type:"single",
+  text:"What is the default value of the retries configuration in modern Kafka producers (since Kafka 2.1)?",
+  options:[
+    {text:"0 — retries are disabled by default to avoid ordering issues", correct:false},
+    {text:"3 — a conservative retry count", correct:false},
+    {text:"10 — moderate retry attempts", correct:false},
+    {text:"Integer.MAX_VALUE (2147483647) — the producer retries indefinitely until delivery.timeout.ms expires", correct:true}
+  ],
+  explanation:{
+    concept:"Kafka producers default to Integer.MAX_VALUE retries, effectively allowing unlimited retries. The actual retry window is controlled by delivery.timeout.ms (default 120 seconds), not the retry count.",
+    correct_why:"retries=Integer.MAX_VALUE means the producer never stops retrying based on count alone. Instead, delivery.timeout.ms caps the total time spent on retries. This avoids message loss from transient failures without manual tuning of retry counts.",
+    incorrect_why:"retries=0 was the old default in early Kafka versions. retries=3 and retries=10 are reasonable manual settings but are NOT the current default. Since Kafka 2.1, the default was raised to Integer.MAX_VALUE for reliability.",
+    retenir:"Modern Kafka: retries=Integer.MAX_VALUE (unlimited count) + delivery.timeout.ms=120000ms (2 minutes total). The pair forms the retry boundary. Don't confuse retries count with delivery time limit."
+  }
+},
+
+{
+  source:"cours", type:"multiple",
+  text:"Which of the following producer errors are classified as RETRIABLE by the Kafka producer? (Select all that apply)",
+  options:[
+    {text:"Leader Not Available — a new leader is being elected for the partition", correct:true},
+    {text:"Not Leader for Partition — the targeted broker is no longer the leader", correct:true},
+    {text:"Not Enough Replicas — insufficient ISR replicas to satisfy acks configuration", correct:true},
+    {text:"Message Too Large — the message size exceeds max.request.size", correct:false},
+    {text:"Topic Authorization Failed — the producer lacks permission to write to the topic", correct:false}
+  ],
+  explanation:{
+    concept:"Kafka classifies producer errors as retriable (transient, auto-resolved) or non-retriable (require intervention). Retriable errors represent temporary cluster states; non-retriable errors indicate configuration or permission problems.",
+    correct_why:"Leader Not Available and Not Leader for Partition are retriable: they occur during leader elections and resolve once a new leader is elected. Not Enough Replicas is retriable: it may resolve when replicas catch up. The producer automatically retries these with retry.backoff.ms delay.",
+    incorrect_why:"Message Too Large is non-retriable: retrying the same oversized message will always fail. Fix requires adjusting max.request.size. Topic Authorization Failed is non-retriable: ACL/permission must be corrected — retrying never resolves permission denials.",
+    retenir:"Retriable = temporary cluster state (elections, replication lag). Non-retriable = configuration problem (message size, permissions, invalid topic). Key non-retriable errors: Message Too Large, Topic Auth Failed, Invalid Required Acks."
+  }
+},
+
+{
+  source:"cours", type:"single",
+  text:"A Kafka producer receives a TopicAuthorizationException when attempting to produce. What is the correct response?",
+  options:[
+    {text:"Increase the retries configuration to give the broker time to recover", correct:false},
+    {text:"Decrease retry.backoff.ms for faster retry attempts", correct:false},
+    {text:"Fix the producer's ACL permissions — TopicAuthorizationException is non-retriable and retries will not help", correct:true},
+    {text:"Increase max.request.size to accommodate the rejected message", correct:false}
+  ],
+  explanation:{
+    concept:"Non-retriable errors signal conditions that cannot be resolved by retrying. They require administrative intervention: fixing permissions, correcting configuration, or changing the code.",
+    correct_why:"TopicAuthorizationException means the producer principal lacks Write permission on the target topic. The only fix is to grant the appropriate ACL (e.g., kafka-acls.sh --add --allow-principal User:X --operation Write --topic Y). Retrying with the same credentials will always fail.",
+    incorrect_why:"Increasing retries only increases the number of failed authorization checks — it doesn't change the permission state. retry.backoff.ms is irrelevant here. max.request.size is unrelated to authorization.",
+    retenir:"Non-retriable error handling pattern: catch exception → log details → fix root cause (permissions, config, message size). Never retry non-retriable errors — it wastes resources and delays error surfacing."
+  }
+},
+
+{
+  source:"cours", type:"single",
+  text:"What is the default value of batch.size in a Kafka producer?",
+  options:[
+    {text:"1024 bytes (1 KB) — optimized for small messages", correct:false},
+    {text:"16384 bytes (16 KB) — the default batch accumulation limit", correct:true},
+    {text:"65536 bytes (64 KB) — a medium batch for balanced throughput", correct:false},
+    {text:"1048576 bytes (1 MB) — the same as max.request.size", correct:false}
+  ],
+  explanation:{
+    concept:"batch.size controls the maximum number of bytes accumulated for messages destined for the same partition before the batch is sent. The producer sends a batch when either batch.size is reached OR linger.ms expires.",
+    correct_why:"16384 bytes (16 KB) is the default. It's a conservative value suitable for most workloads. Tuning to larger values (e.g., 32KB or 64KB) combined with linger.ms > 0 can significantly improve throughput for high-volume producers.",
+    incorrect_why:"1 KB is too small and would generate excessive network requests. 64 KB and 1 MB are larger values that can be configured manually for high-throughput scenarios. 1 MB (max.request.size default) is the maximum message size, a different config.",
+    retenir:"batch.size=16KB default. Throughput tuning: batch.size=32KB–256KB + linger.ms=5–100ms. Remember: batch.size is a maximum — batches can be smaller if linger.ms fires first."
+  }
+},
+
+{
+  source:"cours", type:"single",
+  text:"A producer has retries > 0 and max.inflight.requests.per.connection=5 (default). What risk does this create?",
+  options:[
+    {text:"Messages may be written to the wrong topic", correct:false},
+    {text:"Messages may be delivered out of order if a retry occurs while later batches have already succeeded", correct:true},
+    {text:"The producer will exhaust all 5 connections simultaneously and deadlock", correct:false},
+    {text:"The retries configuration is automatically set to 0 when max.inflight=5", correct:false}
+  ],
+  explanation:{
+    concept:"max.inflight.requests.per.connection controls how many unacknowledged requests can be in-flight simultaneously. With retries, if batch N fails and is retried while batch N+1 has already been acknowledged, the final order in the topic may be N+1 then N — reversing expected order.",
+    correct_why:"Scenario: batch 1 fails → producer retries batch 1 → meanwhile batch 2 succeeds → broker receives batch 2 then retried batch 1 → out-of-order delivery. This only happens when max.inflight > 1 and retries are used.",
+    incorrect_why:"max.inflight doesn't cause topic misrouting. It's about simultaneous in-flight requests per connection, not connection exhaustion or deadlocks. Setting max.inflight=5 doesn't affect retry configuration.",
+    retenir:"To guarantee ordering with retries: EITHER set max.inflight.requests.per.connection=1 (simple but slower) OR use enable.idempotence=true (enables ordering guarantee up to max.inflight=5 with sequence numbers)."
+  }
+},
+
+{
+  source:"cours", type:"multiple",
+  text:"Which of the following compression types are natively supported by Kafka producers? (Select all that apply)",
+  options:[
+    {text:"gzip — best compression ratio, highest CPU usage", correct:true},
+    {text:"snappy — balanced speed and compression ratio", correct:true},
+    {text:"lz4 — fastest compression/decompression, lowest CPU", correct:true},
+    {text:"zstd — excellent ratio with configurable CPU tradeoff (Kafka 2.1+)", correct:true},
+    {text:"brotli — modern web compression format", correct:false}
+  ],
+  explanation:{
+    concept:"Kafka supports four compression codecs: gzip, snappy, lz4, and zstd (added in Kafka 2.1). Compression is applied at the batch level by the producer and decompressed by consumers, reducing network bandwidth and storage.",
+    correct_why:"All four (gzip, snappy, lz4, zstd) are valid values for compression.type. Compression benefits are greatest for text-based formats (JSON, XML) and are negligible for already-compressed binary formats.",
+    incorrect_why:"Brotli is a Google compression format used in web browsers and HTTP — it is NOT supported by Kafka. Using an unsupported value would cause a configuration error.",
+    retenir:"Compression trade-offs: lz4 (fastest, good for low-latency), snappy (balanced), gzip (best ratio for text, more CPU), zstd (modern, best ratio+speed balance). Default is none."
+  }
+},
+
+{
+  source:"cours", type:"single",
+  text:"A developer needs to implement exactly-once semantics ensuring atomic writes across multiple partitions in a single logical operation. Which producer property enables this capability?",
+  options:[
+    {text:"enable.idempotence=true — sufficient for full exactly-once semantics", correct:false},
+    {text:"transactional.id set to a unique string — enables Kafka transactions for atomic multi-partition writes", correct:true},
+    {text:"acks=all — ensures all replicas confirm before returning", correct:false},
+    {text:"max.inflight.requests.per.connection=1 — enforces strict sequencing", correct:false}
+  ],
+  explanation:{
+    concept:"transactional.id enables Kafka's transaction protocol, allowing producers to write to multiple partitions atomically. Combined with enable.idempotence=true (automatically enabled), this provides full exactly-once semantics (EOS).",
+    correct_why:"Setting transactional.id to a unique identifier activates the transactional producer API. Consumers configured with isolation.level=read_committed only see committed transaction data, achieving end-to-end EOS.",
+    incorrect_why:"enable.idempotence alone only prevents duplicates per partition per session — it doesn't provide multi-partition atomicity. acks=all ensures durability but not atomicity. max.inflight=1 only controls ordering, not transactions.",
+    retenir:"EOS in Kafka requires: transactional.id (transaction support) + enable.idempotence=true (auto-set) + consumer isolation.level=read_committed. The transactional.id must be stable across restarts to recover pending transactions."
+  }
+},
+
+/* ==================== BEYOND COURSE ==================== */
+
+{
+  source:"inference", type:"multiple",
+  text:"When a developer configures enable.idempotence=true, which other producer configurations are automatically enforced or required by Kafka? (Select all that apply)",
+  options:[
+    {text:"acks is forced to 'all' — the producer will throw a ConfigException if acks is set to 0 or 1", correct:true},
+    {text:"max.inflight.requests.per.connection must be ≤ 5 — Kafka enforces this to maintain ordering", correct:true},
+    {text:"retries must be > 0 — Kafka rejects retries=0 when idempotence is enabled", correct:true},
+    {text:"linger.ms is automatically set to 100ms to improve batch efficiency", correct:false},
+    {text:"compression.type is forced to 'none' to avoid checksum conflicts", correct:false}
+  ],
+  explanation:{
+    concept:"⚠️ This concept was not in the course but is frequently tested in the CCDAK exam. Enabling idempotence implicitly requires a set of configurations that ensure the ordering and at-least-once delivery properties that idempotence builds upon.",
+    correct_why:"acks=all is required because idempotence needs confirmation from all ISRs to safely deduplicate. max.inflight ≤ 5 allows the broker to detect out-of-order retries via sequence numbers. retries > 0 is needed to actually retry — without retries, idempotence has no value.",
+    incorrect_why:"linger.ms is NOT changed by enabling idempotence — batching behavior is independent. compression.type is also NOT forced to none — all compression codecs are compatible with idempotent producers.",
+    retenir:"Idempotence enforcement: acks=all + max.inflight≤5 + retries>0. Kafka throws ConfigException if you set acks=0 or acks=1 with idempotence. These constraints ensure the sequence-number deduplication mechanism works correctly."
+  }
+},
+
+{
+  source:"inference", type:"single",
+  text:"A payment processing team needs exactly-once delivery from producer to broker AND ensures consumers only read committed, fully-consistent transaction data. Which combination of producer settings achieves full end-to-end EOS?",
+  options:[
+    {text:"acks=all + retries=Integer.MAX_VALUE — maximizes durability", correct:false},
+    {text:"enable.idempotence=true alone — prevents all duplicates end-to-end", correct:false},
+    {text:"enable.idempotence=true + transactional.id configured to a unique stable ID", correct:true},
+    {text:"acks=all + max.inflight.requests.per.connection=1", correct:false}
+  ],
+  explanation:{
+    concept:"⚠️ This concept was not in the course but is frequently tested in the CCDAK exam. Full EOS in Kafka requires two layers: idempotence (prevents per-partition duplicates) and transactions (enables atomic multi-partition commits that consumers read with isolation.level=read_committed).",
+    correct_why:"enable.idempotence=true prevents duplicates from retries. transactional.id enables the transaction protocol: begin/commit/abort across partitions. Consumers with isolation.level=read_committed see only committed data. Together, this is the complete EOS stack.",
+    incorrect_why:"acks=all + retries = at-least-once, not exactly-once. Duplicates can still occur if the producer retries after an ack was sent but not received. enable.idempotence alone does not provide transactional atomicity or consumer-visible commit isolation.",
+    retenir:"EOS formula: enable.idempotence=true + transactional.id + producer.beginTransaction()/commitTransaction() + consumer isolation.level=read_committed. Missing any layer breaks the EOS guarantee."
+  }
+},
+
+{
+  source:"inference", type:"single",
+  text:"A producer has retries=Integer.MAX_VALUE and retry.backoff.ms=200. After a transient network failure, the producer keeps retrying. What configuration actually defines the maximum total time the producer will attempt to deliver a message before failing?",
+  options:[
+    {text:"The retries counter — once Integer.MAX_VALUE retries are exhausted, the message fails", correct:false},
+    {text:"retry.backoff.ms — after each backoff expires, the final attempt is made", correct:false},
+    {text:"delivery.timeout.ms — caps the total wall-clock time from send() to final success or failure", correct:true},
+    {text:"transaction.timeout.ms — controls the overall delivery window for all messages", correct:false}
+  ],
+  explanation:{
+    concept:"⚠️ This concept was not in the course but is frequently tested in the CCDAK exam. delivery.timeout.ms (default 120000ms = 2 minutes) is the total time budget for a record from the moment send() is called until it is successfully acknowledged or definitively failed.",
+    correct_why:"Even with retries=MAX_VALUE, delivery.timeout.ms stops retrying after 2 minutes by default. This prevents infinite retry loops in cases where the cluster is degraded for an extended period.",
+    incorrect_why:"retries=Integer.MAX_VALUE means 'unlimited retry count' — the retries counter alone will never exhaust. retry.backoff.ms is the delay between individual retry attempts, not the total timeout. transaction.timeout.ms applies to open transactions, not message delivery.",
+    retenir:"Retry time control: delivery.timeout.ms (total window) > retries count (number of attempts) > retry.backoff.ms (delay between). For modern Kafka: set delivery.timeout.ms to match your SLA instead of tuning retries count."
+  }
+},
+
+{
+  source:"inference", type:"single",
+  text:"An IoT platform collects millions of sensor readings per second. Occasional data loss is acceptable; maximum throughput and minimum CPU overhead are the top priorities. Which acks configuration is MOST appropriate?",
+  options:[
+    {text:"acks=all — ensures maximum durability with ISR confirmation", correct:false},
+    {text:"acks=1 — default, waits for leader acknowledgment", correct:false},
+    {text:"acks=0 — producer does not wait for any acknowledgment, maximizing throughput", correct:true},
+    {text:"acks=-1 — equivalent to 'all', provides the strongest guarantee", correct:false}
+  ],
+  explanation:{
+    concept:"⚠️ This concept was not in the course but is frequently tested in the CCDAK exam. acks=0 is fire-and-forget: the producer sends the message and moves on immediately, with no acknowledgment overhead. Messages may be lost if the broker fails before writing.",
+    correct_why:"For high-volume sensor data where occasional loss is acceptable (e.g., a missed temperature reading is not critical), acks=0 maximizes throughput by eliminating network round-trips for acknowledgments. This is appropriate for metrics, monitoring, and telemetry.",
+    incorrect_why:"acks=all and acks=-1 maximize durability but add significant latency by waiting for ISR replica confirmation — wrong choice when throughput > durability. acks=1 (default) waits for leader ack, adding some overhead.",
+    retenir:"acks trade-off: 0 (max throughput, data loss possible), 1 (default, balanced), all/-1 (max durability, required for idempotence). Match acks to your business durability requirement."
+  }
+},
+
+{
+  source:"inference", type:"single",
+  text:"A developer calls producer.send(record) without providing a callback and without calling .get() on the returned Future. What type of send is this, and what is the key risk?",
+  options:[
+    {text:"Synchronous send — blocks the calling thread until the broker acknowledges", correct:false},
+    {text:"Asynchronous send with callback — errors are handled via an asynchronous callback function", correct:false},
+    {text:"Fire-and-forget — the call returns immediately with no error handling; exceptions are silently lost", correct:true},
+    {text:"Transactional send — part of an atomic transaction pending commit", correct:false}
+  ],
+  explanation:{
+    concept:"⚠️ This concept was not in the course but is frequently tested in the CCDAK exam. Kafka producers offer three send modes: fire-and-forget (no handling), async with callback (non-blocking + error handler), and sync (blocking .get() on Future).",
+    correct_why:"Without a callback or .get(), the Future<RecordMetadata> is discarded. Any send failure — network error, serialization issue, buffer overflow — is silently swallowed. This is fire-and-forget, appropriate only when data loss is acceptable.",
+    incorrect_why:"Synchronous send requires: RecordMetadata meta = producer.send(record).get(); — the .get() blocks the thread. Async with callback: producer.send(record, (metadata, exception) -> {…}). Transactional sends require beginTransaction()/commitTransaction() framing.",
+    retenir:"3 send modes: fire-and-forget (no callback, .get()), async+callback (best for production — non-blocking + error handling), synchronous (.get() blocks — simplest for ordered batch processing). Prefer async+callback for production."
+  }
+},
+
+{
+  source:"inference", type:"single",
+  text:"A producer sends millions of messages per second with null keys. In Kafka 2.4+, what is the default partitioning behavior for null-key messages?",
+  options:[
+    {text:"Pure round-robin — each message is sent to the next partition in sequence (one at a time)", correct:false},
+    {text:"Sticky partitioner — messages accumulate in a batch for one partition, then the partitioner rotates to the next", correct:true},
+    {text:"Random — each message is randomly assigned to any available partition", correct:false},
+    {text:"Hash of message value — the value bytes are hashed to select a partition", correct:false}
+  ],
+  explanation:{
+    concept:"⚠️ This concept was not in the course but is frequently tested in the CCDAK exam. Kafka 2.4 introduced the sticky partitioner as the new default for null-key messages, replacing pure round-robin. It improves batching efficiency significantly.",
+    correct_why:"The sticky partitioner fills a full batch for one partition before switching to another. This creates larger, more efficient batches vs pure round-robin which distributes messages one-by-one across all partitions, producing many small batches. Better batching = better throughput and compression.",
+    incorrect_why:"Pure round-robin (pre-2.4 behavior) distributes messages evenly but at the cost of small batches. Random and value-hash partitioning are not default behaviors. Kafka's default always routes by key hash when key is non-null.",
+    retenir:"Sticky partitioner (default since 2.4): null-key messages batch to one partition at a time → better throughput. Classic round-robin: better per-partition distribution but worse batching. Custom Partitioner: implement Partitioner interface for business logic."
+  }
+},
+
+{
+  source:"inference", type:"single",
+  text:"A producer has linger.ms=20 and batch.size=32768 (32 KB). Messages for a partition have accumulated to exactly 32768 bytes when a new message arrives. What happens?",
+  options:[
+    {text:"The batch waits for linger.ms=20ms to expire before sending", correct:false},
+    {text:"The current batch is sent immediately (batch.size reached), and a new batch begins with the arriving message", correct:true},
+    {text:"The producer buffers all messages until the application calls flush()", correct:false},
+    {text:"The new message is dropped because the batch is full", correct:false}
+  ],
+  explanation:{
+    concept:"⚠️ This concept was not in the course but is frequently tested in the CCDAK exam. A batch is triggered for immediate sending when EITHER batch.size is reached OR linger.ms expires — whichever occurs first. Reaching batch.size bypasses the linger.ms wait.",
+    correct_why:"Once batch.size (32 KB) is reached, the batch is flushed immediately regardless of linger.ms. The arriving message then starts a new batch. This dual-trigger behavior ensures batching is bounded by both time and size.",
+    incorrect_why:"linger.ms is only waited when the batch is NOT yet full. If batch.size is already reached, linger.ms is irrelevant. Messages are never dropped due to batch fullness — they go into a new batch. flush() is a manual call, not automatic.",
+    retenir:"Batch send triggers: (1) batch.size reached → immediate send, (2) linger.ms expired → send whatever is accumulated. Think of linger.ms as a 'max wait' and batch.size as a 'send now if full' threshold."
+  }
+},
+
+{
+  source:"inference", type:"single",
+  text:"A Kafka producer generates large volumes of text-based JSON events. The network link between producers and brokers has limited bandwidth. The producer hosts have ample spare CPU capacity. Which compression.type provides the best bandwidth savings for this scenario?",
+  options:[
+    {text:"compression.type=lz4 — fastest, lowest CPU, moderate compression ratio", correct:false},
+    {text:"compression.type=none — no overhead, maximum throughput at the producer", correct:false},
+    {text:"compression.type=gzip — highest compression ratio for text data, suitable when CPU is not the constraint", correct:true},
+    {text:"compression.type=snappy — developed by Google for speed; balanced but not the highest ratio", correct:false}
+  ],
+  explanation:{
+    concept:"⚠️ This concept was not in the course but is frequently tested in the CCDAK exam. Compression trade-offs: lz4 (fastest, least CPU, moderate ratio), snappy (balanced), gzip (best ratio for text, more CPU), zstd (best ratio overall, configurable). Choose based on bottleneck: CPU or network.",
+    correct_why:"For text-based data (JSON, XML, log lines) with spare CPU and bandwidth constraints, gzip provides the highest compression ratio (often 5–10x for JSON). The CPU cost is worth it when network is the bottleneck.",
+    incorrect_why:"lz4 is preferred when CPU is the bottleneck. compression.type=none uses maximum network bandwidth. snappy offers a good balance but lower ratio than gzip for text. For maximum compression ratio on modern Kafka, zstd can outperform gzip, but gzip is the classic CCDAK exam answer.",
+    retenir:"Compression selection: CPU bottleneck → lz4 or snappy. Network bottleneck + text data → gzip or zstd. Already-binary data (images, encrypted) → none (compression is negligible). Enable compression at producer, transparent to consumers."
+  }
+},
+
+{
+  source:"inference", type:"single",
+  text:"A Kafka producer application is about to shut down. Several thousand messages are still buffered in memory and have not yet been sent to the broker. What must the developer do to prevent message loss?",
+  options:[
+    {text:"Set linger.ms=0 just before shutdown to bypass batching delays", correct:false},
+    {text:"Call producer.close() or producer.flush() before the application exits to drain the send buffer", correct:true},
+    {text:"Increase buffer.memory temporarily to hold the pending messages", correct:false},
+    {text:"Nothing — KafkaProducer automatically flushes on JVM shutdown via a shutdown hook", correct:false}
+  ],
+  explanation:{
+    concept:"⚠️ This concept was not in the course but is frequently tested in the CCDAK exam. KafkaProducer maintains an internal RecordAccumulator buffer. Messages remain there until batch conditions are met. Without explicit draining, buffered messages are lost on shutdown.",
+    correct_why:"producer.close() blocks until all buffered messages are either successfully sent or an error occurs. producer.flush() forces immediate sending of all pending batches and waits for their acknowledgment, without closing the producer. Either ensures messages are delivered before exit.",
+    incorrect_why:"Setting linger.ms=0 only affects future batches — it doesn't trigger immediate sending of already-buffered records. Increasing buffer.memory just adds capacity, not delivery. KafkaProducer does NOT auto-flush on JVM shutdown by default.",
+    retenir:"Always call producer.close() (or flush() + close()) in a try-finally or shutdown hook. Pattern: try { send() } finally { producer.close(); }. close() calls flush() internally. Forgetting this is a common source of message loss at application shutdown."
+  }
+},
+
+{
+  source:"inference", type:"single",
+  text:"A Kafka producer's message send rate exceeds the rate at which batches can be delivered to brokers. The buffer.memory (32 MB by default) fills up completely. What happens to subsequent producer.send() calls?",
+  options:[
+    {text:"New messages are silently dropped without error", correct:false},
+    {text:"The producer doubles its buffer.memory automatically to accommodate the backlog", correct:false},
+    {text:"producer.send() blocks for up to max.block.ms, then throws TimeoutException if buffer is still full", correct:true},
+    {text:"The producer switches to synchronous mode and waits for each ack before accepting new messages", correct:false}
+  ],
+  explanation:{
+    concept:"⚠️ This concept was not in the course but is frequently tested in the CCDAK exam. buffer.memory is the total memory available for the RecordAccumulator. When it's full, the producer applies back-pressure by blocking send() calls up to max.block.ms before throwing an exception.",
+    correct_why:"max.block.ms (default 60000ms) is how long producer.send() will block when the buffer is full. After this timeout, TimeoutException is thrown. This back-pressure mechanism prevents the producer from producing faster than it can deliver.",
+    incorrect_why:"Messages are NOT silently dropped — Kafka always throws an exception to signal the issue. buffer.memory is fixed — there is no auto-expansion. The producer does not switch to synchronous mode automatically.",
+    retenir:"Buffer full → send() blocks → max.block.ms timeout → TimeoutException. Tune buffer.memory, batch.size, and linger.ms together for optimal throughput. Monitor producer-metrics/buffer-available-bytes to detect back-pressure early."
+  }
+},
+
+{
+  source:"inference", type:"single",
+  text:"A developer needs all payment events for the same merchant ID to always land in the same Kafka partition and maintain strict ordering within each merchant. What is the correct approach?",
+  options:[
+    {text:"Use round-robin partitioning by sending messages without a key", correct:false},
+    {text:"Set max.inflight.requests.per.connection=0 to prevent parallel sends", correct:false},
+    {text:"Use the merchant ID as the message key — the default partitioner maps all same-key messages to the same partition", correct:true},
+    {text:"Set replication.factor=1 to avoid replica coordination overhead", correct:false}
+  ],
+  explanation:{
+    concept:"⚠️ This concept was not in the course but is frequently tested in the CCDAK exam. In Kafka, ordering is guaranteed WITHIN a single partition. To maintain order for related events, route them to the same partition by using a consistent key — the default partitioner uses hash(key) % numPartitions.",
+    correct_why:"By setting key=merchantId, hash(merchantId) % N always maps to the same partition for a given merchant. All events for that merchant arrive in order at consumers. This is the canonical Kafka pattern for per-entity ordering.",
+    incorrect_why:"Round-robin distributes messages across partitions — no ordering guarantee for a single merchant's events. max.inflight=0 is invalid (minimum is 1). replication.factor controls durability, not partitioning or ordering.",
+    retenir:"Ordering in Kafka = ordering within a partition. Key = routing anchor. Rule: use a business identifier (merchantId, userId, orderId) as the key when per-entity ordering is required. Warning: key distribution affects partition balance — skewed keys cause hot partitions."
+  }
+},
+
+{
+  source:"inference", type:"multiple",
+  text:"A Kafka producer throws a RecordTooLargeException. Which configurations might need to be increased to resolve this issue? (Select all that apply)",
+  options:[
+    {text:"max.request.size on the producer — limits the maximum size of a single produce request", correct:true},
+    {text:"message.max.bytes on the broker — the broker-side limit for individual messages", correct:true},
+    {text:"batch.size — controls how many bytes accumulate per batch", correct:false},
+    {text:"buffer.memory — total producer buffer memory for all in-flight batches", correct:false},
+    {text:"linger.ms — time the producer waits before sending", correct:false}
+  ],
+  explanation:{
+    concept:"⚠️ This concept was not in the course but is frequently tested in the CCDAK exam. RecordTooLargeException occurs when a single message exceeds size limits enforced on BOTH the producer side (max.request.size) AND the broker side (message.max.bytes). Both must be increased to resolve it.",
+    correct_why:"max.request.size (default 1 MB) limits the request size at the producer before sending. message.max.bytes (default 1 MB on broker) limits what the broker will accept. If either limit is exceeded, the exception is thrown. Both must match to allow large messages.",
+    incorrect_why:"batch.size controls batch accumulation — increasing it doesn't affect the maximum message size. buffer.memory affects total buffering capacity, not individual message size limits. linger.ms affects timing, not message size.",
+    retenir:"Large message checklist: producer max.request.size + broker message.max.bytes + replica.fetch.max.bytes (for replicas to fetch large messages). All three must be aligned. Default: all 1 MB. Better approach: consider splitting large messages rather than increasing limits."
+  }
+}
+
+];
+
+/* ==================== GLOBAL STATE ==================== */
+var QUESTIONS = [];
+var qIdx = 0;
+var selected = [];
+var answered = false;
+var score = 0;
+var timerInterval = null;
+var timeLeft = 90;
+var totalTimeUsed = 0;
+var courseTotal = 0;
+var courseCorrect = 0;
+var inferenceTotal = 0;
+var inferenceCorrect = 0;
+
+/* ==================== UTILITY ==================== */
+function fisherYates(arr) {
+  for (var i = arr.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+  }
+  return arr;
+}
+function deepClone(o) { return JSON.parse(JSON.stringify(o)); }
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function prepareQuestions() {
+  var raw = deepClone(QUESTIONS_RAW);
+  fisherYates(raw);
+  QUESTIONS = [];
+  courseTotal = 0; inferenceTotal = 0;
+  for (var i = 0; i < raw.length; i++) {
+    var q = raw[i];
+    fisherYates(q.options);
+    QUESTIONS.push(q);
+    if (q.source === 'cours') courseTotal++;
+    else inferenceTotal++;
+  }
+}
+
+/* ==================== TIMER ==================== */
+function startTimer() {
+  clearInterval(timerInterval);
+  timeLeft = 90;
+  renderTimer();
+  timerInterval = setInterval(function() {
+    timeLeft--;
+    renderTimer();
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      document.getElementById('timeoutMsg').style.display = 'block';
+      validerAuto();
+    }
+  }, 1000);
+}
+
+function renderTimer() {
+  var el = document.getElementById('timerEl');
+  if (!el) return;
+  var m = Math.floor(timeLeft / 60);
+  var s = timeLeft % 60;
+  el.textContent = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  el.className = 'timer';
+  if (timeLeft <= 15) el.className = 'timer danger';
+  else if (timeLeft <= 30) el.className = 'timer warning';
+}
+
+/* ==================== PAINT ==================== */
+function paint() {
+  if (qIdx >= QUESTIONS.length) { paintScore(); return; }
+  var q = QUESTIONS[qIdx];
+  selected = [];
+  answered = false;
+
+  document.getElementById('progressBar').style.width =
+    Math.round((qIdx / QUESTIONS.length) * 100) + '%';
+  document.getElementById('timeoutMsg').style.display = 'none';
+
+  var srcBadge = q.source === 'cours'
+    ? '<span class="badge badge-cours">&#128216; From the Course</span>'
+    : '<span class="badge badge-inference">&#128269; Beyond the Course</span>';
+  var typBadge = q.type === 'single'
+    ? '<span class="badge badge-single">Single Answer</span>'
+    : '<span class="badge badge-multiple">Multiple Answers</span>';
+  document.getElementById('questionMeta').innerHTML =
+    '<span class="q-num">Q' + (qIdx+1) + ' / ' + QUESTIONS.length + '</span>' +
+    srcBadge + typBadge;
+
+  document.getElementById('questionText').textContent = q.text;
+
+  var container = document.getElementById('optionsContainer');
+  container.innerHTML = '';
+  for (var i = 0; i < q.options.length; i++) {
+    var div = document.createElement('div');
+    div.className = 'option';
+    div.id = 'opt_' + i;
+    div.setAttribute('onclick', 'pickOption(' + i + ')');
+    div.innerHTML =
+      '<span class="opt-letter">' + LETTERS[i] + '</span>' +
+      '<span class="opt-text">' + esc(q.options[i].text) + '</span>';
+    container.appendChild(div);
+  }
+
+  document.getElementById('explanation').style.display = 'none';
+  document.getElementById('explanation').innerHTML = '';
+  document.getElementById('btnValidate').disabled = false;
+  document.getElementById('btnNext').disabled = true;
+  startTimer();
+}
+
+/* ==================== INTERACTION ==================== */
+function pickOption(idx) {
+  if (answered) return;
+  var q = QUESTIONS[qIdx];
+  if (q.type === 'single') {
+    for (var i = 0; i < q.options.length; i++) {
+      var e = document.getElementById('opt_' + i);
+      if (e) e.className = 'option';
+    }
+    selected = [idx];
+    var sel = document.getElementById('opt_' + idx);
+    if (sel) sel.className = 'option selected';
+  } else {
+    var pos = selected.indexOf(idx);
+    var el = document.getElementById('opt_' + idx);
+    if (pos === -1) {
+      selected.push(idx);
+      if (el) el.className = 'option selected';
+    } else {
+      selected.splice(pos, 1);
+      if (el) el.className = 'option';
+    }
+  }
+}
+
+function valider() {
+  if (answered) return;
+  clearInterval(timerInterval);
+  totalTimeUsed += (90 - timeLeft);
+  processAnswer();
+}
+
+function validerAuto() {
+  if (answered) return;
+  totalTimeUsed += 90;
+  processAnswer();
+}
+
+function processAnswer() {
+  answered = true;
+  var q = QUESTIONS[qIdx];
+
+  var correctIdxs = [];
+  for (var i = 0; i < q.options.length; i++) {
+    if (q.options[i].correct) correctIdxs.push(i);
+  }
+
+  var isCorrect = false;
+  if (selected.length === correctIdxs.length) {
+    var s1 = selected.slice().sort().join(',');
+    var s2 = correctIdxs.slice().sort().join(',');
+    isCorrect = (s1 === s2);
+  }
+
+  if (isCorrect) {
+    score++;
+    if (q.source === 'cours') courseCorrect++;
+    else inferenceCorrect++;
+  }
+
+  for (var i = 0; i < q.options.length; i++) {
+    var el = document.getElementById('opt_' + i);
+    if (!el) continue;
+    var isSel  = selected.indexOf(i) !== -1;
+    var isCorr = correctIdxs.indexOf(i) !== -1;
+    el.setAttribute('onclick', '');
+    if      (isSel  && isCorr)  el.className = 'option correct disabled';
+    else if (isSel  && !isCorr) el.className = 'option incorrect disabled';
+    else if (!isSel && isCorr)  el.className = 'option missed disabled';
+    else                         el.className = 'option disabled';
+  }
+
+  var expEl = document.getElementById('explanation');
+  expEl.style.display = 'block';
+  var warnHtml = q.source === 'inference'
+    ? '<div class="exp-warn">&#9888; This concept was not in the course but is frequently tested in the CCDAK exam.</div>'
+    : '';
+  expEl.innerHTML = warnHtml +
+    '<h4>&#128273; Key Concept</h4><p>'     + esc(q.explanation.concept)       + '</p>' +
+    '<h4>&#9989; Why Correct</h4><p>'      + esc(q.explanation.correct_why)   + '</p>' +
+    '<h4>&#10060; Why Incorrect</h4><p>'   + esc(q.explanation.incorrect_why) + '</p>' +
+    '<h4>&#128204; Remember for the Exam</h4><p>' + esc(q.explanation.retenir) + '</p>';
+
+  document.getElementById('btnValidate').disabled = true;
+  document.getElementById('btnNext').disabled = false;
+}
+
+function suivante() { qIdx++; paint(); }
+
+/* ==================== SCORE ==================== */
+function paintScore() {
+  clearInterval(timerInterval);
+  document.getElementById('quizScreen').style.display = 'none';
+  document.getElementById('scoreScreen').style.display = 'block';
+  document.getElementById('progressBar').style.width = '100%';
+
+  var total = QUESTIONS.length;
+  var pct   = total > 0 ? Math.round((score / total) * 100) : 0;
+  var cPct  = courseTotal    > 0 ? Math.round(courseCorrect    / courseTotal    * 100) : 0;
+  var iPct  = inferenceTotal > 0 ? Math.round(inferenceCorrect / inferenceTotal * 100) : 0;
+  var avg   = total > 0 ? Math.round(totalTimeUsed / total) : 0;
+
+  document.getElementById('scoreTitle').textContent = 'Quiz Complete! 🎉';
+
+  var bar = document.getElementById('scoreBar');
+  bar.style.width = pct + '%';
+  bar.className = 'score-bar ' + (pct >= 75 ? 'great' : pct >= 50 ? 'ok' : 'fail');
+  document.getElementById('scorePct').textContent = pct + '%';
+
+  var msg = '';
+  if (pct >= 85) msg = '🏆 Excellent! You are ready for the CCDAK exam!';
+  else if (pct >= 70) msg = '👍 Good job! Review the missed concepts and you\'ll nail it.';
+  else if (pct >= 50) msg = '📚 Keep studying — focus on the questions you got wrong.';
+  else msg = '💪 Keep practicing! Review the Kafka Producers chapter thoroughly.';
+  document.getElementById('scoreMsg').textContent = msg;
+
+  document.getElementById('scoreCards').innerHTML =
+    '<div class="score-card"><div class="sc-label">Total Score</div><div class="sc-val">'  + score         + '/' + total         + '</div><div class="sc-sub">' + pct  + '%</div></div>' +
+    '<div class="score-card"><div class="sc-label">&#128216; From the Course</div><div class="sc-val">'     + courseCorrect    + '/' + courseTotal    + '</div><div class="sc-sub">' + cPct + '%</div></div>' +
+    '<div class="score-card"><div class="sc-label">&#128269; Beyond the Course</div><div class="sc-val">'   + inferenceCorrect + '/' + inferenceTotal + '</div><div class="sc-sub">' + iPct + '%</div></div>' +
+    '<div class="score-card"><div class="sc-label">Avg Time / Question</div><div class="sc-val">'           + avg              + 's</div><div class="sc-sub">out of 90s</div></div>';
+}
+
+/* ==================== RESTART ==================== */
+function recommencer() {
+  qIdx = 0; score = 0; selected = []; answered = false;
+  totalTimeUsed = 0; courseCorrect = 0; inferenceCorrect = 0;
+  prepareQuestions();
+  document.getElementById('scoreScreen').style.display = 'none';
+  document.getElementById('quizScreen').style.display = 'block';
+  document.getElementById('timerEl').className = 'timer';
+  paint();
+}
+
+/* ==================== INIT ==================== */
+prepareQuestions();
+window.onload = function() { paint(); };
+</script>
+</body>
+</html>

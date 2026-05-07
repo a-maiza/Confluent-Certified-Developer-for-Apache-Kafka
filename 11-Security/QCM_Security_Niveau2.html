@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CCDAK Prep — Level 2 — Kafka Security</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:#1a1a2e;
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
+  min-height:100vh;
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  padding:32px 16px;
+}
+.card{
+  background:#fff;
+  border-radius:12px;
+  border:1px solid #ddd;
+  max-width:820px;
+  width:100%;
+  padding:32px;
+  box-shadow:0 8px 40px rgba(0,0,0,.45);
+}
+.card-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  margin-bottom:4px;
+}
+.title{font-size:20px;font-weight:900;color:#C0392B;letter-spacing:1px;text-transform:uppercase}
+.subtitle{font-size:13px;color:#999;margin-top:2px}
+.timer-block{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  background:#f8f8f8;
+  border:1px solid #e0e0e0;
+  border-radius:8px;
+  padding:7px 14px;
+}
+.timer-icon{font-size:16px}
+.timer{
+  font-size:20px;
+  font-weight:800;
+  font-variant-numeric:tabular-nums;
+  color:#1a1a2e;
+  min-width:52px;
+}
+.timer.warn{color:#e67e22}
+.timer.danger{color:#e74c3c;animation:blink .8s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+.prog-wrap{background:#f0f0f0;border-radius:6px;height:7px;margin:16px 0 24px;overflow:hidden}
+.prog-bar{height:100%;background:linear-gradient(90deg,#C0392B,#e74c3c);border-radius:6px;transition:width .3s}
+.q-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.q-num{font-size:13px;color:#aaa;font-weight:600}
+.badge{font-size:12px;font-weight:700;padding:3px 11px;border-radius:20px}
+.badge-single{background:#eafaf1;color:#1e8449}
+.badge-multi{background:#fef9e7;color:#b7950b}
+.badge-cours{background:#e8f4fd;color:#1a6fa8}
+.badge-inf{background:#f0e8fd;color:#6a1ab8}
+.q-text{font-size:16px;font-weight:700;color:#1a1a2e;line-height:1.6;margin-bottom:22px}
+.option{
+  border:2px solid #e5e5e5;
+  border-radius:9px;
+  margin-bottom:10px;
+  transition:border-color .15s,background .15s;
+  overflow:hidden;
+}
+.opt-row{
+  display:flex;
+  align-items:flex-start;
+  gap:13px;
+  padding:13px 16px;
+  cursor:pointer;
+  user-select:none;
+  -webkit-user-select:none;
+}
+.opt-row:hover{background:#fafafa}
+.option.selected .opt-row{background:#fff5f5}
+.option.selected{border-color:#C0392B}
+.option.correct{border-color:#27ae60;background:#eafaf1}
+.option.correct .opt-row{background:transparent;cursor:default}
+.option.incorrect{border-color:#e74c3c;background:#fdf2f2}
+.option.incorrect .opt-row{background:transparent;cursor:default}
+.option.missed{border-color:#27ae60;border-style:dashed;background:#eafaf1}
+.option.missed .opt-row{background:transparent;cursor:default}
+.option.neutral-done .opt-row{cursor:default}
+.opt-letter{font-weight:800;font-size:14px;color:#bbb;min-width:22px;padding-top:1px;flex-shrink:0}
+.option.selected  .opt-letter{color:#C0392B}
+.option.correct   .opt-letter{color:#27ae60}
+.option.incorrect .opt-letter{color:#e74c3c}
+.option.missed    .opt-letter{color:#27ae60}
+.opt-text{font-size:15px;color:#222;line-height:1.45}
+.opt-exp{
+  display:none;
+  font-size:13px;
+  line-height:1.55;
+  padding:8px 16px 10px 51px;
+  border-top:1px dashed #e8e8e8;
+  color:#555;
+}
+.opt-exp .exp-icon{font-weight:700;margin-right:5px}
+.exp-correct .exp-icon{color:#27ae60}
+.exp-incorrect .exp-icon{color:#e74c3c}
+.exp-missed .exp-icon{color:#27ae60}
+.exp-neutral .exp-icon{color:#aaa}
+.global-exp{
+  display:none;
+  margin-top:18px;
+  background:#1a1a2e;
+  border-left:5px solid #C0392B;
+  border-radius:8px;
+  padding:16px 20px;
+  color:#e8e8e8;
+}
+.global-exp h4{font-size:13px;font-weight:800;color:#C0392B;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.global-exp p{font-size:14px;line-height:1.65;color:#ddd}
+.btn-row{display:flex;gap:12px;margin-top:22px;flex-wrap:wrap}
+button{padding:11px 24px;border-radius:8px;border:none;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .2s,transform .1s}
+button:active{transform:scale(.97)}
+button:disabled{opacity:.3;cursor:not-allowed;transform:none}
+.btn-primary{background:#C0392B;color:#fff}
+.btn-primary:hover:not(:disabled){opacity:.87}
+.btn-secondary{background:#f0f0f0;color:#333}
+.btn-secondary:hover:not(:disabled){background:#e2e2e2}
+/* Score */
+.score-screen{display:none}
+.score-title{font-size:28px;font-weight:900;color:#1a1a2e;margin-bottom:6px}
+.score-sub{font-size:14px;color:#999;margin-bottom:18px}
+.score-bar-wrap{background:#f0f0f0;border-radius:8px;height:18px;margin-bottom:6px;overflow:hidden}
+.score-bar{height:100%;border-radius:8px;transition:width 1s ease}
+.score-bar.great{background:linear-gradient(90deg,#27ae60,#2ecc71)}
+.score-bar.ok{background:linear-gradient(90deg,#f39c12,#f1c40f)}
+.score-bar.fail{background:linear-gradient(90deg,#e74c3c,#C0392B)}
+.score-pct{text-align:right;font-size:13px;color:#999;margin-bottom:20px}
+.score-msg{font-size:20px;font-weight:800;color:#1a1a2e;margin-bottom:24px}
+.score-cards{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:28px}
+.score-card{flex:1;min-width:150px;background:#f8f9fa;border-radius:10px;padding:16px;text-align:center;border:1px solid #e8e8e8}
+.sc-label{font-size:12px;color:#999;margin-bottom:6px;font-weight:600}
+.sc-val{font-size:26px;font-weight:900;color:#1a1a2e}
+.sc-sub{font-size:12px;color:#bbb;margin-top:2px}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div class="title">CCDAK Prep &mdash; Level 2</div>
+      <div class="subtitle">Kafka Security &mdash; Exam-Style Scenarios</div>
+    </div>
+    <div class="timer-block">
+      <span class="timer-icon">&#9201;</span>
+      <span class="timer" id="timerEl">--:--</span>
+    </div>
+  </div>
+  <div class="prog-wrap"><div class="prog-bar" id="progressBar" style="width:0%"></div></div>
+
+  <div id="quizScreen">
+    <div class="q-meta" id="questionMeta"></div>
+    <div class="q-text" id="questionText"></div>
+    <div id="optionsContainer"></div>
+    <div class="global-exp" id="globalExp">
+      <h4>&#128161; Key Concept</h4>
+      <p id="globalExpText"></p>
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" id="btnValidate" onclick="valider()">Validate</button>
+      <button class="btn-secondary" id="btnNext" onclick="suivante()" disabled>Next Question &rarr;</button>
+    </div>
+  </div>
+
+  <div class="score-screen" id="scoreScreen">
+    <div class="score-title" id="scoreTitle"></div>
+    <div class="score-sub">Kafka Security &mdash; CCDAK Level 2 Exam Prep</div>
+    <div class="score-bar-wrap"><div class="score-bar" id="scoreBar"></div></div>
+    <div class="score-pct" id="scorePct"></div>
+    <div class="score-msg" id="scoreMsg"></div>
+    <div class="score-cards" id="scoreCards"></div>
+    <button class="btn-primary" onclick="recommencer()">&#x1F504; Restart the Test</button>
+  </div>
+</div>
+
+<script>
+var LETTERS = ['A','B','C','D','E'];
+
+var QUESTIONS_RAW = [
+
+/* ==================== FROM THE COURSE ==================== */
+
+{
+  source:"cours", type:"single",
+  question:"A FinTech company processes sensitive payment events through Kafka. Their security policy mandates that all data in transit must be encrypted AND that client identity must be verified using SASL credentials before any connection is accepted. A developer needs to configure the security.protocol on all producers and consumers. Which value satisfies BOTH requirements simultaneously?",
+  options:[
+    {text:"security.protocol=SSL",
+     explanation:"SSL enables TLS encryption for all data in transit, but it does NOT activate SASL-based authentication. Clients authenticate only via certificates (mTLS) if ssl.client.auth=required is set — not via SASL credentials like username/password or Kerberos. This satisfies encryption but not SASL credential verification.",
+     correct:false},
+    {text:"security.protocol=SASL_PLAINTEXT",
+     explanation:"SASL_PLAINTEXT enables SASL authentication (credentials are verified), but the data channel is completely unencrypted. Payment events would flow over the network in plaintext — violating the encryption mandate. Authentication alone is insufficient here.",
+     correct:false},
+    {text:"security.protocol=SASL_SSL",
+     explanation:"SASL_SSL layers SASL authentication on top of a TLS-encrypted transport. The channel is encrypted (satisfying the encryption mandate) AND client identity is verified via the configured SASL mechanism (PLAIN, GSSAPI, SCRAM). This is the production-grade choice for sensitive data.",
+     correct:true},
+    {text:"security.protocol=PLAINTEXT",
+     explanation:"PLAINTEXT provides neither encryption nor authentication. This is the least secure option and completely unacceptable for sensitive financial data. It would fail both requirements simultaneously.",
+     correct:false}
+  ],
+  globalExplanation:"SASL_SSL is the most secure security.protocol value, combining TLS encryption with SASL-based client authentication. The property name is self-documenting: SASL_ prefix enables authentication (via sasl.mechanism), SSL suffix enables TLS encryption. For production workloads with sensitive data, SASL_SSL is the standard choice."
+},
+
+{
+  source:"cours", type:"single",
+  question:"An operations team deploys a Kafka cluster with SSL/TLS enabled. Broker certificates are issued by an internal Certificate Authority. Producer applications connecting from application servers throw: 'SSLHandshakeException: hostname in certificate did not match'. The internal CA is trusted (truststore is correctly configured). The team wants to resolve this while maintaining maximum security. What is the correct action?",
+  options:[
+    {text:"Set ssl.endpoint.identification.algorithm='' on all clients to disable hostname verification",
+     explanation:"Disabling hostname verification eliminates the MITM defense provided by ssl.endpoint.identification.algorithm=HTTPS. An attacker could present any valid certificate for a different hostname and intercept traffic without detection. This sacrifices security for convenience and must never be done in production.",
+     correct:false},
+    {text:"Reissue broker certificates with the correct broker hostnames included in the Subject Alternative Name (SAN) field, keeping ssl.endpoint.identification.algorithm at its default value",
+     explanation:"The correct and secure fix. ssl.endpoint.identification.algorithm defaults to 'HTTPS', enforcing RFC 2818 hostname verification. The error occurs because the certificate SAN field does not match the hostnames clients use to connect. Reissuing certs with correct SANs resolves the mismatch while preserving full MITM protection.",
+     correct:true},
+    {text:"Replace the internal CA with a public CA-signed certificate",
+     explanation:"Public CA certificates would address trust issues (truststore), but the error is a hostname mismatch — not a trust issue. The internal CA is already trusted per the problem statement. Switching to a public CA does not fix a SAN field mismatch and adds unnecessary complexity and cost.",
+     correct:false},
+    {text:"Set ssl.endpoint.identification.algorithm=NONE on all clients",
+     explanation:"NONE is not a valid value for ssl.endpoint.identification.algorithm. The only valid values are 'HTTPS' (default, enables hostname verification) and '' (empty string, disables it). Using NONE would cause a configuration error, not disable verification.",
+     correct:false}
+  ],
+  globalExplanation:"ssl.endpoint.identification.algorithm=HTTPS (default) enforces that the broker certificate's CN or SAN matches the hostname used by clients — this is the critical MITM defense. When hostname verification fails, the correct production fix is to reissue certificates with accurate SAN entries. Setting this property to empty string disables protection and is only acceptable in isolated development environments."
+},
+
+{
+  source:"cours", type:"single",
+  question:"A data governance team needs to grant service account 'reporting-svc' read-only access to topic 'financial-events', but only when connecting from the host 'analytics-server-01'. The Kafka cluster uses ZooKeeper-based ACLs managed by SimpleAclAuthorizer. Which kafka-acls.sh command correctly implements this requirement?",
+  options:[
+    {text:"kafka-acls.sh --authorizer-properties zookeeper.connect=zk:2181 --add --allow-principal User:reporting-svc --operation Read --topic financial-events",
+     explanation:"This command grants Read access from ALL hosts ('*' is the implicit default when --allow-host is omitted). It violates the host-restriction requirement — reporting-svc could connect from any machine, not just analytics-server-01.",
+     correct:false},
+    {text:"kafka-acls.sh --authorizer-properties zookeeper.connect=zk:2181 --add --allow-principal User:reporting-svc --allow-host analytics-server-01 --operation Read --topic financial-events",
+     explanation:"Correct. --add creates the ACL entry. --allow-principal User:reporting-svc specifies the beneficiary. --allow-host analytics-server-01 restricts by source hostname. --operation Read grants consume access. --topic financial-events targets the resource. This precisely implements the host-restricted read requirement.",
+     correct:true},
+    {text:"kafka-acls.sh --authorizer-properties zookeeper.connect=zk:2181 --add --deny-principal User:reporting-svc --allow-host analytics-server-01 --operation Read --topic financial-events",
+     explanation:"--deny-principal creates a DENY ACL entry, which is the opposite of granting access. This would explicitly block reporting-svc from reading the topic from analytics-server-01 — the inverse of what is needed.",
+     correct:false},
+    {text:"kafka-acls.sh --authorizer-properties zookeeper.connect=zk:2181 --grant --allow-principal User:reporting-svc --allow-host analytics-server-01 --operation Read --topic financial-events",
+     explanation:"--grant is not a valid kafka-acls.sh flag. The valid action flags are --add (create ACL), --remove (delete ACL), and --list (view ACLs). Using --grant would result in an error.",
+     correct:false}
+  ],
+  globalExplanation:"kafka-acls.sh uses --add to create allow ACLs and --deny-principal to create deny ACLs. The --allow-host flag restricts the ACL to a specific source hostname or IP. Without --allow-host, the ACL applies from all hosts (wildcard '*'). This host-level restriction is a critical principle of least privilege in Kafka ACL design."
+},
+
+{
+  source:"cours", type:"single",
+  question:"An enterprise company's Kafka cluster must authenticate clients against their existing Active Directory Kerberos infrastructure (MIT Kerberos). Their security team requires mutual authentication: both the broker and the client must verify each other's identity using cryptographic tickets rather than passwords. Which sasl.mechanism should be configured on both clients and brokers?",
+  options:[
+    {text:"SASL mechanism: PLAIN",
+     explanation:"SASL/PLAIN transmits credentials as base64(username+password) with no integration with Kerberos or Active Directory. It does not support mutual authentication — only the client authenticates to the broker. Incompatible with the Kerberos infrastructure requirement.",
+     correct:false},
+    {text:"SASL mechanism: SCRAM-SHA-512",
+     explanation:"SCRAM provides strong challenge-response authentication without transmitting passwords, but it requires credentials stored in Kafka's own user store (ZooKeeper/KRaft) — not in Active Directory. It does not integrate with Kerberos and does not support Kerberos mutual authentication.",
+     correct:false},
+    {text:"SASL mechanism: GSSAPI",
+     explanation:"GSSAPI (Generic Security Services API) is the SASL mechanism that wraps Kerberos. It integrates natively with Active Directory via Kerberos tickets, supports mutual authentication (broker verifies client AND client verifies broker using tickets), and never transmits passwords over the network. This is the standard enterprise Kafka authentication mechanism for Kerberos environments.",
+     correct:true},
+    {text:"SASL mechanism: OAUTHBEARER",
+     explanation:"OAUTHBEARER integrates with OAuth2/OIDC identity providers using JWT tokens. While Active Directory can act as an OIDC provider with additional configuration, OAUTHBEARER does not directly use Kerberos tickets and is not the natural fit for 'existing Kerberos infrastructure'. GSSAPI is the canonical Kerberos mechanism.",
+     correct:false}
+  ],
+  globalExplanation:"GSSAPI is the SASL mechanism that provides Kerberos authentication in Kafka. It integrates directly with Active Directory via standard Kerberos tickets, supports mutual authentication (both parties verify each other), and requires no password transmission. When using GSSAPI, clients must also set sasl.kerberos.service.name to match the broker's Kerberos principal service name prefix."
+},
+
+{
+  source:"cours", type:"single",
+  question:"A developer configures a Kafka Java client for Kerberos authentication. She sets security.protocol=SASL_SSL, sasl.mechanism=GSSAPI, and configures sasl.jaas.config with the correct Krb5LoginModule, useKeyTab=true, keytab path, and principal. The broker is confirmed to use GSSAPI. However, the client fails with a GSSException during the SASL handshake. A colleague suggests a single broker-matching property is missing from the client config. Which property is it?",
+  options:[
+    {text:"ssl.truststore.location",
+     explanation:"ssl.truststore.location is an SSL property required to trust the broker's TLS certificate. A missing truststore would cause an SSLHandshakeException during the TLS layer — before the SASL/GSSAPI handshake even begins. The error here is a GSSException, occurring during SASL, not SSL.",
+     correct:false},
+    {text:"sasl.kerberos.service.name",
+     explanation:"This is the missing property. sasl.kerberos.service.name tells the Kafka client what service name prefix the broker's Kerberos principal uses (e.g., 'kafka' for kafka/broker-host@REALM). Without it, the client cannot construct the correct Kerberos service ticket request to the KDC, causing the GSSAPI handshake to fail.",
+     correct:true},
+    {text:"sasl.login.callback.handler.class",
+     explanation:"sasl.login.callback.handler.class specifies a custom callback handler for complex authentication flows. Standard GSSAPI with a keytab does not require it. The error would also be different — this property's absence causes no error in a standard Kerberos setup.",
+     correct:false},
+    {text:"sasl.mechanism=KERBEROS",
+     explanation:"KERBEROS is not a valid sasl.mechanism value. The correct value for Kerberos authentication is GSSAPI. The developer already set sasl.mechanism=GSSAPI correctly. Changing it to KERBEROS would cause an 'Unknown SASL mechanism' error.",
+     correct:false}
+  ],
+  globalExplanation:"sasl.kerberos.service.name is a required client-side property for GSSAPI/Kerberos authentication. It specifies the service name portion of the broker's Kerberos principal (e.g., if the broker principal is kafka/broker1.example.com@REALM, set sasl.kerberos.service.name=kafka). This value must exactly match the broker's actual Kerberos principal service name or authentication fails."
+},
+
+{
+  source:"cours", type:"multiple",
+  question:"An operations team sets up a new Kafka cluster with SimpleAclAuthorizer. They configure allow.everyone.if.no.acl.found=false for a secure-by-default posture. Two service accounts — 'kafka-admin' and 'alertmanager' — must bypass all ACL checks entirely. The rest of the cluster must enforce ACLs normally. Which TWO configurations are required to achieve this? (Choose TWO)",
+  options:[
+    {text:"super.users=User:kafka-admin;User:kafka-admin on all broker server.properties",
+     explanation:"This has a typo (kafka-admin listed twice) and incorrect syntax would cause issues, but more importantly the correct version super.users=User:kafka-admin;User:alertmanager uses semicolons and the User: prefix. The User: prefix is mandatory — Kafka uses KafkaPrincipal format (PrincipalType:Name).",
+     correct:false},
+    {text:"super.users=User:kafka-admin;User:alertmanager in broker server.properties",
+     explanation:"Correct. The super.users property uses the format User:name1;User:name2. Semicolon is the separator, and the User: prefix is the required KafkaPrincipal type. Super users bypass ALL ACL checks — they are the Kafka equivalent of root/admin. Both accounts are correctly listed here.",
+     correct:true},
+    {text:"authorizer.class.name=kafka.security.auth.SimpleAclAuthorizer in broker server.properties",
+     explanation:"Correct. Without this property, no Authorizer is active and the ACL system is completely disabled — every user has full access. This property activates ACL enforcement. Without it, super.users has no effect because there are no ACLs to bypass. Note: In newer Kafka versions, use kafka.security.authorizer.AclAuthorizer instead.",
+     correct:true},
+    {text:"allow.everyone.if.no.acl.found=true for admin users only",
+     explanation:"allow.everyone.if.no.acl.found is a global broker property — it cannot be scoped to specific users. Setting it to true opens ALL resources without ACLs to ALL users, completely defeating the secure-by-default requirement. This is a dangerous anti-pattern.",
+     correct:false},
+    {text:"ssl.client.auth=required for admin service accounts",
+     explanation:"ssl.client.auth controls mutual TLS certificate requirements — it has nothing to do with ACL bypass or super user designation. Configuring mTLS would not grant kafka-admin or alertmanager any ACL exemption.",
+     correct:false}
+  ],
+  globalExplanation:"Two things are needed for a working ACL-enforced cluster with super users: (1) authorizer.class.name to activate the ACL engine, and (2) super.users in the correct format User:name;User:name with semicolon separators. Without the authorizer, there are no ACLs to enforce or bypass. Without super.users in the right format, privileged accounts are treated as regular users."
+},
+
+{
+  source:"cours", type:"single",
+  question:"A Kafka producer is configured with security.protocol=SSL and correct ssl.keystore.location, ssl.keystore.password, and ssl.key.password. The broker uses a certificate issued by an internal CA. At startup, the producer throws: 'PKIX path building failed: unable to find valid certification path to requested target'. What is the most likely missing configuration?",
+  options:[
+    {text:"ssl.key.password is incorrectly set — it should match ssl.keystore.password",
+     explanation:"ssl.key.password and ssl.keystore.password are independent properties. The keystore password unlocks the keystore file; the key password unlocks the private key within it. An incorrect ssl.key.password causes a 'failed to recover key' error — not a PKIX path building failure.",
+     correct:false},
+    {text:"ssl.truststore.location pointing to a truststore containing the internal CA certificate",
+     explanation:"'PKIX path building failed' is a standard Java SSL error meaning the client cannot verify the server's certificate chain. This occurs when the producer's truststore does not contain the CA certificate that signed the broker's SSL certificate. Adding the internal CA certificate to a truststore and setting ssl.truststore.location resolves this.",
+     correct:true},
+    {text:"ssl.keystore.location is incorrect — the path to the producer's keystore is wrong",
+     explanation:"An incorrect keystore path causes a 'FileNotFoundException' or 'keystore not found' error — not a PKIX path validation failure. The PKIX error occurs after the TLS handshake begins and the client tries to verify the server's certificate chain.",
+     correct:false},
+    {text:"ssl.endpoint.identification.algorithm must be set to '' to skip certificate verification",
+     explanation:"Disabling hostname verification (ssl.endpoint.identification.algorithm='') would suppress hostname mismatch errors, not PKIX path building failures. PKIX path failures are trust-related (cannot verify certificate chain) — not hostname-related. Disabling verification would also remove MITM protection.",
+     correct:false}
+  ],
+  globalExplanation:"'PKIX path building failed' always indicates a trust chain failure — the client cannot verify the server certificate up to a trusted root CA. In Kafka SSL configuration, this means ssl.truststore.location is either missing or does not contain the CA certificate that signed the broker's certificate. The truststore is the client's 'list of trusted certificate issuers' — without the internal CA, the broker's cert cannot be validated."
+},
+
+{
+  source:"cours", type:"single",
+  question:"A Kafka cluster runs with SimpleAclAuthorizer and allow.everyone.if.no.acl.found set to its default value. A new topic 'compliance-audit' is created. A monitoring service authenticates successfully via SASL but is not listed in super.users. No ACL entries exist for 'compliance-audit'. The monitoring service attempts to consume from the topic. What is the outcome?",
+  options:[
+    {text:"The monitoring service consumes successfully because it passed SASL authentication",
+     explanation:"Authentication (verifying identity) and authorization (granting permissions) are completely separate mechanisms in Kafka. Successful SASL authentication proves who you are — it grants no permissions. A fully authenticated user with no ACL entries is still denied by the authorizer.",
+     correct:false},
+    {text:"The monitoring service receives an AuthorizationException — access is denied because no ACL grants it access and the default is deny",
+     explanation:"allow.everyone.if.no.acl.found defaults to false. With SimpleAclAuthorizer active and no ACL entries for the topic, any non-super-user receives an AuthorizationException. Kafka logs: 'Principal User:monitor-svc is not authorized to access topics: [compliance-audit]'. This is the intended deny-by-default behavior.",
+     correct:true},
+    {text:"The monitoring service receives read-only access by default as a fallback security measure",
+     explanation:"Kafka has no 'read-only by default' fallback. The ACL model is binary: either an explicit allow ACL exists, or the request is denied. There is no automatic read-only grant for authenticated users.",
+     correct:false},
+    {text:"The request succeeds but Kafka generates a WARNING log entry about missing ACLs",
+     explanation:"Kafka does not have a 'warn but allow' ACL mode. With an Authorizer configured and allow.everyone.if.no.acl.found=false, the authorization decision is strictly deny — the connection is rejected, not logged as a warning.",
+     correct:false}
+  ],
+  globalExplanation:"Kafka ACLs follow a deny-by-default model when an Authorizer is active: 'deny unless explicitly permitted'. allow.everyone.if.no.acl.found=false (the default) means any resource with no ACLs is inaccessible to non-super users. This is deliberate security-first design. The exam rule: no ACL + active Authorizer + default config = AuthorizationException for regular principals."
+},
+
+{
+  source:"cours", type:"single",
+  question:"A DevOps engineer is deploying Kafka producers in a containerized environment (Docker/Kubernetes). She wants to configure SASL/PLAIN authentication without using a separate JAAS configuration file (no -Djava.security.auth.login.config JVM flag). She needs to specify login credentials inline within the producer's client properties file. Which Kafka property enables this?",
+  options:[
+    {text:"sasl.mechanism=PLAIN",
+     explanation:"sasl.mechanism selects which SASL protocol to use (PLAIN, GSSAPI, SCRAM-SHA-256, etc.) but does not carry credential data. Setting this alone tells Kafka the mechanism type but provides no username, password, or login module configuration.",
+     correct:false},
+    {text:"sasl.jaas.config",
+     explanation:"sasl.jaas.config allows the full JAAS login module configuration to be specified inline within the properties file — no external JAAS file needed. Format: 'org.apache.kafka.common.security.plain.PlainLoginModule required username=\"alice\" password=\"secret\";'. This is the container-friendly approach, compatible with Kubernetes Secrets.",
+     correct:true},
+    {text:"security.protocol=SASL_PLAINTEXT",
+     explanation:"security.protocol selects the transport layer (PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL). It activates SASL processing but does not provide any credential information. Without sasl.jaas.config, there is nothing for the SASL mechanism to authenticate with.",
+     correct:false},
+    {text:"sasl.login.callback.handler.class",
+     explanation:"This property specifies a custom Java class for handling SASL authentication callbacks (used in advanced scenarios like OAUTHBEARER token refresh). Standard PLAIN/SCRAM setups do not need it — sasl.jaas.config is sufficient for inline credential configuration.",
+     correct:false}
+  ],
+  globalExplanation:"sasl.jaas.config is the modern inline JAAS configuration approach, eliminating the need for external JAAS files. It is especially valuable in containerized environments where configuration is injected via environment variables or Kubernetes Secrets. Format: LoginModuleClass required/optional key=value;. For PLAIN: 'org.apache.kafka.common.security.plain.PlainLoginModule required username=\"user\" password=\"pass\";'"
+},
+
+{
+  source:"cours", type:"multiple",
+  question:"A company's Kafka deployment fails a security audit with two critical findings: (1) Captured network traffic reveals readable message content, confirming data is transmitted without encryption. (2) Any authenticated user can produce and consume from any topic, with no access differentiation between teams. The auditor requires both findings to be remediated in the next sprint. Which TWO actions directly address these findings? (Choose TWO)",
+  options:[
+    {text:"Configure security.protocol=SASL_SSL on all clients and configure corresponding ssl.* keystore/truststore properties on brokers and clients",
+     explanation:"Directly addresses finding (1). SASL_SSL enables TLS encryption for all data in transit, making captured packets unreadable. The SSL layer wraps all Kafka protocol traffic including message payloads, offsets, and metadata.",
+     correct:true},
+    {text:"Deploy SimpleAclAuthorizer (authorizer.class.name) and create topic-level ACLs granting teams access only to their own topics",
+     explanation:"Directly addresses finding (2). SimpleAclAuthorizer enables ACL-based authorization. With allow.everyone.if.no.acl.found=false (default), each team's principals are granted access only to their designated topics — enforcing data isolation between teams.",
+     correct:true},
+    {text:"Enable message compression using compression.type=lz4 on all producers",
+     explanation:"Compression reduces message size for throughput optimization but provides no security. LZ4-compressed data can be decompressed trivially by anyone who captures the network traffic. Compression is not encryption.",
+     correct:false},
+    {text:"Increase replication.factor to 3 for all topics",
+     explanation:"Replication ensures data durability and fault tolerance (surviving broker failures). It has zero security impact — replicated data is still unencrypted in transit and accessible to all users. It addresses neither audit finding.",
+     correct:false},
+    {text:"Enable log compaction (cleanup.policy=compact) on all sensitive topics",
+     explanation:"Log compaction retains only the latest message per key for efficient storage. It is a data retention strategy with no security implications — it does not encrypt data or restrict access.",
+     correct:false}
+  ],
+  globalExplanation:"Kafka security is built on three pillars: Encryption (SSL/TLS), Authentication (SASL/SSL), and Authorization (ACLs). Finding (1) — unencrypted traffic — requires the Encryption pillar (SASL_SSL). Finding (2) — unrestricted access — requires the Authorization pillar (ACLs). Compression, replication, and log compaction are performance/durability features with no security function."
+},
+
+/* ==================== BEYOND THE COURSE ==================== */
+
+{
+  source:"inference", type:"single",
+  question:"A platform security team implements a zero-trust networking policy for their Kafka cluster. Every client — producers, consumers, and admin tools — must prove its identity using an X.509 certificate during the TLS handshake, in addition to any SASL credentials. Connections from clients without a valid client certificate must be rejected at the TLS layer. Which broker-side configuration enforces this requirement?",
+  options:[
+    {text:"ssl.client.auth=none",
+     explanation:"ssl.client.auth=none is the default. The broker never requests a client certificate — this is standard one-way TLS. Clients are not required to present any certificate, which directly violates the zero-trust requirement.",
+     correct:false},
+    {text:"ssl.client.auth=requested",
+     explanation:"ssl.client.auth=requested makes the broker ask clients to present a certificate but accepts connections from clients that cannot or do not provide one. This 'optional mTLS' approach does not enforce zero-trust — clients without certificates still connect successfully.",
+     correct:false},
+    {text:"ssl.client.auth=required",
+     explanation:"ssl.client.auth=required enforces mutual TLS (mTLS). The broker mandates that every connecting client present a valid X.509 certificate signed by a CA in the broker's truststore. If a client cannot present a valid cert, the TLS handshake fails and the connection is rejected before any SASL exchange. This is true zero-trust certificate enforcement.",
+     correct:true},
+    {text:"ssl.mutual.auth=true",
+     explanation:"ssl.mutual.auth=true is not a valid Kafka configuration property. This is a plausible-sounding distractor. The correct property is ssl.client.auth with value 'required'. Using an invalid property name has no effect — Kafka would silently ignore it (or warn in logs).",
+     correct:false}
+  ],
+  globalExplanation:"⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. ssl.client.auth has three values: none (default, one-way TLS), requested (optional client cert), required (mandatory mTLS). For zero-trust: set ssl.client.auth=required on all listeners and provision client keystores. Note: ssl.client.auth works independently of SASL — you can use both mTLS (ssl.client.auth=required) AND SASL for defense in depth."
+},
+
+{
+  source:"inference", type:"single",
+  question:"A Kafka cluster is migrated from PLAINTEXT to SASL_SSL. The team updates all external listener configurations and client application properties. Client producers and consumers connect successfully after the migration. However, partition replication stops working: follower replicas fall behind, and broker logs show SASL authentication failures for replication fetch requests between brokers. What configuration change was most likely omitted during the migration?",
+  options:[
+    {text:"ssl.truststore.location was not updated on follower brokers",
+     explanation:"While brokers do need truststores for SSL, a missing or incorrect truststore would cause a different error (PKIX path failure or SSLHandshakeException) rather than 'SASL authentication failure'. The specific 'SASL authentication failure' in inter-broker fetch requests points to a protocol mismatch, not a certificate trust issue.",
+     correct:false},
+    {text:"All broker principals were not added to super.users",
+     explanation:"super.users grants ACL bypass — it affects authorization, not transport-layer authentication. Adding brokers to super.users would not resolve SASL authentication failures in inter-broker replication, which is a protocol/transport issue.",
+     correct:false},
+    {text:"security.inter.broker.protocol was not updated to SASL_SSL on all brokers",
+     explanation:"security.inter.broker.protocol is a broker-side configuration that controls the security protocol for broker-to-broker communication (replication, controller traffic). If this remains PLAINTEXT while the listener is updated to SASL_SSL, brokers attempt replication over PLAINTEXT but the listener now requires SASL_SSL — causing authentication failures for internal replication traffic.",
+     correct:true},
+    {text:"ZooKeeper was not restarted after the SSL configuration change",
+     explanation:"ZooKeeper restart is not required for Kafka SSL/SASL configuration changes. ZooKeeper manages its own security configuration separately. The inter-broker protocol mismatch is a pure Kafka broker configuration issue that ZooKeeper restart cannot resolve.",
+     correct:false}
+  ],
+  globalExplanation:"⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Two separate properties govern security protocols: security.protocol (client-to-broker, set on clients) and security.inter.broker.protocol (broker-to-broker, set on brokers). Updating the listener without updating security.inter.broker.protocol is a classic migration oversight: client connections work but internal replication fails with SASL errors."
+},
+
+{
+  source:"inference", type:"multiple",
+  question:"A Kafka consumer application in consumer group 'order-processors' is deployed with correct SASL_SSL credentials. An admin confirms the principal has an explicit Read ACL on topic 'orders'. Despite this, the consumer fails with AuthorizationException. A deeper investigation reveals the consumer is also attempting to join the consumer group and commit offsets. Which TWO additional ACL grants are most likely needed to resolve the issue? (Choose TWO)",
+  options:[
+    {text:"Read ACL on consumer group 'order-processors'",
+     explanation:"Required. Kafka consumers need explicit Read permission on the consumer group they join. Without it, the JoinGroup and OffsetCommit requests (sent to the group coordinator broker) are rejected with AuthorizationException. This is the most commonly overlooked ACL for consumers.",
+     correct:true},
+    {text:"Describe ACL on topic 'orders'",
+     explanation:"Required. The Describe operation allows the consumer to fetch topic metadata (partition count, leader, offsets). Without Describe on the topic, ListOffsets and Metadata requests fail. In some Kafka versions Read implies Describe, but granting it explicitly is the safe and recommended approach.",
+     correct:true},
+    {text:"Write ACL on topic 'orders'",
+     explanation:"Write grants produce permissions — a consumer application must never be granted Write access. This violates the principle of least privilege and is incorrect. A consumer only needs Read (and Describe) on topics it consumes from.",
+     correct:false},
+    {text:"Create ACL on the Kafka cluster resource",
+     explanation:"The Create operation on the cluster allows creating new topics. Consumer applications have no legitimate need to create topics. Granting cluster-level Create to a consumer is excessive and a security anti-pattern.",
+     correct:false},
+    {text:"AlterConfigs ACL on consumer group 'order-processors'",
+     explanation:"AlterConfigs on consumer groups is not a valid or meaningful ACL operation. Valid consumer group ACL operations are Read (join group, commit offsets) and Describe (view group metadata). AlterConfigs applies to topics and broker configurations.",
+     correct:false}
+  ],
+  globalExplanation:"⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. A complete Kafka consumer requires three ACL grants: Read on topic (fetch messages), Describe on topic (metadata/offsets), and Read on consumer group (join group, commit offsets). Missing the consumer group Read ACL is the single most common consumer ACL mistake. Always add it explicitly, even when the topic Read ACL exists."
+},
+
+{
+  source:"inference", type:"single",
+  question:"A startup's development team configures their Kafka cluster with security.protocol=SASL_PLAINTEXT and sasl.mechanism=PLAIN for quick setup. A security engineer runs a network capture tool during a test and successfully extracts the Kafka client usernames and plaintext passwords from the capture. The lead developer argues: 'SASL/PLAIN credentials are base64-encoded — they are safe.' How should the security engineer respond?",
+  options:[
+    {text:"The developer is correct — base64 encoding provides sufficient protection against credential extraction from network captures",
+     explanation:"Completely incorrect. Base64 is a data encoding scheme, not encryption. Any base64-encoded value can be decoded in milliseconds with standard tools (echo 'dXNlcjpwYXNz' | base64 -d). 'Encoded' never means 'secured' — this is a fundamental security misconception.",
+     correct:false},
+    {text:"The security engineer is correct — SASL/PLAIN over SASL_PLAINTEXT transmits credentials without any encryption, making them trivially readable from network captures",
+     explanation:"Correct. SASL/PLAIN sends the authentication frame as base64(\\0 + username + \\0 + password). On SASL_PLAINTEXT transport, there is no TLS — this base64 blob travels over an unencrypted TCP socket and is fully readable from a packet capture. The engineer correctly identified a critical vulnerability.",
+     correct:true},
+    {text:"The issue is with the SCRAM configuration, not PLAIN — switching to SCRAM-SHA-512 over SASL_PLAINTEXT would prevent credential extraction",
+     explanation:"SCRAM uses a challenge-response protocol that never transmits the password — so SCRAM over SASL_PLAINTEXT would indeed be safer than PLAIN over SASL_PLAINTEXT. However, the developer's claim about PLAIN being safe due to base64 is still wrong. The question is about the developer's argument, not the correct fix.",
+     correct:false},
+    {text:"Switching to SASL_SSL with SASL/PLAIN would still expose credentials the same way",
+     explanation:"Incorrect. SASL_SSL wraps the entire SASL exchange inside TLS encryption. Even though SASL/PLAIN still uses base64 internally, the TLS layer makes the network traffic unreadable from a capture. SASL_SSL + PLAIN is safe from network-level credential extraction.",
+     correct:false}
+  ],
+  globalExplanation:"⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. SASL/PLAIN is safe ONLY when combined with TLS (security.protocol=SASL_SSL). Over SASL_PLAINTEXT, PLAIN credentials are as readable as plaintext from any network capture. The fix is either: switch to SASL_SSL + PLAIN (TLS encrypts the channel), or switch to SCRAM which uses challenge-response and never transmits the actual password over any transport."
+},
+
+{
+  source:"inference", type:"single",
+  question:"A microservice 'inventory-svc' needs to produce messages to the Kafka topic 'stock-updates'. This topic does not yet exist, and the broker is configured with auto.create.topics.enable=true. The cluster enforces ACLs via SimpleAclAuthorizer. The service account principal is 'User:inventory-svc'. Without over-provisioning permissions, which MINIMUM set of ACLs allows the first produce call to auto-create the topic and publish successfully?",
+  options:[
+    {text:"Write ACL on topic 'stock-updates' only",
+     explanation:"Write grants produce permission but does not grant the ability to auto-create topics. If the topic does not exist, Kafka must create it at the cluster level before the produce can succeed. Without Create permission on the cluster, auto-creation is denied and the produce fails with AuthorizationException.",
+     correct:false},
+    {text:"Write ACL on topic 'stock-updates' AND Create ACL on the cluster resource",
+     explanation:"This is the minimum correct set. Write on the topic allows producing messages. Create on the Kafka cluster resource (not the topic) grants permission to trigger auto-topic-creation. Together they allow inventory-svc to create 'stock-updates' on first use and publish messages thereafter. Describe on the topic is often also needed for metadata but Write typically implies it.",
+     correct:true},
+    {text:"All ACL on topic 'stock-updates'",
+     explanation:"'All' grants every operation (Read, Write, Create, Delete, Alter, etc.) on the topic — massively over-provisioning a producer. It violates least privilege. Additionally, 'All' on the topic does not include the cluster-level Create permission needed for auto-topic-creation, so it may still fail on first connect.",
+     correct:false},
+    {text:"Write ACL on topic 'stock-updates' AND Admin ACL on topic 'stock-updates'",
+     explanation:"'Admin' is not a valid Kafka ACL operation. Valid operations include Read, Write, Create, Delete, Alter, Describe, DescribeConfigs, AlterConfigs, ClusterAction, IdempotentWrite, and All. Using an invalid operation name results in a kafka-acls.sh error.",
+     correct:false}
+  ],
+  globalExplanation:"⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Kafka ACL operations: producer needs Write (+ Describe for metadata) on the topic. For auto-topic-creation, the producer principal additionally needs Create on the CLUSTER resource (--cluster flag in kafka-acls.sh), not on the topic itself. Always apply least privilege: grant only what is operationally necessary."
+},
+
+{
+  source:"inference", type:"single",
+  question:"A multi-tenant Kafka platform serves 20 engineering teams. Each team's topics follow a naming convention: 'team-name.topic-name' (e.g., payments.invoices, payments.refunds, logistics.tracking). The platform team wants to grant service account 'payments-svc' read/write access to all current AND future topics prefixed with 'payments.' without creating new ACL entries each time a new payments topic is added. Which approach achieves this with the lowest operational overhead?",
+  options:[
+    {text:"Create a single ACL using --topic 'payments.*' as a wildcard pattern",
+     explanation:"Kafka ACLs do NOT support glob-style wildcard patterns like 'payments.*'. The string 'payments.*' would be interpreted literally as a topic named exactly 'payments.*', not as a prefix wildcard. This is a common misconception — only PREFIXED and LITERAL resource pattern types are supported.",
+     correct:false},
+    {text:"Create a single ACL with --resource-pattern-type PREFIXED --topic payments.",
+     explanation:"Correct. Kafka supports PREFIXED resource pattern type (introduced in Kafka 2.0). A single ACL entry with prefix 'payments.' automatically covers ALL topics starting with 'payments.' — including newly created ones. kafka-acls.sh --add --allow-principal User:payments-svc --operation Read --operation Write --topic payments. --resource-pattern-type PREFIXED creates this with one command.",
+     correct:true},
+    {text:"Create individual ACLs for each payments.* topic as they are created, using a CI/CD pipeline",
+     explanation:"This works but has high operational overhead — every new topic requires a new ACL entry, CI/CD pipeline execution, and potential for drift if topics are created out-of-band. This defeats the stated goal of avoiding per-topic ACL creation.",
+     correct:false},
+    {text:"Add 'payments-svc' to super.users so it bypasses ACLs entirely for payments topics",
+     explanation:"super.users is a global bypass — it grants access to ALL topics across ALL teams, destroying multi-tenant isolation. A super user can read logistics, finance, and every other team's data. This is a serious security anti-pattern for multi-tenant environments.",
+     correct:false}
+  ],
+  globalExplanation:"⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. PREFIXED resource pattern type (--resource-pattern-type PREFIXED) allows a single ACL entry to cover all resources matching a name prefix. This is the recommended pattern for multi-tenant Kafka clusters with naming conventions. It reduces ACL management overhead significantly compared to per-topic ACLs."
+},
+
+{
+  source:"inference", type:"single",
+  question:"A Kafka cluster stores its ACLs in ZooKeeper (SimpleAclAuthorizer). A security audit discovers that an attacker with direct network access to ZooKeeper port 2181 can read and modify all Kafka ACL entries by issuing raw ZooKeeper commands — bypassing all Kafka broker authentication entirely. Broker and client SASL_SSL is properly configured. What is the MOST effective remediation for this ZooKeeper-level vulnerability?",
+  options:[
+    {text:"Increase the complexity of ssl.keystore.password on all brokers",
+     explanation:"Keystore password complexity protects SSL private keys on broker disk. It has no effect on ZooKeeper access — an attacker connecting directly to ZooKeeper port 2181 bypasses Kafka entirely. SSL keystore security is irrelevant to ZooKeeper API access.",
+     correct:false},
+    {text:"Configure ZooKeeper SASL authentication using authProvider=org.apache.zookeeper.server.auth.SASLAuthenticationProvider and corresponding JAAS configuration",
+     explanation:"Correct. ZooKeeper supports SASL-based authentication via its authProvider configuration. This requires clients (including Kafka brokers) to authenticate with SASL before performing ZooKeeper operations. Unauthorized access to ZooKeeper znodes (including /kafka-acl/) is then rejected, preventing ACL manipulation.",
+     correct:true},
+    {text:"Set allow.everyone.if.no.acl.found=false on all Kafka brokers",
+     explanation:"This is a Kafka broker ACL default behavior setting — it controls what happens when no ACL exists for a resource. It does nothing to prevent direct ZooKeeper access. An attacker connecting directly to ZooKeeper bypasses Kafka and its ACL enforcement entirely.",
+     correct:false},
+    {text:"Rotate all Kafka client SASL credentials immediately",
+     explanation:"Rotating credentials addresses compromised credentials — not unauthorized ZooKeeper access. If an attacker can modify ZooKeeper ACLs directly, rotating Kafka client credentials does not prevent them from reading or altering the ACL store.",
+     correct:false}
+  ],
+  globalExplanation:"⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. The course covers ZooKeeper security configurations including authProvider and kerberos.removeHostFromPrincipal settings. A Kafka cluster is only as secure as its ZooKeeper — ACLs, broker metadata, and configuration are stored there. Securing ZooKeeper with SASL (and optionally TLS via zookeeper.ssl.*) is essential for defense in depth. Note: KRaft mode eliminates ZooKeeper entirely, removing this attack surface."
+},
+
+{
+  source:"inference", type:"single",
+  question:"A company's CISO reviews the Kafka platform security architecture and asks: 'Our brokers are configured with security.protocol=SASL_SSL. If a threat actor physically steals a broker's hard drive, can they read our customer data stored in Kafka log segments?' How should the platform architect respond?",
+  options:[
+    {text:"No — SASL_SSL encrypts all data including log segments written to broker disks",
+     explanation:"Factually incorrect. SASL_SSL operates at the network transport layer — it encrypts data moving between clients and brokers over TCP. Once Kafka writes data to disk (log segments), SSL is no longer involved. Log segments are stored in unencrypted binary format on broker disks.",
+     correct:false},
+    {text:"Yes — SSL/TLS only protects data in transit; data at rest in Kafka log segments is stored unencrypted and requires separate OS-level disk encryption (e.g., LUKS, dm-crypt, or cloud provider disk encryption)",
+     explanation:"Correct. SSL/TLS operates at the network layer and provides no protection for data at rest. Kafka log segments (stored in the log.dirs path) are written in unencrypted binary format. Protecting data at rest requires OS-level disk encryption configured at the infrastructure layer, independently of Kafka security settings.",
+     correct:true},
+    {text:"Partial — SSL encrypts data in the OS page cache but not in the log segment files themselves",
+     explanation:"SSL has no interaction with the OS page cache or filesystem layer. SSL operates at the TCP socket level only. The page cache is a kernel-level memory structure — SSL does not encrypt or interact with it.",
+     correct:false},
+    {text:"No — Confluent Platform Enterprise edition automatically enables disk encryption when SASL_SSL is configured",
+     explanation:"This is false. Confluent Platform does not automatically enable disk-level encryption when SSL is configured. Disk encryption is an infrastructure-level concern (OS/cloud provider) that Kafka and Confluent Platform are agnostic to.",
+     correct:false}
+  ],
+  globalExplanation:"⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. SSL/TLS protects data IN TRANSIT (network) only. Data AT REST (Kafka log segments on broker disk) is completely unprotected by SSL. For data-at-rest protection, use OS-level disk encryption (LUKS on Linux, encrypted EBS volumes on AWS, etc.). This distinction is fundamental in security architecture reviews and a classic CCDAK exam trap."
+},
+
+{
+  source:"inference", type:"single",
+  question:"A Kafka cluster uses SASL/SCRAM-SHA-512 for client authentication. An operator needs to add credentials for a new service account 'billing-api' without restarting any brokers. Which approach correctly adds SCRAM credentials to the cluster?",
+  options:[
+    {text:"Add the credentials to the JAAS configuration file (kafka_jaas.conf) on each broker and perform a rolling restart",
+     explanation:"This describes the SASL/PLAIN credential management pattern. SCRAM credentials are NOT stored in JAAS files. JAAS files for SCRAM only specify the Scram login module class — not the user credentials themselves. Brokers do not need restarts to pick up new SCRAM users.",
+     correct:false},
+    {text:"Use kafka-configs.sh --alter --entity-type users --entity-name billing-api --add-config 'SCRAM-SHA-512=[iterations=8192,password=secret]' targeting the broker or ZooKeeper",
+     explanation:"Correct. SCRAM credentials are stored as salted hashes in ZooKeeper (or KRaft metadata). kafka-configs.sh --alter creates the credential entry dynamically — no broker restart required. The broker reads new SCRAM users from the metadata store, making the account immediately available.",
+     correct:true},
+    {text:"Insert the user credentials into an external database configured via sasl.login.callback.handler.class and restart consumers",
+     explanation:"This describes a custom SASL implementation with an external credential store — an advanced pattern not standard to Kafka. Out-of-the-box SCRAM uses ZooKeeper/KRaft for credential storage, managed by kafka-configs.sh. No external database or custom callback handler is involved in standard SCRAM setup.",
+     correct:false},
+    {text:"Add username and password pairs to server.properties under sasl.users and perform a rolling restart",
+     explanation:"sasl.users is not a valid Kafka broker property. SCRAM credentials are not stored in server.properties. This is the kind of configuration that might apply to SASL/PLAIN in some simplified setups, but SCRAM manages credentials exclusively through the kafka-configs.sh tool targeting ZooKeeper.",
+     correct:false}
+  ],
+  globalExplanation:"⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. SCRAM's key operational advantage over PLAIN: credentials are stored as PBKDF2-hashed entries in ZooKeeper (or KRaft), managed via kafka-configs.sh. Adding or removing SCRAM users requires NO broker restart — the change takes effect immediately. This makes SCRAM operationally superior to PLAIN (which requires JAAS file changes and broker restarts for credential updates)."
+}
+
+,{
+  source:"inference", type:"single",
+  question:"A platform engineering team deploys Kafka producers in Kubernetes. SSL certificates are managed by cert-manager and mounted as Kubernetes Secrets in PEM format (tls.crt and tls.key files). The team wants to configure SSL on the Kafka clients without converting PEM files to a JKS or PKCS12 keystore. Which Kafka client configuration approach enables this natively?",
+  options:[
+    {text:"Set ssl.keystore.type=PKCS12 and provide a .p12 bundle converted from the PEM files",
+     explanation:"PKCS12 is a valid keystore format (an alternative to JKS), but it still requires a file-based keystore — requiring cert-manager PEM files to be converted and bundled first. This adds an operational conversion step and does not eliminate the keystore file requirement.",
+     correct:false},
+    {text:"Set ssl.keystore.type=PEM, ssl.keystore.certificate.chain pointing to tls.crt, and ssl.keystore.key pointing to tls.key (supported since Kafka 2.7)",
+     explanation:"Correct. Since Kafka 2.7, ssl.keystore.type=PEM enables native PEM format support. ssl.keystore.certificate.chain specifies the PEM certificate (or path), and ssl.keystore.key specifies the PEM private key. Combined with ssl.truststore.type=PEM and ssl.truststore.certificates for the CA cert, this eliminates the need for JKS/PKCS12 keystore files entirely — ideal for Kubernetes/cert-manager environments.",
+     correct:true},
+    {text:"Set security.protocol=SASL_PLAINTEXT to bypass the SSL certificate requirement in Kubernetes",
+     explanation:"This removes SSL entirely — switching to SASL with no encryption. The team wants SSL without JKS keystore files, not without SSL. This would eliminate encryption and is the wrong trade-off.",
+     correct:false},
+    {text:"Implement a custom ssl.engine.factory.class to read PEM certificates at runtime from Kubernetes Secrets",
+     explanation:"A custom SSLEngineFactory could technically read PEM files, but it requires implementing a Java class and packaging it as a plugin — significant engineering effort. This was the workaround before Kafka 2.7 introduced native PEM support. It is no longer needed for modern Kafka versions.",
+     correct:false}
+  ],
+  globalExplanation:"⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Since Kafka 2.7, ssl.keystore.type=PEM enables native PEM certificate support — no JKS/PKCS12 conversion needed. This is the standard approach for Kubernetes environments where cert-manager or Vault generates PEM-format certificates. Pair with ssl.truststore.type=PEM for the CA certificate to achieve a fully file-based, container-native SSL configuration."
+}
+
+]; /* end QUESTIONS_RAW */
+
+/* ==================== GLOBAL STATE ==================== */
+var QUESTIONS = [];
+var qIdx = 0;
+var selected = [];
+var answered = false;
+var score = 0;
+var timerInterval = null;
+var timeLeft = 0;
+var totalTime = 0;
+var courseTotal = 0;
+var courseCorrect = 0;
+var inferenceTotal = 0;
+var inferenceCorrect = 0;
+
+/* ==================== UTILITY ==================== */
+function fisherYates(arr) {
+  for (var i = arr.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+  }
+  return arr;
+}
+function deepClone(o) { return JSON.parse(JSON.stringify(o)); }
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+/* ==================== PREPARE ==================== */
+function prepareQuestions() {
+  var raw = deepClone(QUESTIONS_RAW);
+  fisherYates(raw);
+  QUESTIONS = [];
+  courseTotal = 0; inferenceTotal = 0;
+  for (var i = 0; i < raw.length; i++) {
+    var q = raw[i];
+    fisherYates(q.options);
+    QUESTIONS.push(q);
+    if (q.source === 'cours') courseTotal++;
+    else inferenceTotal++;
+  }
+  totalTime = 90 * QUESTIONS.length;
+  timeLeft = totalTime;
+}
+
+/* ==================== TIMER ==================== */
+function startGlobalTimer() {
+  clearInterval(timerInterval);
+  renderTimer();
+  timerInterval = setInterval(function() {
+    timeLeft--;
+    renderTimer();
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      if (!answered) { validerAuto(); }
+      else { suivanteAuto(); }
+    }
+  }, 1000);
+}
+
+function suivanteAuto() {
+  qIdx++;
+  if (qIdx >= QUESTIONS.length) { paintScore(); }
+  else { paint(); }
+}
+
+function renderTimer() {
+  var el = document.getElementById('timerEl');
+  if (!el) return;
+  var m = Math.floor(timeLeft / 60);
+  var s = timeLeft % 60;
+  el.textContent = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  el.className = 'timer';
+  var pct = totalTime > 0 ? timeLeft / totalTime : 1;
+  if (pct < 0.10) el.className = 'timer danger';
+  else if (pct < 0.20) el.className = 'timer warn';
+}
+
+/* ==================== PAINT QUESTION ==================== */
+function paint() {
+  if (qIdx >= QUESTIONS.length) { paintScore(); return; }
+  var q = QUESTIONS[qIdx];
+  selected = [];
+  answered = false;
+
+  document.getElementById('progressBar').style.width =
+    Math.round((qIdx / QUESTIONS.length) * 100) + '%';
+
+  var srcBadge = q.source === 'cours'
+    ? '<span class="badge badge-cours">&#128216; From the course</span>'
+    : '<span class="badge badge-inf">&#128269; Beyond the course</span>';
+  var typBadge = q.type === 'single'
+    ? '<span class="badge badge-single">Single answer</span>'
+    : '<span class="badge badge-multi">Multiple answers</span>';
+  document.getElementById('questionMeta').innerHTML =
+    '<span class="q-num">Q' + (qIdx+1) + ' / ' + QUESTIONS.length + '</span>' +
+    srcBadge + typBadge;
+
+  document.getElementById('questionText').textContent = q.question;
+
+  var container = document.getElementById('optionsContainer');
+  container.innerHTML = '';
+  for (var i = 0; i < q.options.length; i++) {
+    var opt = q.options[i];
+    var div = document.createElement('div');
+    div.className = 'option';
+    div.id = 'opt_' + i;
+
+    var row = document.createElement('div');
+    row.className = 'opt-row';
+    row.id = 'optrow_' + i;
+    row.setAttribute('onclick', 'pickOption(' + i + ')');
+    row.innerHTML =
+      '<span class="opt-letter">' + LETTERS[i] + '</span>' +
+      '<span class="opt-text">' + esc(opt.text) + '</span>';
+
+    var expDiv = document.createElement('div');
+    expDiv.className = 'opt-exp';
+    expDiv.id = 'optexp_' + i;
+    expDiv.textContent = opt.explanation;
+
+    div.appendChild(row);
+    div.appendChild(expDiv);
+    container.appendChild(div);
+  }
+
+  document.getElementById('globalExp').style.display = 'none';
+  document.getElementById('globalExpText').textContent = '';
+  document.getElementById('btnValidate').disabled = false;
+  document.getElementById('btnNext').disabled = true;
+}
+
+/* ==================== INTERACTION ==================== */
+function pickOption(idx) {
+  if (answered) return;
+  var q = QUESTIONS[qIdx];
+  if (q.type === 'single') {
+    for (var i = 0; i < q.options.length; i++) {
+      var o = document.getElementById('opt_' + i);
+      if (o) o.className = 'option';
+    }
+    selected = [idx];
+    var sel = document.getElementById('opt_' + idx);
+    if (sel) sel.className = 'option selected';
+  } else {
+    var pos = selected.indexOf(idx);
+    var el = document.getElementById('opt_' + idx);
+    if (pos === -1) {
+      selected.push(idx);
+      if (el) el.className = 'option selected';
+    } else {
+      selected.splice(pos, 1);
+      if (el) el.className = 'option';
+    }
+  }
+}
+
+function valider() {
+  if (answered) return;
+  processAnswer();
+}
+
+function validerAuto() {
+  if (answered) return;
+  processAnswer();
+}
+
+function processAnswer() {
+  answered = true;
+  var q = QUESTIONS[qIdx];
+
+  var correctIdxs = [];
+  for (var i = 0; i < q.options.length; i++) {
+    if (q.options[i].correct) correctIdxs.push(i);
+  }
+
+  var isCorrect = false;
+  if (selected.length > 0 && selected.length === correctIdxs.length) {
+    var s1 = selected.slice().sort().join(',');
+    var s2 = correctIdxs.slice().sort().join(',');
+    isCorrect = (s1 === s2);
+  }
+
+  if (isCorrect) {
+    score++;
+    if (q.source === 'cours') courseCorrect++;
+    else inferenceCorrect++;
+  }
+
+  /* Style options and reveal per-option explanations */
+  for (var i = 0; i < q.options.length; i++) {
+    var optEl = document.getElementById('opt_' + i);
+    var expEl = document.getElementById('optexp_' + i);
+    var rowEl = document.getElementById('optrow_' + i);
+    if (!optEl) continue;
+
+    var isSel  = selected.indexOf(i) !== -1;
+    var isCorr = correctIdxs.indexOf(i) !== -1;
+
+    if (rowEl) rowEl.setAttribute('onclick', '');
+
+    var expClass = 'opt-exp ';
+    var expIcon  = '';
+
+    if (isCorr) {
+      expIcon = '<span class="exp-icon">&#10003;</span> ';
+      if (isSel) {
+        optEl.className = 'option correct';
+        expClass += 'exp-correct';
+      } else {
+        optEl.className = 'option missed';
+        expClass += 'exp-missed';
+      }
+    } else {
+      expIcon = '<span class="exp-icon">&#10007;</span> ';
+      if (isSel) {
+        optEl.className = 'option incorrect';
+        expClass += 'exp-incorrect';
+      } else {
+        optEl.className = 'option neutral-done';
+        expClass += 'exp-neutral';
+      }
+    }
+
+    if (expEl) {
+      expEl.className = expClass;
+      expEl.innerHTML = expIcon + esc(q.options[i].explanation);
+      expEl.style.display = 'block';
+    }
+  }
+
+  /* Global explanation */
+  var gexp = document.getElementById('globalExp');
+  var gtext = document.getElementById('globalExpText');
+  if (gexp && gtext) {
+    gtext.textContent = q.globalExplanation;
+    gexp.style.display = 'block';
+  }
+
+  document.getElementById('btnValidate').disabled = true;
+  document.getElementById('btnNext').disabled = false;
+}
+
+function suivante() {
+  qIdx++;
+  paint();
+}
+
+/* ==================== SCORE SCREEN ==================== */
+function paintScore() {
+  clearInterval(timerInterval);
+  document.getElementById('progressBar').style.width = '100%';
+  document.getElementById('quizScreen').style.display = 'none';
+  document.getElementById('scoreScreen').style.display = 'block';
+
+  var total = QUESTIONS.length;
+  var pct   = total > 0 ? Math.round((score / total) * 100) : 0;
+  var cPct  = courseTotal    > 0 ? Math.round(courseCorrect    / courseTotal    * 100) : 0;
+  var iPct  = inferenceTotal > 0 ? Math.round(inferenceCorrect / inferenceTotal * 100) : 0;
+
+  document.getElementById('scoreTitle').textContent = 'Test Complete! 🎉';
+
+  var bar = document.getElementById('scoreBar');
+  bar.style.width = pct + '%';
+  bar.className = 'score-bar ' + (pct >= 75 ? 'great' : pct >= 50 ? 'ok' : 'fail');
+  document.getElementById('scorePct').textContent = pct + '% (' + score + '/' + total + ' correct)';
+
+  var msg = '';
+  if (pct >= 85) msg = '🏆 Outstanding! You are exam-ready for CCDAK.';
+  else if (pct >= 70) msg = '👍 Good work! Review the missed concepts and you\'ll be ready.';
+  else if (pct >= 50) msg = '📚 Keep studying — focus on the questions you got wrong.';
+  else msg = '💪 Review the Kafka Security chapter thoroughly and retry.';
+  document.getElementById('scoreMsg').textContent = msg;
+
+  var timeUsed = totalTime - timeLeft;
+  var avgTime  = total > 0 ? Math.round(timeUsed / total) : 0;
+
+  document.getElementById('scoreCards').innerHTML =
+    '<div class="score-card"><div class="sc-label">Total Score</div><div class="sc-val">' + score + '/' + total + '</div><div class="sc-sub">' + pct + '%</div></div>' +
+    '<div class="score-card"><div class="sc-label">&#128216; From the course</div><div class="sc-val">' + courseCorrect + '/' + courseTotal + '</div><div class="sc-sub">' + cPct + '%</div></div>' +
+    '<div class="score-card"><div class="sc-label">&#128269; Beyond the course</div><div class="sc-val">' + inferenceCorrect + '/' + inferenceTotal + '</div><div class="sc-sub">' + iPct + '%</div></div>' +
+    '<div class="score-card"><div class="sc-label">Avg Time / Question</div><div class="sc-val">' + avgTime + 's</div><div class="sc-sub">of 90s allotted</div></div>';
+}
+
+/* ==================== RESTART ==================== */
+function recommencer() {
+  qIdx = 0;
+  score = 0;
+  selected = [];
+  answered = false;
+  courseCorrect = 0;
+  inferenceCorrect = 0;
+
+  prepareQuestions();
+
+  document.getElementById('scoreScreen').style.display = 'none';
+  document.getElementById('quizScreen').style.display = 'block';
+
+  paint();
+  startGlobalTimer();
+}
+
+/* ==================== INIT ==================== */
+prepareQuestions();
+window.onload = function() {
+  paint();
+  startGlobalTimer();
+};
+</script>
+</body>
+</html>

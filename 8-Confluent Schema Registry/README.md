@@ -157,17 +157,18 @@ graph TB
 | **None**                       | Aucune vérification de compatibilité (peu recommandé).                                                                                                                                                     |
 
 
-| Changement                               | Backward      | Forward    | Explication simple                             |
-|------------------------------------------|---------------|------------|------------------------------------------------|
-| ➕ Add field **sans default**            | ❌            | ✅         | Les anciens ignorent, les nouveaux cassent     |
-| ➕ Add field **avec default**            | ✅            | ✅         | Default comble les anciennes données           |
-| ➖ Remove field                          | ✅            | ❌         | Les nouveaux ignorent, les anciens cassent     |
-| 🔁 Rename field                          | ❌            | ❌         | Vu comme remove + add → casse tout             |
-| 🔄 Change type (compatible)              | ⚠️            | ⚠️         | Dépend (ex: int → long OK)                     |
-| 🔄 Change type (incompatible)            | ❌            | ❌         | Ex: string → int                               |
-| 🔒 Add required field (no default)       | ❌            | ✅         | Même logique que add sans default              |
-| 🔓 Make field optional                   | ✅            | ✅         | Plus flexible                                  |
-| 🔐 Make optional → required              | ❌            | ❌         | Peut casser des données existantes             |
+| Changement                               | Backward      | Forward    | Explication simple                                                                                                                         |
+|------------------------------------------|---------------|------------|--------------------------------------------------------------------------------------------------------------------------------------------|
+| ➕ Add field **sans default**            | ❌            | ✅         | Les vieux consumers ignorent le nouveau champ, mais les nouveaux consumers ne savent pas lire les anciens messages qui n’ont pas ce champ  |
+| 🔒 Add required field (no default)       | ❌            | ✅         | Même logique que add sans default                                                                                                          |
+| 🔐 Make optional → required              | ❌            | ✅         | Les anciens consumers lisent encore, mais les nouvelles données exigent désormais le champ                                                 |
+| ➖ Remove field                          | ✅            | ❌         | Les nouveaux consumers peuvent ignorer un ancien champ, mais les anciens consumers peuvent casser si le champ supprimé était attendu       |
+| 🔓 Make field optional                   | ✅            | ❌         | Nouveau consumer plus flexible, mais ancien consumer peut encore attendre le champ                                                         |
+| ➕ Add field **avec default**            | ✅            | ✅         | Le default permet de lire les anciennes données                                                                                            |
+| 🔁 Rename field                          | ❌            | ❌         | Vu comme remove + add → casse tout                                                                                                         |
+| 🔄 Change type (compatible)              | ⚠️            | ⚠️         | Dépend (ex: int → long OK)                                                                                                                 |
+| 🔄 Change type (incompatible)            | ❌            | ❌         | Ex: string → int                                                                                                                           |
+
 #### Scenario de déploiement
 
 ```mermaid

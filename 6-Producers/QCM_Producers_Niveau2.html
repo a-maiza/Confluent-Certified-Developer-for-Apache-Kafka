@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CCDAK Prep — Level 2 | Kafka Producers</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1a1a2e; font-family: system-ui, -apple-system, sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 30px 16px; }
+  .card { background: #fff; border-radius: 12px; border: 1px solid #e0e0e0; max-width: 820px; width: 100%; padding: 32px 36px; position: relative; }
+  .card-header { margin-bottom: 24px; }
+  .card-title { font-size: 22px; font-weight: 700; color: #1a1a2e; letter-spacing: -0.3px; }
+  .card-sub { font-size: 13px; color: #888; margin-top: 4px; }
+  .progress-bar-wrap { background: #f0f0f0; border-radius: 999px; height: 6px; margin-bottom: 20px; }
+  .progress-bar-fill { background: #C0392B; height: 6px; border-radius: 999px; transition: width 0.3s; }
+  .timer-wrap { position: absolute; top: 28px; right: 32px; background: #1a1a2e; color: #fff; padding: 6px 14px; border-radius: 20px; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; transition: background 0.3s; }
+  .timer-wrap.warning { background: #e67e22; }
+  .timer-wrap.danger { background: #C0392B; }
+  .q-meta { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+  .badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.4px; }
+  .badge-single { background: #fff3cd; color: #856404; }
+  .badge-multi { background: #cff4fc; color: #0c5460; }
+  .badge-cours { background: #e8f4fd; color: #1a6fa8; }
+  .badge-inference { background: #f0e8fd; color: #6a1ab8; }
+  .q-num { font-size: 13px; color: #999; }
+  .q-text { font-size: 16px; font-weight: 600; color: #1a1a2e; line-height: 1.55; margin-bottom: 22px; }
+  .options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px; }
+  .opt { border: 2px solid #e0e0e0; border-radius: 8px; padding: 12px 16px; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+  .opt:hover { background: #f7f7f7; border-color: #bbb; }
+  .opt.selected { border-color: #1a1a2e; background: #f0f0f8; }
+  .opt.correct { border-color: #27ae60; background: #eafaf1; }
+  .opt.wrong { border-color: #C0392B; background: #fdf0ee; }
+  .opt.missed { border-color: #27ae60; background: #fff; border-style: dashed; }
+  .opt-label { display: flex; align-items: flex-start; gap: 10px; }
+  .opt-letter { font-weight: 700; font-size: 14px; color: #555; min-width: 20px; }
+  .opt-text { font-size: 14px; color: #333; line-height: 1.45; flex: 1; }
+  .opt-exp { font-size: 12px; color: #666; margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee; line-height: 1.5; display: none; }
+  .opt-exp.show { display: block; }
+  .opt-exp-icon { margin-right: 4px; }
+  .global-exp { background: #1a1a2e; border-left: 5px solid #C0392B; border-radius: 6px; padding: 14px 18px; margin-top: 16px; margin-bottom: 20px; display: none; }
+  .global-exp.show { display: block; }
+  .global-exp-title { font-size: 13px; font-weight: 700; color: #C0392B; margin-bottom: 8px; letter-spacing: 0.3px; }
+  .global-exp-text { font-size: 13px; color: #ccc; line-height: 1.6; }
+  .btn { display: inline-block; padding: 11px 28px; border-radius: 8px; font-size: 15px; font-weight: 700; border: none; cursor: pointer; transition: opacity 0.15s; }
+  .btn-primary { background: #C0392B; color: #fff; }
+  .btn-primary:hover { opacity: 0.88; }
+  .btn-primary:disabled { opacity: 0.4; cursor: default; }
+  .btn-secondary { background: #1a1a2e; color: #fff; }
+  .btn-secondary:hover { opacity: 0.85; }
+  .actions { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  /* Score screen */
+  .score-card { text-align: center; padding: 10px 0 20px; }
+  .score-title { font-size: 26px; font-weight: 800; color: #1a1a2e; margin-bottom: 8px; }
+  .score-sub { font-size: 15px; color: #666; margin-bottom: 28px; }
+  .score-bar-wrap { background: #f0f0f0; border-radius: 999px; height: 12px; margin-bottom: 12px; }
+  .score-bar-fill { height: 12px; border-radius: 999px; transition: width 0.6s; }
+  .score-pct { font-size: 42px; font-weight: 900; margin-bottom: 6px; }
+  .score-msg { font-size: 15px; margin-bottom: 28px; font-weight: 600; }
+  .score-detail { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin-bottom: 28px; }
+  .score-detail-box { background: #f7f7f7; border-radius: 10px; padding: 16px 24px; min-width: 160px; }
+  .score-detail-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+  .score-detail-val { font-size: 20px; font-weight: 800; color: #1a1a2e; }
+</style>
+</head>
+<body>
+<div class="card" id="quizCard">
+  <div class="card-header">
+    <div class="card-title">CCDAK Prep — Level 2</div>
+    <div class="card-sub">Kafka Producers · Enterprise Scenarios · 25 Questions</div>
+  </div>
+  <div id="timerWrap" class="timer-wrap">⏱ 37:30</div>
+  <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBar" style="width:0%"></div></div>
+  <div id="quizBody"></div>
+</div>
+
+<script>
+var QUESTIONS_RAW = [
+  /* ======== 1. FROM COURSE — bootstrap.servers ======== */
+  {
+    source: "cours",
+    type: "single",
+    question: "A DevOps team manages a Kafka cluster with 80 brokers spread across 3 data centers. A new Java microservice must connect to this cluster. The team's Kafka architect says that listing all 80 brokers in the client configuration is unnecessary and adds maintenance overhead. What value should the developer provide for `bootstrap.servers`?",
+    options: [
+      { text: "List all 80 broker addresses so the client is always guaranteed to connect even if some brokers are down.", explanation: "Incorrect. Listing all 80 brokers is unnecessary. The producer only needs enough brokers to establish the initial connection. Adding all 80 creates maintenance overhead and is not recommended by Kafka best practices.", correct: false },
+      { text: "Provide 2–3 broker addresses per data center (6–9 total) so the client can bootstrap and discover the full cluster metadata.", explanation: "Correct. Kafka's bootstrap process only needs a few brokers to retrieve full cluster metadata. Listing 2–3 brokers per DC provides redundancy without the maintenance burden of enumerating all 80 brokers.", correct: true },
+      { text: "Provide only one broker address, as the producer will auto-discover all others after connecting.", explanation: "Incorrect. While a single broker technically works, it creates a single point of failure during bootstrap. If that broker is down, the producer cannot connect at all. Best practice recommends multiple entries for resilience.", correct: false },
+      { text: "Leave `bootstrap.servers` empty and configure `zookeeper.connect` instead, which is the current recommended approach.", explanation: "Incorrect. Kafka clients do NOT connect to ZooKeeper directly. `bootstrap.servers` is mandatory for producers and must contain Kafka broker addresses, not ZooKeeper.", correct: false }
+    ],
+    globalExplanation: "The `bootstrap.servers` property specifies a list of broker addresses the producer uses to bootstrap the connection and retrieve full cluster metadata. Once the producer connects to any listed broker, it discovers all other brokers automatically. Providing 2–3 brokers per datacenter ensures resilience without listing every broker in the cluster."
+  },
+  /* ======== 2. FROM COURSE — acks=all ======== */
+  {
+    source: "cours",
+    type: "single",
+    question: "A trading platform processes stock trade confirmations. Regulatory requirements mandate that no trade confirmation can be lost — each message must be durably committed to Kafka before the producer considers the write successful. The platform can tolerate slightly higher write latency in exchange for this guarantee. Which `acks` setting satisfies this requirement?",
+    options: [
+      { text: "`acks=0` — the producer does not wait for any acknowledgment, maximizing throughput.", explanation: "Incorrect. `acks=0` provides no delivery guarantee. Messages can be lost silently if brokers are unavailable or fail before writing, which violates the no-loss regulatory requirement.", correct: false },
+      { text: "`acks=1` — the partition leader acknowledges the write immediately.", explanation: "Incorrect. With `acks=1`, data is acknowledged by the leader but not yet replicated to followers. If the leader crashes immediately after acknowledging, the message can be lost before followers catch up.", correct: false },
+      { text: "`acks=all` (or `-1`) — the partition leader waits for all in-sync replicas to acknowledge the write.", explanation: "Correct. `acks=all` ensures the write is committed to all in-sync replicas before the producer receives an acknowledgment. Combined with `min.insync.replicas`, this provides the strongest durability guarantee, preventing data loss even if the leader fails immediately after.", correct: true },
+      { text: "`acks=2` — a custom value that waits for exactly 2 replicas to acknowledge.", explanation: "Incorrect. The valid values for `acks` are `0`, `1`, and `all` (or `-1`). There is no `acks=2` setting. Attempting to set an unsupported value will result in an `InvalidRequiredAcksException`.", correct: false }
+    ],
+    globalExplanation: "The `acks` configuration controls the producer's durability guarantee. `acks=all` is the safest option, requiring acknowledgment from all in-sync replicas (ISR). For production systems where message loss is unacceptable, `acks=all` combined with `min.insync.replicas >= 2` on the broker side is the recommended pattern."
+  },
+  /* ======== 3. FROM COURSE — Key for ordering ======== */
+  {
+    source: "cours",
+    type: "single",
+    question: "A logistics company tracks shipment updates where all events for the same shipment must be processed in order by consumers. Shipments are identified by a `shipmentId` field in each event. The current producer sends events without a key and the team observes out-of-order processing. What change guarantees ordering for events of the same shipment?",
+    options: [
+      { text: "Increase the number of topic partitions to reduce contention.", explanation: "Incorrect. Adding more partitions does not solve the ordering problem. Without a key, messages are distributed round-robin across all partitions, so events for the same shipment will still land on different partitions.", correct: false },
+      { text: "Set the message key to `shipmentId` when producing events.", explanation: "Correct. Kafka's default partitioner hashes the message key to determine the partition. All messages with the same key (same `shipmentId`) are guaranteed to go to the same partition, and consumers read each partition in order.", correct: true },
+      { text: "Set `max.inflight.requests.per.connection=1` on the producer.", explanation: "Incorrect. While this ensures strict in-flight ordering within the producer, it does not address the root cause: without a key, events for the same shipment can land on different partitions, making consumer-side ordering impossible regardless of in-flight settings.", correct: false },
+      { text: "Enable `enable.idempotence=true` to guarantee in-order delivery.", explanation: "Incorrect. Idempotence prevents duplicate messages during retries but does not control which partition a message is sent to. Without a message key, events for the same shipment will still be scattered across partitions.", correct: false }
+    ],
+    globalExplanation: "Kafka's partitioner routes all messages with the same non-null key to the same partition using `hash(key) % numPartitions`. Since Kafka provides strict ordering within a partition, setting the message key to a business entity identifier (like `shipmentId`) is the standard pattern to guarantee ordered processing per entity."
+  },
+  /* ======== 4. FROM COURSE — linger.ms for batching ======== */
+  {
+    source: "cours",
+    type: "single",
+    question: "A batch reporting service produces 50,000 small JSON events per second to a Kafka topic. The team notices the producer is sending many small requests, leading to high network overhead. They want to improve throughput by allowing the producer to accumulate more records per batch. The service can tolerate up to 50ms of additional latency. Which configuration achieves this?",
+    options: [
+      { text: "Set `batch.size=16384` and keep `linger.ms=0` (default).", explanation: "Incorrect. With `linger.ms=0`, the producer sends a batch as soon as a thread is available — it does not wait to accumulate more records. The batch.size limit is rarely reached at `linger.ms=0` for steady but moderate throughput.", correct: false },
+      { text: "Set `linger.ms=50` so the producer waits up to 50ms to fill a batch before sending.", explanation: "Correct. `linger.ms` introduces a deliberate delay before sending, allowing more records to accumulate in the batch. This trades a small increase in latency for significantly better throughput and fewer network requests.", correct: true },
+      { text: "Set `compression.type=gzip` to reduce payload size without changing batching behavior.", explanation: "Incorrect. Compression reduces the payload size of each request but does not change how the producer accumulates records into batches. The number of requests remains unchanged — only their size decreases.", correct: false },
+      { text: "Set `acks=0` to skip acknowledgments and reduce round-trip time.", explanation: "Incorrect. While `acks=0` eliminates the acknowledgment round-trip, it does not aggregate more records per batch and sacrifices all delivery guarantees, which is inappropriate for a reporting service.", correct: false }
+    ],
+    globalExplanation: "`linger.ms` configures how long the producer waits before sending a batch even if it is not yet full. The default value of 0 means the producer sends immediately, which can result in many small requests. Increasing `linger.ms` (e.g., 20–100ms) allows the accumulator to fill larger batches, significantly improving throughput at the cost of a small latency increase."
+  },
+  /* ======== 5. FROM COURSE — enable.idempotence ======== */
+  {
+    source: "cours",
+    type: "single",
+    question: "A fintech startup processes payment events where each payment must be produced to Kafka exactly once. Due to network instability, the producer occasionally retries requests. The team discovers that some payments appear duplicated in the Kafka topic, causing double-charges. Which configuration eliminates producer-side duplication from retries?",
+    options: [
+      { text: "Set `retries=0` to disable all producer retries.", explanation: "Incorrect. Disabling retries eliminates duplication but introduces the risk of data loss on transient errors. The requirement is exactly-once delivery, not at-most-once.", correct: false },
+      { text: "Set `enable.idempotence=true` on the producer.", explanation: "Correct. Idempotent producers assign each batch a unique sequence number. The broker tracks these numbers and deduplicates retried requests, ensuring each message is written exactly once even when the producer retries due to network issues.", correct: true },
+      { text: "Set `acks=1` to receive faster acknowledgments and avoid the need for retries.", explanation: "Incorrect. `acks=1` has nothing to do with deduplication. It only controls when the producer considers a write successful. Retries can still produce duplicates regardless of the `acks` setting.", correct: false },
+      { text: "Increase `request.timeout.ms` to give the broker more time to respond before retrying.", explanation: "Incorrect. Increasing the timeout reduces the frequency of timeouts that trigger retries, but it does not prevent duplicates when retries do occur. Network failures and broker restarts can still cause duplicate messages.", correct: false }
+    ],
+    globalExplanation: "Idempotent producers (enabled via `enable.idempotence=true`) work by assigning each ProducerRecord batch a Producer ID (PID) and monotonically increasing sequence numbers. The broker deduplicates any batch that arrives with a sequence number it has already seen, guaranteeing exactly-once delivery at the producer-broker level for a single session."
+  },
+  /* ======== 6. FROM COURSE — retriable errors ======== */
+  {
+    source: "cours",
+    type: "single",
+    question: "A Kafka producer is running in production and the on-call engineer receives an alert: the producer logs are showing `NotLeaderOrFollowerException` for partition 3 of the `orders` topic. The engineer checks the broker logs and sees that a leader election is in progress for that partition. What is the expected behavior and correct action?",
+    options: [
+      { text: "The application code must catch this exception and implement custom retry logic, as the producer does not handle leader elections automatically.", explanation: "Incorrect. `NotLeaderOrFollowerException` is classified as a retriable error. The Kafka producer SDK handles this automatically by fetching fresh metadata and retrying the request — no custom retry code is needed.", correct: false },
+      { text: "The producer automatically retries the request after refreshing metadata. No code change is needed; the producer recovers transparently.", explanation: "Correct. `NotLeaderOrFollowerException` is a retriable error. The producer will refresh its partition metadata and retry the send once the new leader is elected, up to the `retries` limit with a delay defined by `retry.backoff.ms`.", correct: true },
+      { text: "This is a non-retriable error. The producer must be restarted to reconnect to the correct leader.", explanation: "Incorrect. This error is explicitly retriable. The producer does not need to be restarted — it handles leader elections automatically by updating its internal metadata cache.", correct: false },
+      { text: "The engineer should set `acks=0` to avoid leader-dependency and prevent this exception from occurring.", explanation: "Incorrect. `acks=0` means the producer does not wait for any acknowledgment, but it still sends to the partition leader. A leader election will still occur, and this setting provides weaker delivery guarantees, not a solution to the underlying error.", correct: false }
+    ],
+    globalExplanation: "Kafka classifies producer errors as retriable or non-retriable. `NotLeaderOrFollowerException` (and its predecessor `NotLeaderForPartitionException`) is retriable: the producer will automatically refresh cluster metadata and retry. The key retriable errors include: NotLeaderOrFollowerException, LeaderNotAvailableException, and NotEnoughReplicasException. Contrast with non-retriable errors like `MessageSizeTooLargeException` that require human intervention."
+  },
+  /* ======== 7. FROM COURSE — non-retriable error ======== */
+  {
+    source: "cours",
+    type: "single",
+    question: "A data pipeline produces large binary blobs to a Kafka topic. After a schema change, the payload size increased from 500KB to 2MB. The broker's `message.max.bytes` is configured to 1MB. The team sets `retries=100` on the producer but still observes `RecordTooLargeException` in the logs. Why does the error persist?",
+    options: [
+      { text: "`RecordTooLargeException` is a retriable error, but `retries=100` is too low. Setting `retries=Integer.MAX_VALUE` will resolve it.", explanation: "Incorrect. `RecordTooLargeException` is a non-retriable error. No number of retries will resolve it because the message is structurally too large for the broker's configured limit — the payload must be reduced or the broker limit must be increased.", correct: false },
+      { text: "`RecordTooLargeException` is a non-retriable error. The issue requires either reducing the message size or increasing `max.request.size` on the producer and `message.max.bytes` on the broker.", explanation: "Correct. Message-size errors are non-retriable because retrying does not change the fact that the message exceeds the allowed limit. The fix requires a configuration or architecture change: split the payload, reference external storage, or increase the size limits consistently across producer, broker, and consumer.", correct: true },
+      { text: "The error is caused by `compression.type=none`. Setting `compression.type=gzip` will reduce the payload below the 1MB limit.", explanation: "Incorrect. While compression may reduce payload size, 2MB compressed with gzip still may exceed 1MB. More importantly, the root cause is a configuration mismatch that must be addressed at the architectural level, not by hoping compression solves it.", correct: false },
+      { text: "The problem is a broker-side timeout. Increasing `request.timeout.ms` will give the broker more time to accept the large message.", explanation: "Incorrect. `request.timeout.ms` is about network round-trip timeouts, not message size limits. The broker rejects the message immediately upon parsing its size, regardless of timeout settings.", correct: false }
+    ],
+    globalExplanation: "Kafka distinguishes between retriable errors (which producers handle automatically) and non-retriable errors (which require operator intervention). `RecordTooLargeException` is non-retriable because no amount of retrying changes the fact that the payload exceeds the configured size limit. Fixing this requires coordinated changes to `max.request.size` (producer), `message.max.bytes` (broker), and `fetch.message.max.bytes` (consumer)."
+  },
+  /* ======== 8. FROM COURSE — batch.size + linger.ms dual config ======== */
+  {
+    source: "cours",
+    type: "multiple",
+    question: "A real-time analytics platform produces 100,000 small events per second. The current producer configuration uses defaults (`batch.size=16384`, `linger.ms=0`) and the team observes excessive network requests and CPU overhead. The team wants to increase batching efficiency significantly. Which TWO configuration changes will together achieve this goal?",
+    options: [
+      { text: "Set `batch.size=131072` (128KB) to allow larger batches to accumulate.", explanation: "Correct. Increasing `batch.size` allows each batch to hold more records before being sent. For high-throughput scenarios, a larger batch size (64KB–512KB) significantly improves network efficiency.", correct: true },
+      { text: "Set `linger.ms=100` to allow the producer to wait up to 100ms for the batch to fill.", explanation: "Correct. Increasing `linger.ms` ensures the producer waits to accumulate more records before sending, complementing the larger `batch.size`. Together, these two settings dramatically reduce the number of requests per second.", correct: true },
+      { text: "Set `acks=0` to skip acknowledgments and reduce per-request overhead.", explanation: "Incorrect. While `acks=0` removes acknowledgment overhead, it eliminates all delivery guarantees. It does not affect batching efficiency and is not recommended unless data loss is acceptable.", correct: false },
+      { text: "Set `max.inflight.requests.per.connection=1` to serialize all requests.", explanation: "Incorrect. Reducing in-flight requests to 1 actually decreases throughput by preventing the producer from pipelining requests. This setting is used for strict ordering with retries, not batching efficiency.", correct: false },
+      { text: "Set `buffer.memory=67108864` (64MB) to double the buffer size.", explanation: "Incorrect. Increasing buffer memory allows more records to queue up before the producer blocks, which helps under back-pressure scenarios, but it does not directly improve batching or reduce request frequency when the default buffer is not the bottleneck.", correct: false }
+    ],
+    globalExplanation: "Producer batching is governed by two complementary settings: `batch.size` (maximum bytes per batch) and `linger.ms` (wait time for the batch to fill). A batch is sent when EITHER condition is met — the batch is full OR the linger time expires. Increasing both together ensures large, efficient batches at high throughput. At 100K events/sec with small payloads, default settings (16KB, 0ms) produce many tiny batches; tuning both values together is the standard optimization."
+  },
+  /* ======== 9. FROM COURSE — idempotence vs max.inflight ======== */
+  {
+    source: "cours",
+    type: "single",
+    question: "A developer wants to ensure that a Kafka producer does not produce duplicate messages during retries AND maintains message ordering even with retries enabled. A colleague suggests setting `max.inflight.requests.per.connection=1` as the solution. What is the correct approach for modern Kafka producers?",
+    options: [
+      { text: "Set `max.inflight.requests.per.connection=1`. This prevents both duplicates and reordering at the cost of reduced throughput.", explanation: "Partially correct but suboptimal. `max.inflight=1` does prevent reordering from retries, but it does NOT prevent duplicate messages — a retried request can still produce a duplicate if the original succeeded but the acknowledgment was lost. It also significantly reduces throughput.", correct: false },
+      { text: "Set `enable.idempotence=true`. This automatically configures retries, in-flight limits, and acks optimally while preventing both duplicates and reordering.", explanation: "Correct. Enabling idempotence implicitly sets `acks=all`, `retries=Integer.MAX_VALUE`, and `max.inflight.requests.per.connection<=5`. The broker uses sequence numbers to deduplicate AND detect out-of-order delivery, solving both problems with better throughput than `max.inflight=1`.", correct: true },
+      { text: "Set `retries=0` and `max.inflight.requests.per.connection=1` to prevent both issues entirely.", explanation: "Incorrect. Setting `retries=0` eliminates retry-based reordering and duplicates, but it also means any transient error results in data loss — the message is simply dropped. This is at-most-once semantics, not exactly-once.", correct: false },
+      { text: "Set `acks=all` and `retries=Integer.MAX_VALUE`. This combination ensures ordering and eliminates duplicates.", explanation: "Incorrect. `acks=all` ensures durability, and high `retries` ensures delivery, but neither prevents duplicate messages during retries. Without idempotence, a retried message that was successfully written but not acknowledged will be written again.", correct: false }
+    ],
+    globalExplanation: "Before idempotence was introduced, setting `max.inflight=1` was the only way to prevent reordering during retries, but it did not prevent duplicates. `enable.idempotence=true` solves both problems: the broker uses Producer IDs and sequence numbers to detect duplicates AND out-of-order batches. Modern best practice is to always enable idempotence rather than relying on `max.inflight=1`."
+  },
+  /* ======== 10. FROM COURSE — compression.type ======== */
+  {
+    source: "cours",
+    type: "single",
+    question: "A data engineering team produces large JSON log events (avg. 8KB each) at high volume to a Kafka cluster. Network bandwidth between producers and brokers is the primary bottleneck. The production servers have spare CPU capacity. The team wants the best network efficiency. Which `compression.type` is most appropriate?",
+    options: [
+      { text: "`compression.type=none` — no compression, so producers send raw JSON and minimize CPU usage.", explanation: "Incorrect. Without compression, all 8KB JSON events are sent over the wire at full size. This aggravates the network bottleneck that was already identified as the primary constraint.", correct: false },
+      { text: "`compression.type=gzip` — high compression ratio, good for large JSON payloads, acceptable CPU overhead given spare capacity.", explanation: "Correct. Gzip achieves the highest compression ratio among Kafka's built-in codecs, making it ideal for large, text-based payloads like JSON. Since the servers have spare CPU, the CPU cost of gzip compression is acceptable in exchange for significantly reduced network traffic.", correct: true },
+      { text: "`compression.type=snappy` — best compression ratio available in Kafka, designed for maximum size reduction.", explanation: "Incorrect. Snappy is optimized for speed (fast compression/decompression) rather than ratio. It achieves lower compression ratios than gzip or zstd. Gzip and zstd are better choices when compression ratio is the priority.", correct: false },
+      { text: "`compression.type=lz4` — fastest compression algorithm, reducing both network load and CPU overhead simultaneously.", explanation: "Incorrect. LZ4 is optimized for speed, not ratio. While it has very low CPU overhead, its compression ratio is lower than gzip/zstd. When network bandwidth is the bottleneck and CPU is available, gzip or zstd are better choices.", correct: false }
+    ],
+    globalExplanation: "Kafka supports four compression types: `gzip` (highest ratio, highest CPU), `snappy` (medium ratio, low CPU), `lz4` (lowest ratio, lowest CPU), and `zstd` (near-gzip ratio, low CPU — best overall balance). When the bottleneck is network bandwidth and CPU is available, `gzip` or `zstd` are optimal. Compression is transparent to consumers — Kafka stores the compression type in the message batch header, and consumers decompress automatically."
+  },
+  /* ======== 11. FROM COURSE — transactional.id for EOS ======== */
+  {
+    source: "cours",
+    type: "single",
+    question: "A data pipeline reads events from a source Kafka topic, transforms them, and writes results to a destination topic. The team needs to guarantee that for every input event consumed, exactly one transformed output is produced — even if the producer application crashes mid-transaction. What configuration enables this read-process-write exactly-once guarantee?",
+    options: [
+      { text: "Set `enable.idempotence=true` on the producer. This is sufficient for end-to-end exactly-once semantics.", explanation: "Incorrect. Idempotence alone only prevents producer-side duplicates within a single session. It does not coordinate the offset commit on the consumer side with the Kafka write, so a crash between committing and producing can still lead to duplicates or reprocessing.", correct: false },
+      { text: "Set `transactional.id` on the producer and use Kafka transactions to atomically commit the consumer offset and the output record in a single transaction.", explanation: "Correct. `transactional.id` enables Kafka's transaction API. Using `producer.beginTransaction()`, writing records, committing consumer offsets via `producer.sendOffsetsToTransaction()`, and calling `producer.commitTransaction()` atomically ties the offset commit to the write, achieving exactly-once read-process-write semantics.", correct: true },
+      { text: "Set `acks=all` and `retries=Integer.MAX_VALUE` on the producer. This combination guarantees exactly-once delivery.", explanation: "Incorrect. `acks=all` with high retries ensures at-least-once delivery, not exactly-once. Messages can still be duplicated if a retry succeeds after the original write was committed but the acknowledgment was lost.", correct: false },
+      { text: "Configure `isolation.level=read_committed` on the consumer only. This setting enables exactly-once semantics without changes to the producer.", explanation: "Incorrect. Consumer `isolation.level=read_committed` filters out transactional messages that were not committed, but it only works when the producer uses transactions. Without `transactional.id` on the producer, there are no transactions to isolate.", correct: false }
+    ],
+    globalExplanation: "Kafka's exactly-once semantics (EOS) in read-process-write pipelines requires both: (1) a `transactional.id` on the producer, enabling atomic multi-topic writes and offset commits; and (2) `isolation.level=read_committed` on the downstream consumer. The transaction coordinator ensures that if the producer crashes mid-transaction, either all writes and the offset commit happen or none do — preventing both duplicates and data loss."
+  },
+  /* ======== 12. FROM COURSE — delivery.timeout.ms ======== */
+  {
+    source: "cours",
+    type: "single",
+    question: "A microservice has a strict SLA: any Kafka producer send that cannot be confirmed within 45 seconds must fail fast so the application can fall back to an alternative path. The developer sets `retries=Integer.MAX_VALUE` to maximize delivery attempts. Despite this, the developer wants the send to fail after 45 seconds total. Which configuration parameter controls this behavior?",
+    options: [
+      { text: "`request.timeout.ms=45000` — sets the maximum time the producer waits per request attempt.", explanation: "Incorrect. `request.timeout.ms` controls the timeout for a single request attempt, not the total delivery budget. With `retries=MAX_VALUE`, the producer would retry for far longer than 45 seconds using per-attempt timeouts.", correct: false },
+      { text: "`retry.backoff.ms=45000` — sets the backoff delay between retries, effectively capping total retry time.", explanation: "Incorrect. `retry.backoff.ms` is the delay between retry attempts, not a total deadline. Setting it to 45 seconds would introduce a 45-second wait between each retry, but the total delivery time would not be capped at 45 seconds.", correct: false },
+      { text: "`delivery.timeout.ms=45000` — the total time budget for the producer to deliver a message, including retries and backoff.", explanation: "Correct. `delivery.timeout.ms` is the upper bound on the total time spent delivering a message from the initial `send()` call to final acknowledgment, including all retry attempts and backoff delays. Once this timeout expires, the send fails with a `TimeoutException`, regardless of the `retries` setting.", correct: true },
+      { text: "`max.block.ms=45000` — limits the total time the producer blocks on `send()` before failing.", explanation: "Incorrect. `max.block.ms` controls how long `send()` blocks when the record accumulator's buffer is full or metadata is unavailable. It is not the delivery timeout — it governs the initial buffering phase, not the total delivery attempt duration.", correct: false }
+    ],
+    globalExplanation: "`delivery.timeout.ms` (default: 120,000ms) is the total time budget for a message from the `send()` call to final acknowledgment, encompassing all retries and backoff delays. It is a ceiling that overrides `retries` — even with `retries=MAX_VALUE`, a message will fail after `delivery.timeout.ms` expires. For SLA-driven systems, `delivery.timeout.ms` is the key parameter to align producer behavior with latency budgets."
+  },
+  /* ======== 13. FROM COURSE — multi-config for fraud detection ======== */
+  {
+    source: "cours",
+    type: "multiple",
+    question: "A fraud detection service produces transaction events to Kafka. The requirements are: (1) no transaction can be lost, (2) duplicate transactions must be prevented, and (3) producer latency must be below 100ms. The team needs to choose a producer configuration that satisfies all three requirements simultaneously. Which THREE settings together meet these requirements?",
+    options: [
+      { text: "`acks=all`", explanation: "Correct. `acks=all` ensures no message is lost by requiring all in-sync replicas to acknowledge the write before the producer proceeds. This satisfies requirement (1): no data loss.", correct: true },
+      { text: "`enable.idempotence=true`", explanation: "Correct. Idempotent producers use sequence numbers to prevent the broker from committing duplicate records during retries. This satisfies requirement (2): no duplicates.", correct: true },
+      { text: "`linger.ms=20`", explanation: "Correct. A `linger.ms` of 20ms is well within the 100ms latency budget and allows small batches to form, improving efficiency without violating the latency SLA. This satisfies requirement (3): latency under 100ms.", correct: true },
+      { text: "`acks=0`", explanation: "Incorrect. `acks=0` means the producer does not wait for any acknowledgment, providing the lowest latency but eliminating all delivery guarantees. This violates requirement (1): no data loss.", correct: false },
+      { text: "`max.inflight.requests.per.connection=1`", explanation: "Incorrect. While this prevents reordering during retries, `enable.idempotence=true` already handles both deduplication and ordering (with up to 5 in-flight requests). Setting it to 1 unnecessarily reduces throughput.", correct: false }
+    ],
+    globalExplanation: "Designing producers for fraud detection requires balancing durability, correctness, and latency. `acks=all` ensures durability, `enable.idempotence=true` ensures exactly-once delivery at the producer level (and implicitly sets `acks=all` and `retries=MAX_VALUE`), and `linger.ms=20` provides a reasonable batching window within a 100ms SLA. Note: when `enable.idempotence=true` is set, Kafka automatically enforces `acks=all` — specifying it explicitly is redundant but not harmful."
+  },
+  /* ======== 14. BEYOND COURSE — idempotence + acks conflict ======== */
+  {
+    source: "inference",
+    type: "single",
+    question: "A developer configures a Kafka producer with `enable.idempotence=true` and explicitly sets `acks=1`. The application fails to start. What is the cause of the startup failure?",
+    options: [
+      { text: "Idempotent producers require `acks=all`. Setting `acks=1` explicitly while idempotence is enabled causes a `ConfigException` at producer initialization.", explanation: "Correct. Idempotent delivery requires that all in-sync replicas acknowledge the write so the broker can maintain the sequence number tracking needed for deduplication. If the developer explicitly sets `acks=1` alongside `enable.idempotence=true`, Kafka throws a `ConfigException` because the combination is incompatible.", correct: true },
+      { text: "The producer starts normally. `acks=1` is used and idempotence is silently disabled because of the conflict.", explanation: "Incorrect. Kafka does NOT silently downgrade. When an explicit `acks` value conflicts with idempotence requirements, the producer throws a `ConfigException` at startup rather than silently disabling idempotence.", correct: false },
+      { text: "The producer starts normally. When `enable.idempotence=true` is set, all `acks` values except `acks=0` are valid.", explanation: "Incorrect. Only `acks=all` is compatible with `enable.idempotence=true`. Setting `acks=1` conflicts because it does not guarantee the write is replicated to all ISRs, which is required for the sequence number deduplication mechanism.", correct: false },
+      { text: "The issue is unrelated to idempotence. The producer fails because `retries` was not also explicitly set to `Integer.MAX_VALUE`.", explanation: "Incorrect. When `enable.idempotence=true` is set, Kafka automatically adjusts `retries` to `Integer.MAX_VALUE` if not explicitly set. The startup failure is caused by the explicit `acks=1` configuration conflicting with idempotence requirements.", correct: false }
+    ],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. When `enable.idempotence=true` is configured, Kafka automatically sets: `acks=all`, `retries=Integer.MAX_VALUE`, and `max.inflight.requests.per.connection<=5`. If the developer explicitly sets conflicting values (e.g., `acks=1` or `acks=0`), the producer throws a `ConfigException` on startup. Only if no explicit value is set does Kafka silently apply the required defaults."
+  },
+  /* ======== 15. BEYOND COURSE — buffer.memory + max.block.ms ======== */
+  {
+    source: "inference",
+    type: "single",
+    question: "A producer application is sending events at a rate that exceeds the broker's write capacity. The `buffer.memory` (32MB default) is full and the producer's `send()` calls start blocking. After 60 seconds of blocking, the developer observes a `TimeoutException`. What configuration caused the producer to block for 60 seconds before throwing the exception?",
+    options: [
+      { text: "`delivery.timeout.ms=60000` — the total delivery budget expired.", explanation: "Incorrect. `delivery.timeout.ms` is measured from when the message enters the accumulator, not from when `send()` starts blocking. The blocking timeout before entering the accumulator is controlled by `max.block.ms`.", correct: false },
+      { text: "`max.block.ms=60000` — the maximum time `send()` blocks waiting for buffer space or metadata.", explanation: "Correct. When the record accumulator's buffer is full, `send()` blocks for up to `max.block.ms` (default: 60,000ms). After this timeout expires without buffer space becoming available, a `TimeoutException` is thrown. The developer observed exactly the default value.", correct: true },
+      { text: "`request.timeout.ms=60000` — each broker request timed out after 60 seconds.", explanation: "Incorrect. `request.timeout.ms` controls the timeout for a single in-flight request to the broker, not the blocking time during buffer-full back-pressure. The 60-second block before any request was even sent is controlled by `max.block.ms`.", correct: false },
+      { text: "`linger.ms=60000` — the producer waited 60 seconds to accumulate a full batch before sending.", explanation: "Incorrect. A `linger.ms` of 60 seconds would create enormous latency for every batch send, not just under back-pressure. The symptom described — `send()` blocking because buffers are full — points to `max.block.ms`.", correct: false }
+    ],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. `max.block.ms` (default: 60,000ms) controls how long `send()` and `partitionsFor()` block when the record accumulator buffer is full or metadata is unavailable. It is the back-pressure mechanism — when producers outpace brokers, `send()` blocks up to `max.block.ms` before throwing `TimeoutException`. This is distinct from `delivery.timeout.ms` which governs the full delivery lifecycle."
+  },
+  /* ======== 16. BEYOND COURSE — Full EOS: transactional + read_committed ======== */
+  {
+    source: "inference",
+    type: "multiple",
+    question: "A data pipeline implements exactly-once semantics for a read-process-write pattern. The pipeline reads from a source topic, transforms events, and writes to a destination topic. Which TWO configurations are required together to guarantee end-to-end exactly-once delivery?",
+    options: [
+      { text: "Set `transactional.id` on the producer and use the Kafka transaction API (`beginTransaction`, `sendOffsetsToTransaction`, `commitTransaction`).", explanation: "Correct. The producer's `transactional.id` enables the transaction coordinator. Using the transaction API atomically ties the consumer offset commit to the output write, ensuring that a crash mid-transaction results in a full rollback rather than partial writes.", correct: true },
+      { text: "Set `isolation.level=read_committed` on the downstream consumer.", explanation: "Correct. With `isolation.level=read_committed`, the consumer only reads messages from committed transactions, filtering out in-progress or aborted transactional messages. This prevents consumers from reading partial results from rolled-back transactions.", correct: true },
+      { text: "Set `enable.idempotence=true` on the producer only (without `transactional.id`).", explanation: "Incorrect. Idempotence alone prevents producer-side duplicates but does not coordinate the consumer offset commit. Without transactions, a crash between writing the output and committing the offset leads to reprocessing (at-least-once), not exactly-once.", correct: false },
+      { text: "Set `acks=all` and `min.insync.replicas=2` on the broker for all involved topics.", explanation: "Incorrect. These settings ensure durability and fault tolerance, which are necessary but not sufficient for exactly-once. They do not prevent duplicate processing caused by application crashes between consuming and producing.", correct: false },
+      { text: "Set `auto.offset.reset=earliest` on the consumer to ensure all messages are reprocessed after a crash.", explanation: "Incorrect. `auto.offset.reset=earliest` causes reprocessing from the beginning when no committed offset exists — it creates at-least-once semantics, not exactly-once. In a transactional pipeline, offsets are committed atomically with writes.", correct: false }
+    ],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Full exactly-once semantics (EOS) in Kafka requires a contract between the producer and consumer: the producer uses `transactional.id` with the transaction API to atomically write records and commit offsets; the consumer uses `isolation.level=read_committed` to only read committed data. Both sides are required — one without the other does not achieve true EOS."
+  },
+  /* ======== 17. BEYOND COURSE — request.timeout.ms vs delivery.timeout.ms ======== */
+  {
+    source: "inference",
+    type: "single",
+    question: "A developer observes intermittent `TimeoutException` errors from a Kafka producer. When reviewing the configuration, they see `request.timeout.ms=30000` and `delivery.timeout.ms=25000`. A colleague points out this configuration is problematic. Why?",
+    options: [
+      { text: "The values are fine. `request.timeout.ms` applies to ZooKeeper connections and `delivery.timeout.ms` applies to Kafka brokers, so they operate independently.", explanation: "Incorrect. Kafka producers do not connect to ZooKeeper. Both `request.timeout.ms` and `delivery.timeout.ms` apply to broker communication. They are not independent — their relative values have important implications.", correct: false },
+      { text: "`delivery.timeout.ms` must be greater than or equal to `request.timeout.ms + linger.ms`. With `delivery.timeout.ms < request.timeout.ms`, a single request attempt can exceed the total delivery budget, making retries impossible.", explanation: "Correct. `request.timeout.ms` is the per-attempt timeout; `delivery.timeout.ms` is the total budget including all retries. If the single-attempt timeout (30s) exceeds the total delivery budget (25s), the producer may never even complete a first attempt before the overall deadline fires, making the retry configuration meaningless.", correct: true },
+      { text: "The issue is that `delivery.timeout.ms` cannot be less than 60,000ms. This is a Kafka-enforced minimum.", explanation: "Incorrect. There is no Kafka-enforced minimum for `delivery.timeout.ms`. The recommended constraint is a logical one: `delivery.timeout.ms >= linger.ms + request.timeout.ms`.", correct: false },
+      { text: "The two settings are redundant. Setting both is unsupported and causes a `ConfigException` at startup.", explanation: "Incorrect. Both settings are valid and can coexist. They serve different purposes: `request.timeout.ms` governs per-attempt timeouts while `delivery.timeout.ms` governs the total delivery lifecycle. The issue is the invalid relative values, not their coexistence.", correct: false }
+    ],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. The relationship between these timeouts is: `delivery.timeout.ms >= linger.ms + request.timeout.ms`. If `request.timeout.ms` exceeds `delivery.timeout.ms`, the producer may exhaust the total delivery budget on a single request attempt, making the retry mechanism useless. Kafka logs a warning when this misconfiguration is detected but does not throw an exception."
+  },
+  /* ======== 18. BEYOND COURSE — async callback vs fire-and-forget ======== */
+  {
+    source: "inference",
+    type: "single",
+    question: "A developer implements a Kafka producer that calls `producer.send(record)` without a callback and without calling `get()` on the returned Future. The application needs to detect and log failed deliveries for monitoring. What is the consequence of the current implementation, and what is the correct fix?",
+    options: [
+      { text: "The current implementation is correct. Kafka's internal retry mechanism logs all failures automatically without requiring a callback.", explanation: "Incorrect. While Kafka's retry mechanism handles transient failures internally, final delivery failures (after retries are exhausted) are NOT automatically surfaced to the application. Without a callback or Future.get(), the application has no way to observe these failures.", correct: false },
+      { text: "The current implementation is fire-and-forget. To detect failures, the developer should register a `Callback` in `send(record, callback)` that implements `onCompletion(metadata, exception)` and logs non-null exceptions.", explanation: "Correct. Calling `send()` without a callback or `get()` is fire-and-forget — the application has no visibility into delivery outcomes. The `Callback.onCompletion()` method is invoked asynchronously by the producer's I/O thread when the send completes (or fails finally), and a non-null `exception` parameter indicates failure.", correct: true },
+      { text: "The developer should call `producer.flush()` after each send. This makes the send synchronous and surfaces exceptions.", explanation: "Incorrect. `producer.flush()` waits for all outstanding requests to complete but does not surface individual record-level exceptions to the caller. For per-record error detection, a `Callback` is needed.", correct: false },
+      { text: "The developer should switch to synchronous sending by calling `producer.send(record).get()`. This is the recommended production pattern for all Kafka producers.", explanation: "Incorrect. Calling `.get()` makes the send synchronous and surfaces exceptions, but it blocks the calling thread for each record, serializing sends and dramatically reducing throughput. Using async `Callback` is the recommended approach for production systems that need error visibility without sacrificing performance.", correct: false }
+    ],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Kafka's `send()` method is asynchronous by default. There are three delivery patterns: (1) fire-and-forget (no callback, no `.get()`) — maximum throughput, no error visibility; (2) async with callback (recommended) — high throughput with error visibility; (3) synchronous (`.get()`) — full error visibility but serialized, low throughput. Production systems should use the async callback pattern."
+  },
+  /* ======== 19. BEYOND COURSE — Custom Partitioner for hot partition ======== */
+  {
+    source: "inference",
+    type: "single",
+    question: "A social media platform produces user activity events to a Kafka topic with 10 partitions. Analysis shows that one celebrity user account generates 40% of all events, and the default hash-based partitioner routes all of that user's events to a single partition, creating a hot partition. What is the best solution?",
+    options: [
+      { text: "Increase the replication factor for the hot partition to distribute the load across more brokers.", explanation: "Incorrect. Replication factor affects fault tolerance, not write load distribution. All writes still go to the partition leader — replication does not distribute the producer write load.", correct: false },
+      { text: "Set `compression.type=lz4` on the producer to reduce the size of events from the hot user.", explanation: "Incorrect. Compression reduces payload size but does not redistribute writes across partitions. The partition assignment logic is unchanged, so the hot partition problem persists.", correct: false },
+      { text: "Implement a custom `Partitioner` class that detects high-cardinality keys and distributes their events across multiple partitions using a secondary hash or round-robin.", explanation: "Correct. A custom Partitioner implementing the `Partitioner` interface can override the default key-hashing logic. For known high-volume keys, it can distribute events across multiple partitions (e.g., using `hash(key + salt) % N` or explicit routing), while preserving default behavior for other keys.", correct: true },
+      { text: "Set `linger.ms=0` on the producer to distribute events to the hot partition as quickly as possible.", explanation: "Incorrect. `linger.ms=0` sends batches immediately without waiting, which reduces latency but does not change how events are routed to partitions. The hot partition issue is caused by key-based routing, not batching.", correct: false }
+    ],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Hot partitions occur when a small number of keys generate a disproportionate share of traffic. The Kafka producer supports custom partitioning via the `Partitioner` interface (configure with `partitioner.class`). Custom partitioners can implement strategies like: salting hot keys across multiple partitions, time-based routing, or explicit partition assignment, while preserving key-ordering semantics for non-hot keys."
+  },
+  /* ======== 20. BEYOND COURSE — ProducerRecord headers ======== */
+  {
+    source: "inference",
+    type: "single",
+    question: "A microservices platform uses distributed tracing (e.g., OpenTelemetry / Zipkin). When a producer sends events to Kafka, the team wants to include a `trace-id` and `span-id` for end-to-end tracing without adding these fields to the Avro schema (which would require schema evolution). What is the recommended mechanism?",
+    options: [
+      { text: "Embed the `trace-id` and `span-id` as extra fields in the Avro message body.", explanation: "Incorrect. Adding tracing fields to the Avro schema requires schema evolution (adding fields with defaults), involves all downstream consumers, and pollutes the business event schema with infrastructure concerns. This violates separation of concerns.", correct: false },
+      { text: "Use `ProducerRecord` headers to attach the `trace-id` and `span-id` as byte-array key-value metadata.", explanation: "Correct. ProducerRecord headers are designed for cross-cutting metadata (tracing, auditing, correlation IDs) that should not pollute the business message schema. Headers are propagated transparently through Kafka and can be read by consumers without schema changes.", correct: true },
+      { text: "Use a separate Kafka topic dedicated to tracing events, producing a trace record for every business event.", explanation: "Incorrect. A separate tracing topic creates complex correlation logic (matching business events to trace events by ID), doubles Kafka write volume, and is an anti-pattern for this use case.", correct: false },
+      { text: "Encode the trace context as a JSON string and use it as the message key.", explanation: "Incorrect. The message key determines partition routing via key hashing. Using trace context as a key would disrupt partition assignment (different keys per message would scatter events randomly) and is semantically incorrect — the key should represent the business entity identity.", correct: false }
+    ],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. `ProducerRecord` headers (added in Kafka 0.11) are key-value byte arrays that travel alongside the message without affecting the schema. They are the standard mechanism for cross-cutting concerns: distributed tracing (W3C TraceContext / Zipkin headers), audit metadata, correlation IDs, and source system identification. OpenTelemetry Kafka instrumentation automatically propagates trace context via headers."
+  },
+  /* ======== 21. BEYOND COURSE — producer.close() omission ======== */
+  {
+    source: "inference",
+    type: "single",
+    question: "A batch ETL job uses a Kafka producer to send 1 million records, then exits. The developer observes that only about 950,000 records appear in the Kafka topic. The producer is configured with `linger.ms=500` and `batch.size=65536`. No exceptions are observed. What is the most likely cause?",
+    options: [
+      { text: "The `batch.size` is too small for 1 million records, causing buffer overflows and silent message drops.", explanation: "Incorrect. `batch.size` controls individual batch size, not total capacity. Buffer overflow triggers `TimeoutException` rather than silent drops. Increasing `batch.size` would only affect batching efficiency, not message loss.", correct: false },
+      { text: "The producer is not calling `producer.close()` or `producer.flush()` before the application exits, causing buffered records in the RecordAccumulator to be discarded.", explanation: "Correct. Kafka producers batch records asynchronously. Records in the RecordAccumulator have not yet been sent when the JVM exits if the producer is not flushed or closed. `producer.close()` (or `producer.flush()`) forces all buffered records to be sent before shutting down. With `linger.ms=500`, many records are waiting in the buffer when the JVM exits.", correct: true },
+      { text: "The `retries` setting defaults to 0. Transient errors during the send caused ~50,000 records to be dropped.", explanation: "Incorrect. The `retries` default is `Integer.MAX_VALUE` (2147483647) in modern Kafka versions — not 0. The described symptom (records simply not appearing, no exceptions) is characteristic of the producer exiting before flushing, not retry exhaustion.", correct: false },
+      { text: "The Kafka topic has fewer than 10 partitions, creating a bottleneck that drops messages under high throughput.", explanation: "Incorrect. Partition count affects throughput and parallelism, but Kafka does not drop messages due to partition count. The producer would block (up to `max.block.ms`) before dropping messages, and exceptions would be observed.", correct: false }
+    ],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Kafka producers buffer records asynchronously in the RecordAccumulator before sending. If the application exits without calling `producer.close()` (or at minimum `producer.flush()`), records still in the buffer are discarded. `producer.close()` is the correct lifecycle call: it flushes all pending records, waits for acknowledgments, and releases network resources. In batch jobs, this call is critical and should be placed in a `finally` block."
+  },
+  /* ======== 22. BEYOND COURSE — compression transparent to consumers ======== */
+  {
+    source: "inference",
+    type: "single",
+    question: "A team enables `compression.type=zstd` on their Kafka producers. A junior engineer on the consumer team raises a concern: their consumer code does not have any decompression logic and they fear messages will be unreadable. How should the senior engineer respond?",
+    options: [
+      { text: "The consumer team must add decompression logic using the `org.apache.kafka.common.compress` library before processing each message.", explanation: "Incorrect. Kafka consumers do NOT need to implement manual decompression. The Kafka consumer client handles decompression automatically and transparently before delivering messages to the application.", correct: false },
+      { text: "Compression is transparent to consumers. The Kafka consumer automatically decompresses messages based on the compression codec stored in the batch header. No changes are needed in the consumer code.", explanation: "Correct. The compression type is recorded in the message batch header by the producer. When the consumer fetches a compressed batch, the Kafka client SDK decompresses it automatically before surfacing the records to the application. The consumer code is entirely unaware of the compression codec used.", correct: true },
+      { text: "Consumers must set `fetch.compression.type=zstd` to match the producer's compression type.", explanation: "Incorrect. There is no `fetch.compression.type` consumer configuration in Kafka. The consumer decompresses automatically based on the codec advertised in the message batch metadata — no consumer-side configuration is needed.", correct: false },
+      { text: "The Schema Registry must be configured with the compression type so that consumers can deserialize the messages correctly.", explanation: "Incorrect. The Schema Registry manages data schemas (Avro, Protobuf, JSON Schema) and is entirely separate from Kafka's compression mechanism. Compression is a transport-layer concern handled by the Kafka client SDK, not by the Schema Registry.", correct: false }
+    ],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Kafka compression operates at the batch level: producers compress record batches before writing to the broker, and the broker stores compressed batches. The compression codec is stored in the batch header. Consumers decompress automatically and transparently — this requires no code changes on the consumer side, regardless of which compression codec the producer uses."
+  },
+  /* ======== 23. BEYOND COURSE — Schema Registry vs plain JSON ======== */
+  {
+    source: "inference",
+    type: "single",
+    question: "A team debates whether to serialize Kafka messages as plain JSON strings using `StringSerializer` or as Avro with Confluent Schema Registry. Their events have a complex schema that evolves over time. A senior architect argues that Schema Registry provides critical advantages. Which is the MOST compelling reason to choose Avro + Schema Registry over plain JSON strings for this use case?",
+    options: [
+      { text: "Avro serialization is faster than JSON parsing, reducing consumer CPU usage.", explanation: "Partially true, but not the most compelling reason for this scenario. Performance is a secondary benefit. The primary value of Schema Registry is schema governance and evolution — particularly important when the team has explicitly called out evolving schemas.", correct: false },
+      { text: "Schema Registry enforces schema compatibility (backward, forward, full) across producers and consumers, preventing schema-breaking changes from reaching consumers without detection.", explanation: "Correct. Schema Registry centralizes schema management and enforces compatibility rules. Before a new schema is registered, the registry validates it against existing versions. This prevents producers from publishing messages with breaking schema changes that consumers cannot deserialize — a critical safeguard for complex, evolving schemas.", correct: true },
+      { text: "JSON strings cannot be used with Kafka topics that have more than 10 partitions.", explanation: "Incorrect. There is no relationship between message serialization format and partition count. JSON strings can be used with any number of partitions.", correct: false },
+      { text: "Schema Registry is required to use `acks=all`. Plain JSON producers cannot use `acks=all`.", explanation: "Incorrect. `acks=all` is a producer configuration that controls acknowledgment behavior and is completely independent of message serialization format. Any producer can use `acks=all` regardless of whether it uses Schema Registry.", correct: false }
+    ],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Confluent Schema Registry provides three key advantages over plain JSON: (1) schema compatibility enforcement (backward/forward/full/none) preventing breaking changes; (2) efficient binary encoding (Avro/Protobuf store schemas by ID, reducing per-message overhead vs. embedding field names in JSON); (3) centralized schema governance and discovery. For evolving schemas, Schema Registry compatibility enforcement is the most critical benefit."
+  },
+  /* ======== 24. BEYOND COURSE — Sticky Partitioner ======== */
+  {
+    source: "inference",
+    type: "single",
+    question: "A Kafka producer sends events without a message key (null key) at moderate throughput. The team is running Kafka 2.3 and observes that many small batches are sent to multiple partitions simultaneously, causing inefficient network usage. After upgrading to Kafka 2.4, the team notices that batching efficiency improves significantly for null-key messages without any configuration change. What Kafka feature explains this improvement?",
+    options: [
+      { text: "Kafka 2.4 increased the default `batch.size` from 16KB to 64KB, allowing more records per batch.", explanation: "Incorrect. The default `batch.size` was not changed in Kafka 2.4. The improvement for null-key messages comes from a new partitioner strategy, not a change in batch size configuration.", correct: false },
+      { text: "Kafka 2.4 introduced the Sticky Partitioner, which assigns null-key messages to a single partition until the batch is full, then switches to the next partition.", explanation: "Correct. The Sticky Partitioner (KIP-480) replaced round-robin for null-key messages. Instead of distributing each message to a different partition, it 'sticks' to one partition until the batch is full or `linger.ms` expires, then switches. This significantly reduces the number of small batches sent across multiple partitions.", correct: true },
+      { text: "Kafka 2.4 changed the default `linger.ms` from 0 to 5ms, improving batching for all producers.", explanation: "Incorrect. The default `linger.ms` was not changed to 5ms in Kafka 2.4. The improvement came from the Sticky Partitioner algorithm change for null-key messages.", correct: false },
+      { text: "Kafka 2.4 introduced network-level compression by default, reducing the overhead of small batches.", explanation: "Incorrect. Kafka 2.4 did not introduce network-level compression by default. `compression.type` defaults to `none` across Kafka versions. The batching improvement came from the Sticky Partitioner.", correct: false }
+    ],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Prior to Kafka 2.4, the DefaultPartitioner used round-robin for null-key messages, spreading each event to a different partition and creating many small batches. KIP-480 introduced the StickyPartitioner (default from Kafka 2.4+): it assigns consecutive null-key messages to the same partition until the batch is full or linger.ms expires, then 'sticks' to the next partition. This dramatically improves batching efficiency for null-key producers."
+  },
+  /* ======== 25. BEYOND COURSE — Partition selection precedence ======== */
+  {
+    source: "inference",
+    type: "single",
+    question: "A developer creates a `ProducerRecord` with `topic=\"events\"`, `partition=3`, `key=\"user-42\"`, and `value=\"payload\"`. The default partitioner is in use. Which partition will this record be sent to?",
+    options: [
+      { text: "Partition determined by `hash(\"user-42\") % numPartitions`, because the key takes precedence over explicit partition.", explanation: "Incorrect. When an explicit partition number is provided in the ProducerRecord constructor, it always takes precedence over key-based hashing. The key is ignored for partition selection when a partition is explicitly specified.", correct: false },
+      { text: "Partition 3, because an explicit partition number in ProducerRecord always takes precedence over the key and the partitioner.", explanation: "Correct. Kafka's partition selection follows a strict precedence: (1) explicit partition in ProducerRecord → (2) key-based hash via partitioner → (3) sticky/round-robin for null keys. An explicit partition number overrides all other logic.", correct: true },
+      { text: "The record is rejected with an error because both a key and an explicit partition cannot be specified simultaneously.", explanation: "Incorrect. There is no restriction on specifying both a key and a partition in a ProducerRecord. The key is simply not used for partition selection when an explicit partition is given — it is still sent as part of the record for consumer-side use.", correct: false },
+      { text: "A partition determined by the custom partitioner configured via `partitioner.class`, which overrides all ProducerRecord fields.", explanation: "Incorrect. Even with a custom partitioner, Kafka short-circuits partition selection if an explicit partition is set in the ProducerRecord. Custom partitioners are only invoked when no explicit partition is provided.", correct: false }
+    ],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Kafka's partition selection precedence is: (1) if ProducerRecord specifies an explicit partition → use it, partitioner not invoked; (2) else if key is non-null → invoke partitioner (default: murmur2 hash of key % numPartitions); (3) else (null key) → sticky partitioner (Kafka 2.4+) or round-robin (Kafka < 2.4). The key is always preserved in the record for consumer-side processing, even when not used for routing."
+  }
+];
+
+var QUESTIONS = [];
+var qIdx = 0;
+var selected = [];
+var answered = false;
+var score = 0;
+var scoreCoursTotal = 0;
+var scoreCoursCorrect = 0;
+var scoreInfTotal = 0;
+var scoreInfCorrect = 0;
+var totalTime = 90 * QUESTIONS_RAW.length;
+var timeLeft = totalTime;
+var timerInterval = null;
+
+function fisherYates(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+function prepareQuestions() {
+  QUESTIONS = fisherYates(QUESTIONS_RAW).map(function(q) {
+    var opts = q.options.slice();
+    opts = fisherYates(opts);
+    return {
+      source: q.source,
+      type: q.type,
+      question: q.question,
+      options: opts,
+      globalExplanation: q.globalExplanation
+    };
+  });
+}
+
+function startGlobalTimer() {
+  clearInterval(timerInterval);
+  timeLeft = totalTime;
+  renderTimer();
+  timerInterval = setInterval(function() {
+    timeLeft--;
+    renderTimer();
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      suivanteAuto();
+    }
+  }, 1000);
+}
+
+function renderTimer() {
+  var el = document.getElementById('timerWrap');
+  if (!el) return;
+  var m = Math.floor(timeLeft / 60);
+  var s = timeLeft % 60;
+  el.textContent = '⏱ ' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  var pct = timeLeft / totalTime;
+  el.className = 'timer-wrap';
+  if (pct < 0.1) el.className += ' danger';
+  else if (pct < 0.2) el.className += ' warning';
+}
+
+function suivanteAuto() {
+  if (!answered) {
+    processAnswer();
+  }
+  if (qIdx < QUESTIONS.length - 1) {
+    qIdx++;
+    selected = [];
+    answered = false;
+    paint();
+  } else {
+    paintScore();
+  }
+}
+
+function paint() {
+  var q = QUESTIONS[qIdx];
+  var pct = ((qIdx) / QUESTIONS.length) * 100;
+  document.getElementById('progressBar').style.width = pct + '%';
+
+  var badgeType = q.type === 'single'
+    ? '<span class="badge badge-single">Single answer</span>'
+    : '<span class="badge badge-multi">Multiple answers</span>';
+  var badgeSrc = q.source === 'cours'
+    ? '<span class="badge badge-cours">📘 From the course</span>'
+    : '<span class="badge badge-inference">🔍 Beyond the course</span>';
+
+  var optsHtml = '';
+  var letters = ['A','B','C','D','E'];
+  for (var i = 0; i < q.options.length; i++) {
+    optsHtml += '<div class="opt" id="opt_' + i + '" onclick="pickOption(' + i + ')">' +
+      '<div class="opt-label">' +
+      '<span class="opt-letter">' + letters[i] + '.</span>' +
+      '<span class="opt-text">' + q.options[i].text + '</span>' +
+      '</div>' +
+      '<div class="opt-exp" id="optexp_' + i + '"></div>' +
+      '</div>';
+  }
+
+  document.getElementById('quizBody').innerHTML =
+    '<div class="q-meta">' +
+      '<span class="q-num">Question ' + (qIdx+1) + ' / ' + QUESTIONS.length + '</span>' +
+      badgeType + badgeSrc +
+    '</div>' +
+    '<div class="q-text">' + q.question + '</div>' +
+    '<div class="options">' + optsHtml + '</div>' +
+    '<div class="global-exp" id="globalExpBlock">' +
+      '<div class="global-exp-title">💡 Key Concept</div>' +
+      '<div class="global-exp-text" id="globalExpText"></div>' +
+    '</div>' +
+    '<div class="actions">' +
+      '<button class="btn btn-primary" onclick="valider()">Validate</button>' +
+      '<button class="btn btn-secondary" id="btnNext" onclick="suivante()" disabled>Next question →</button>' +
+    '</div>';
+}
+
+function pickOption(i) {
+  if (answered) return;
+  var q = QUESTIONS[qIdx];
+  if (q.type === 'single') {
+    selected = [i];
+    for (var k = 0; k < q.options.length; k++) {
+      document.getElementById('opt_' + k).className = 'opt';
+    }
+    document.getElementById('opt_' + i).className = 'opt selected';
+  } else {
+    var pos = selected.indexOf(i);
+    if (pos === -1) {
+      selected.push(i);
+      document.getElementById('opt_' + i).className = 'opt selected';
+    } else {
+      selected.splice(pos, 1);
+      document.getElementById('opt_' + i).className = 'opt';
+    }
+  }
+}
+
+function getCorrectIndices() {
+  var q = QUESTIONS[qIdx];
+  var c = [];
+  for (var i = 0; i < q.options.length; i++) {
+    if (q.options[i].correct) c.push(i);
+  }
+  return c;
+}
+
+function processAnswer() {
+  answered = true;
+  var q = QUESTIONS[qIdx];
+  var correctIdxs = getCorrectIndices();
+  var selSorted = selected.slice().sort().join(',');
+  var corrSorted = correctIdxs.slice().sort().join(',');
+  var isCorrect = (selSorted === corrSorted);
+
+  if (isCorrect) {
+    score++;
+    if (q.source === 'cours') scoreCoursCorrect++;
+    else scoreInfCorrect++;
+  }
+  if (q.source === 'cours') scoreCoursTotal++;
+  else scoreInfTotal++;
+
+  var letters = ['A','B','C','D','E'];
+  for (var i = 0; i < q.options.length; i++) {
+    var opt = document.getElementById('opt_' + i);
+    var expDiv = document.getElementById('optexp_' + i);
+    var isCorr = q.options[i].correct;
+    var isSel = selected.indexOf(i) !== -1;
+    opt.style.cursor = 'default';
+
+    if (isCorr && isSel) {
+      opt.className = 'opt correct';
+    } else if (!isCorr && isSel) {
+      opt.className = 'opt wrong';
+    } else if (isCorr && !isSel) {
+      opt.className = 'opt missed';
+    }
+
+    expDiv.className = 'opt-exp show';
+    var icon = isCorr ? '<span class="opt-exp-icon" style="color:#27ae60">✓</span>' : '<span class="opt-exp-icon" style="color:#C0392B">✗</span>';
+    expDiv.innerHTML = icon + q.options[i].explanation;
+  }
+
+  document.getElementById('globalExpText').textContent = q.globalExplanation;
+  document.getElementById('globalExpBlock').className = 'global-exp show';
+
+  var btnNext = document.getElementById('btnNext');
+  if (btnNext) btnNext.removeAttribute('disabled');
+}
+
+function valider() {
+  if (answered) return;
+  processAnswer();
+}
+
+function suivante() {
+  if (!answered) return;
+  if (qIdx < QUESTIONS.length - 1) {
+    qIdx++;
+    selected = [];
+    answered = false;
+    paint();
+  } else {
+    clearInterval(timerInterval);
+    paintScore();
+  }
+}
+
+function paintScore() {
+  clearInterval(timerInterval);
+  document.getElementById('timerWrap').style.display = 'none';
+  var pct = Math.round((score / QUESTIONS.length) * 100);
+  var barColor = pct >= 70 ? '#27ae60' : pct >= 50 ? '#e67e22' : '#C0392B';
+  var msg = pct >= 80 ? '🏆 Excellent! CCDAK-ready!' : pct >= 70 ? '✅ Good job! Keep practicing.' : pct >= 50 ? '📚 Keep studying — almost there.' : '💡 Review the course and try again.';
+  document.getElementById('progressBar').style.width = '100%';
+  document.getElementById('quizBody').innerHTML =
+    '<div class="score-card">' +
+      '<div class="score-title">Quiz Complete!</div>' +
+      '<div class="score-sub">Kafka Producers — Level 2</div>' +
+      '<div class="score-pct" style="color:' + barColor + '">' + pct + '%</div>' +
+      '<div class="score-bar-wrap"><div class="score-bar-fill" style="width:' + pct + '%;background:' + barColor + '"></div></div>' +
+      '<div class="score-msg" style="color:' + barColor + '">' + msg + '</div>' +
+      '<div class="score-detail">' +
+        '<div class="score-detail-box">' +
+          '<div class="score-detail-label">📘 From the course</div>' +
+          '<div class="score-detail-val">' + scoreCoursCorrect + ' / ' + scoreCoursTotal + '</div>' +
+        '</div>' +
+        '<div class="score-detail-box">' +
+          '<div class="score-detail-label">🔍 Beyond the course</div>' +
+          '<div class="score-detail-val">' + scoreInfCorrect + ' / ' + scoreInfTotal + '</div>' +
+        '</div>' +
+        '<div class="score-detail-box">' +
+          '<div class="score-detail-label">Total Score</div>' +
+          '<div class="score-detail-val">' + score + ' / ' + QUESTIONS.length + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<button class="btn btn-primary" onclick="recommencer()">🔄 Restart the test</button>' +
+    '</div>';
+}
+
+function recommencer() {
+  qIdx = 0;
+  selected = [];
+  answered = false;
+  score = 0;
+  scoreCoursTotal = 0;
+  scoreCoursCorrect = 0;
+  scoreInfTotal = 0;
+  scoreInfCorrect = 0;
+  prepareQuestions();
+  document.getElementById('timerWrap').style.display = '';
+  paint();
+  startGlobalTimer();
+}
+
+prepareQuestions();
+window.onload = function() {
+  paint();
+  startGlobalTimer();
+};
+</script>
+</body>
+</html>

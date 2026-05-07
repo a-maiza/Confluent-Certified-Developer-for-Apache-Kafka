@@ -165,6 +165,7 @@ Forward: Adding fields, Deleting optional fields - Upgrade first: Producers.
 - Allowing producers and consumers to retrieve schemas based on the topic and key/value type.
 - Enforcing compatibility rules to ensure that producers and consumers use compatible schemas.
 - Rejecting incompatible schemas and ensuring that data can be deserialized correctly by consumers.
+![Overview.png](images/Overview.png)
 
 #### 2. Schema Compatibility
 - Schema compatibility ensures that data serialized with an older schema can be deserialized using a newer schema.
@@ -189,6 +190,7 @@ Forward: Adding fields, Deleting optional fields - Upgrade first: Producers.
 
 Think of "BA" in "BAckward" as standing for "Adding". (Adding, optional, defaults.)
 `FORWARD`: "FORward is for FOllowing defaults" (Adding, defaults.)
+![Schema-Compatibility.png](images/Schema-Compatibility.png)
 
 #### 3. Subject Naming Strategies
 - Subjects in Schema Registry represent a unique combination of a topic and a key or value schema.
@@ -204,6 +206,8 @@ Think of "BA" in "BAckward" as standing for "Adding". (Adding, optional, default
     - Allows different topics to have different schemas for the same record name.
     - Provides flexibility for schema evolution per topic.
 - The subject naming strategy determines how schemas are grouped and evolved within Schema Registry.
+![Subject-Naming-Strategies.png](images/Subject-Naming-Strategies.png)
+
 
 #### 4. Schema Registry REST API
 - Schema Registry exposes a RESTful API for interacting with schemas and subjects.
@@ -215,6 +219,7 @@ Think of "BA" in "BAckward" as standing for "Adding". (Adding, optional, default
 - `GET /subjects/(string: subject)/versions/latest`: Retrieve the latest version of a schema for a given subject.
 - `GET /subjects/(string: subject)/versions`: Retrieve the version number of the latest schema for a given subject.
 - The API allows registering schemas, retrieving schemas by ID or version, and testing schema compatibility.
+![Schema-Registry-REST-API.png](images/Schema-Registry-REST-API.png)
 
 #### 5. Serializers and Deserializers
 - Schema Registry provides serializers and deserializers for Avro, Protobuf, and JSON Schema.
@@ -229,6 +234,7 @@ Think of "BA" in "BAckward" as standing for "Adding". (Adding, optional, default
 - The serializer makes a call to the Schema Registry API to register the schema and retrieve the schema ID.
 - If the schema registration is successful, the serializer proceeds with serializing the data using the registered schema.
 - If the schema registration fails (e.g., due to incompatibility), the serializer throws an exception, and the data is not serialized.
+![Serializers-and-Deserializers.png](images/Serializers-and-Deserializers.png)
 
 #### 6. Multi-Datacenter Setup
 - Schema Registry supports multi-datacenter deployments for high availability and disaster recovery.
@@ -240,6 +246,7 @@ Think of "BA" in "BAckward" as standing for "Adding". (Adding, optional, default
 - When a schema is registered or updated in the primary datacenter, the Schema Registry cluster in the primary datacenter writes the schema to a special Kafka topic (`_schemas` by default).
 - The Schema Registry clusters in the secondary datacenters consume the schemas from the `_schemas` topic and apply the changes locally.
 - Schema replication ensures that all datacenters have a consistent view of the schemas, even in the presence of network partitions or datacenter failures.
+![Multi-Datacenter-Setup.png](images/Multi-Datacenter-Setup.png)
 
 #### 7. Schema Registry Security
 - Schema Registry supports authentication and authorization to secure access to schemas and the API.
@@ -254,6 +261,7 @@ Think of "BA" in "BAckward" as standing for "Adding". (Adding, optional, default
 - Configure the appropriate authentication settings based on the chosen protocol. For example, for basic auth, set `kafkastore.basic.auth.user.info` to the username and password.
 - Configure authorization by setting `kafkastore.acl.authorizer.class` to the fully-qualified class name of the authorizer implementation.
 - Clients accessing the Schema Registry API must provide the necessary credentials or certificates to authenticate and authorize their requests.
+![Schema-Registry-Security.png](images/Schema-Registry-Security.png)
 
 #### 8. Confluent Control Center Integration
 - Schema Registry integrates with Confluent Control Center, a web-based user interface for managing and monitoring Kafka clusters.
@@ -266,6 +274,7 @@ Think of "BA" in "BAckward" as standing for "Adding". (Adding, optional, default
 - In the subject details page, the schema history is displayed, including the version number, schema, and timestamp of each registered schema version.
 - Different versions of the schema can be compared to see the changes between them.
 - Control Center provides a user-friendly interface to explore the schema history and track the evolution of schemas over time.
+![Confluent-Control-Center-Integration.png](images/Confluent-Control-Center-Integration.png)
 
 #### 9. Best Practices
 - Use a meaningful and consistent subject naming convention based on your use case and subject naming strategy.

@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CCDAK Prep | Kafka Consumers — Level 1</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1a1a2e; font-family: system-ui, -apple-system, sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 30px 16px; }
+  .card { background: #fff; border-radius: 12px; border: 1px solid #e0e0e0; max-width: 820px; width: 100%; padding: 32px 36px; position: relative; }
+  .card-header { margin-bottom: 20px; }
+  .card-title { font-size: 22px; font-weight: 700; color: #1a1a2e; }
+  .card-sub { font-size: 13px; color: #888; margin-top: 4px; }
+  .progress-bar-wrap { background: #f0f0f0; border-radius: 999px; height: 6px; margin-bottom: 20px; }
+  .progress-bar-fill { background: #C0392B; height: 6px; border-radius: 999px; transition: width 0.3s; }
+  .timer-box { position: absolute; top: 28px; right: 32px; font-size: 15px; font-weight: 700; color: #C0392B; font-variant-numeric: tabular-nums; }
+  .timer-box.warn { color: #e67e22; }
+  .timer-box.danger { color: #C0392B; animation: pulse 0.8s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.45; } }
+  .q-meta { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.4px; }
+  .badge-single { background: #fff3cd; color: #856404; }
+  .badge-multi { background: #cff4fc; color: #0c5460; }
+  .badge-cours { background: #e8f4fd; color: #1a6fa8; }
+  .badge-inference { background: #f0e8fd; color: #6a1ab8; }
+  .q-num { font-size: 13px; color: #999; }
+  .q-text { font-size: 16px; font-weight: 600; color: #1a1a2e; line-height: 1.55; margin-bottom: 20px; }
+  .options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+  .opt { border: 2px solid #e0e0e0; border-radius: 8px; padding: 12px 16px; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+  .opt:hover { background: #f7f7f7; border-color: #bbb; }
+  .opt.selected { border-color: #1a1a2e; background: #f0f0f8; }
+  .opt.correct { border-color: #27ae60; background: #eafaf1; }
+  .opt.wrong { border-color: #C0392B; background: #fdf0ee; }
+  .opt.missed { border-color: #27ae60; background: #fff; border-style: dashed; }
+  .opt-row { display: flex; align-items: flex-start; gap: 10px; }
+  .opt-letter { font-weight: 700; font-size: 14px; color: #555; min-width: 20px; }
+  .opt-text { font-size: 14px; color: #333; line-height: 1.45; flex: 1; }
+  .explanation { background: #f8f9fa; border-left: 4px solid #C0392B; border-radius: 6px; padding: 14px 18px; margin-top: 16px; margin-bottom: 20px; display: none; font-size: 13px; color: #444; line-height: 1.65; }
+  .explanation.show { display: block; }
+  .explanation h4 { font-size: 13px; font-weight: 700; color: #1a1a2e; margin-bottom: 5px; margin-top: 10px; }
+  .explanation h4:first-child { margin-top: 0; }
+  .explanation p { margin: 0 0 4px; }
+  .timeout-msg { background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 8px 14px; font-size: 13px; color: #856404; font-weight: 600; margin-bottom: 12px; display: none; }
+  .timeout-msg.show { display: block; }
+  .actions { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .btn { padding: 11px 26px; border-radius: 8px; font-size: 15px; font-weight: 700; border: none; cursor: pointer; transition: opacity 0.15s; }
+  .btn-primary { background: #C0392B; color: #fff; }
+  .btn-primary:hover { opacity: 0.88; }
+  .btn-primary:disabled { opacity: 0.4; cursor: default; }
+  .btn-secondary { background: #1a1a2e; color: #fff; }
+  .btn-secondary:hover { opacity: 0.85; }
+  /* Score */
+  .score-wrap { text-align: center; padding: 10px 0 20px; }
+  .score-title { font-size: 26px; font-weight: 800; color: #1a1a2e; margin-bottom: 6px; }
+  .score-sub { font-size: 14px; color: #888; margin-bottom: 24px; }
+  .score-pct { font-size: 44px; font-weight: 900; margin-bottom: 6px; }
+  .score-bar-wrap { background: #f0f0f0; border-radius: 999px; height: 12px; margin-bottom: 10px; }
+  .score-bar-fill { height: 12px; border-radius: 999px; transition: width 0.6s; }
+  .score-msg { font-size: 15px; font-weight: 600; margin-bottom: 28px; }
+  .score-detail { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-bottom: 28px; }
+  .score-box { background: #f7f7f7; border-radius: 10px; padding: 14px 22px; min-width: 150px; }
+  .score-box-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+  .score-box-val { font-size: 20px; font-weight: 800; color: #1a1a2e; }
+</style>
+</head>
+<body>
+<div class="card" id="quizCard">
+  <div class="card-header">
+    <div class="card-title">CCDAK Prep</div>
+    <div class="card-sub">Kafka Consumers · Level 1 · 25 Questions</div>
+  </div>
+  <div id="timerBox" class="timer-box">⏱ 01:30</div>
+  <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBar" style="width:0%"></div></div>
+  <div id="quizBody"></div>
+</div>
+
+<script>
+var QUESTIONS_RAW = [
+  /* ===== 1 FROM COURSE — poll() ===== */
+  {
+    source: "cours",
+    type: "single",
+    text: "A Java application uses a `KafkaConsumer` to read events from a topic. The developer needs to write the core loop that continuously fetches messages. Which statement best describes the correct usage of `poll()`?",
+    options: [
+      { text: "`poll()` is called once to retrieve all messages currently available, then the consumer closes.", correct: false },
+      { text: "`poll()` is called in an infinite loop; it queries the cluster and returns a `ConsumerRecords<K,V>` collection on each iteration.", correct: true },
+      { text: "`poll()` blocks indefinitely until the topic is closed by the producer side.", correct: false },
+      { text: "`poll()` can only be called from a background thread — never from the main application thread.", correct: false }
+    ],
+    explanation: {
+      concept: "The `poll()` method is the heartbeat of every Kafka consumer. It contacts the broker leaders for the subscribed partitions and returns all available new messages up to `max.poll.records`.",
+      correct: "`poll()` is designed for a continuous, infinite loop. Each call returns a `ConsumerRecords<K,V>` (which may be empty if no new messages arrived). This streaming paradigm has no natural end — unlike batch jobs, there is always potentially another message.",
+      incorrect: "Option A is wrong because Kafka is a continuous stream — polling once and closing misses all subsequent messages. Option C is wrong because `poll()` does not block indefinitely; it returns after the specified `Duration` even if no messages are available. Option D is wrong because `poll()` is not thread-safe and must be called from a single thread — it should NOT be moved to a background thread without careful synchronization.",
+      retenir: "1) `poll()` returns `ConsumerRecords`, never blocks forever — it respects the given `Duration` timeout.\n2) The infinite loop is the normal and expected pattern for Kafka streaming consumers."
+    }
+  },
+  /* ===== 2 FROM COURSE — subscribe() ===== */
+  {
+    source: "cours",
+    type: "multiple",
+    text: "A developer wants to subscribe a `KafkaConsumer` to topics. Which TWO of the following are valid and correct ways to call `subscribe()`?",
+    options: [
+      { text: "`consumer.subscribe(\"orders\")` — passing a single String topic name.", correct: false },
+      { text: "`consumer.subscribe(Arrays.asList(\"orders\"))` — passing a List with one topic.", correct: true },
+      { text: "`consumer.subscribe(Pattern.compile(\"orders.*\"))` — passing a RegEx pattern to match multiple topics.", correct: true },
+      { text: "`consumer.subscribe()` — calling with no arguments to subscribe to all topics in the cluster.", correct: false }
+    ],
+    explanation: {
+      concept: "The `KafkaConsumer.subscribe()` method requires either a `java.util.List<String>` of topic names or a `java.util.regex.Pattern`. A plain String argument is not a valid overload.",
+      correct: "Option B is correct: even for a single topic, a `List` is mandatory. Option C is correct: `Pattern.compile(\"orders.*\")` will dynamically subscribe to all topics whose name matches the regex, and Kafka will update the subscription automatically when new matching topics are created.",
+      incorrect: "Option A is wrong because `subscribe(String)` is not a valid overload — Kafka requires a `List<String>`, not a bare String. Option D is wrong because there is no no-argument overload for `subscribe()` and subscribing to all cluster topics is not supported this way.",
+      retenir: "1) Always wrap topics in a `List`, even for a single topic: `Arrays.asList(\"my-topic\")`.\n2) Regex-based subscriptions are dynamic — new matching topics discovered during runtime are automatically included."
+    }
+  },
+  /* ===== 3 FROM COURSE — ConsumerRecord fields ===== */
+  {
+    source: "cours",
+    type: "multiple",
+    text: "A developer is iterating over `ConsumerRecords` returned by `poll()`. Which THREE fields are directly accessible on each `ConsumerRecord<K, V>` object?",
+    options: [
+      { text: "`key()` — the message key, used for partitioning.", correct: true },
+      { text: "`value()` — the message payload.", correct: true },
+      { text: "`partition()` — the partition number the record came from.", correct: true },
+      { text: "`replicationFactor()` — the number of replicas for the source partition.", correct: false }
+    ],
+    explanation: {
+      concept: "`ConsumerRecord<K,V>` is the Java object representing one Kafka message. It exposes key metadata fields alongside the business payload.",
+      correct: "`key()` and `value()` are the core payload fields. `partition()` tells which partition this record came from — critical for debugging and partition-key correlation. Other available fields include `topic()`, `offset()`, `timestamp()`, `timestampType()`, and `headers()`.",
+      incorrect: "`replicationFactor()` is not a field on `ConsumerRecord` — replication is a topic-level configuration stored on the broker, not embedded in individual messages.",
+      retenir: "The full `ConsumerRecord` field set: topic, partition, offset, timestamp, key, value, headers. No broker-level metadata (like replication factor) is included."
+    }
+  },
+  /* ===== 4 FROM COURSE — Kafka is a log ===== */
+  {
+    source: "cours",
+    type: "single",
+    text: "A team has two independent applications (App A and App B) that both need to process every event from the same Kafka topic. A developer proposes that one application must consume messages before the other because 'reading removes the message from the topic'. Is this correct, and what is the actual behavior?",
+    options: [
+      { text: "Correct — consuming a message removes it from the topic, so only one consumer can read each message.", correct: false },
+      { text: "Incorrect — Kafka is a log, not a queue. Messages remain in the topic after being consumed. Both App A and App B can read all messages independently using their own offsets.", correct: true },
+      { text: "Incorrect — but only one consumer group can be active at a time per topic.", correct: false },
+      { text: "Correct — messages are removed after their `retention.ms` expires regardless of whether they were consumed.", correct: false }
+    ],
+    explanation: {
+      concept: "Kafka stores messages in an immutable, append-only log. Reading a message does not delete it — deletion is governed by retention policies (`retention.ms`, `retention.bytes`), not by consumption.",
+      correct: "App A and App B each maintain their own offset for each partition. They can read the same messages independently and at their own pace, with no interference between them. This is a fundamental difference from traditional message queues.",
+      incorrect: "Option A is wrong because consuming does NOT remove messages — this is the key distinction between a Kafka topic and a queue. Option C is wrong because multiple consumer groups can concurrently consume from the same topic simultaneously. Option D is partially true (messages are deleted by retention) but does not answer the question correctly — retention is not triggered by consumption.",
+      retenir: "Kafka ≠ Queue. In a queue, reading = deleting. In Kafka, reading = moving your offset forward. The message stays on disk until the retention policy removes it."
+    }
+  },
+  /* ===== 5 FROM COURSE — __consumer_offsets ===== */
+  {
+    source: "cours",
+    type: "single",
+    text: "A Kafka consumer crashes and is restarted 5 minutes later. Without any external database, how does the consumer know where to resume reading?",
+    options: [
+      { text: "The consumer always restarts from the beginning of the topic (offset 0).", correct: false },
+      { text: "The consumer queries ZooKeeper to retrieve the last committed offset for its consumer group.", correct: false },
+      { text: "The consumer reads the last committed offset from Kafka's internal `__consumer_offsets` topic, managed by the group coordinator.", correct: true },
+      { text: "The consumer uses the `auto.offset.reset=latest` setting to skip to the newest message automatically.", correct: false }
+    ],
+    explanation: {
+      concept: "Kafka stores committed consumer offsets in a dedicated internal compacted topic called `__consumer_offsets`. This is managed by the group coordinator broker and allows consumers to resume seamlessly after a restart.",
+      correct: "When the consumer restarts, it sends its `group.id` to the group coordinator. The coordinator looks up the last committed offset for each partition in `__consumer_offsets` and instructs the consumer to resume from that position. No external storage is needed.",
+      incorrect: "Option A is wrong — without a committed offset, `auto.offset.reset` applies (default: `latest`), but if an offset WAS committed, the consumer resumes from it. Option B is wrong — Kafka no longer stores consumer offsets in ZooKeeper (this was removed in Kafka 0.10+). Option D is wrong — `auto.offset.reset` only applies when NO committed offset exists for the group.",
+      retenir: "1) `__consumer_offsets` is a Kafka-managed internal topic — no external store needed.\n2) ZooKeeper no longer holds consumer offsets since Kafka 0.10. Always point to `__consumer_offsets`."
+    }
+  },
+  /* ===== 6 FROM COURSE — Commit = processing confirmation ===== */
+  {
+    source: "cours",
+    type: "single",
+    text: "A consumer reads a message from Kafka and immediately commits the offset before processing the message. The processing then fails with an exception. What is the consequence?",
+    options: [
+      { text: "Kafka automatically rolls back the committed offset, and the consumer re-reads the message on the next poll.", correct: false },
+      { text: "The message is permanently lost from the consumer's perspective — the next restart will skip to the committed offset and not replay the failed message.", correct: true },
+      { text: "The consumer enters a dead-letter queue state for that partition.", correct: false },
+      { text: "There is no consequence — Kafka's broker will retry delivery to the consumer automatically.", correct: false }
+    ],
+    explanation: {
+      concept: "Committing an offset signals to Kafka that the consumer has SUCCESSFULLY processed the message. Committing before processing reverses the correct semantics — it creates at-most-once delivery.",
+      correct: "Once an offset is committed, Kafka considers that message processed by this consumer group. If the application crashes after committing but before completing processing, the message will be skipped on restart — it is effectively lost from this consumer's perspective.",
+      incorrect: "Option A is wrong — Kafka has no rollback mechanism for committed offsets. Option C is wrong — Kafka does not have a built-in dead-letter queue in the consumer SDK (it must be implemented by the application). Option D is wrong — Kafka brokers do not retry delivery; the consumer controls re-reading via offset management.",
+      retenir: "1) Commit AFTER successful processing → at-least-once (may reprocess, never loses).\n2) Commit BEFORE processing → at-most-once (may lose, never reprocesses).\n3) Exactly-once requires Kafka transactions."
+    }
+  },
+  /* ===== 7 FROM COURSE — Consumer group partition distribution ===== */
+  {
+    source: "cours",
+    type: "single",
+    text: "A Kafka topic has 6 partitions. A consumer group currently has 3 active consumers. How are partitions typically distributed among the consumers?",
+    options: [
+      { text: "The first consumer reads all 6 partitions; the other two consumers are on standby.", correct: false },
+      { text: "Each consumer reads all 6 partitions independently.", correct: false },
+      { text: "Partitions are distributed among consumers (2 partitions per consumer with default Range or Round Robin assignor), enabling parallel processing.", correct: true },
+      { text: "Consumers negotiate with producers directly to determine which partition each consumer reads.", correct: false }
+    ],
+    explanation: {
+      concept: "A consumer group distributes partitions across its members to enable horizontal scaling. The group coordinator assigns each partition to exactly one consumer in the group.",
+      correct: "With 6 partitions and 3 consumers, each consumer typically gets assigned 2 partitions (exact assignment depends on the partition assignor strategy). This allows the group to process the topic 3× faster than a single consumer.",
+      incorrect: "Option A describes the single-consumer scenario, not a group. Option B describes independent consumers (not a group) — each reading the full topic. Option D is wrong — consumers coordinate with the group coordinator broker, not with producers.",
+      retenir: "1) In a consumer group: each partition → assigned to exactly ONE consumer.\n2) One consumer CAN handle multiple partitions, but one partition is never split between two consumers in the same group."
+    }
+  },
+  /* ===== 8 FROM COURSE — More consumers than partitions ===== */
+  {
+    source: "cours",
+    type: "single",
+    text: "A topic has 3 partitions. A consumer group is scaled up to 5 consumers. What happens to the 2 extra consumers?",
+    options: [
+      { text: "Kafka automatically creates 2 extra partitions to accommodate the additional consumers.", correct: false },
+      { text: "The 2 extra consumers share one of the assigned partitions, reading alternating messages.", correct: false },
+      { text: "The 2 extra consumers remain idle — they receive no partition assignment and consume no messages.", correct: true },
+      { text: "The 2 extra consumers are automatically removed from the consumer group.", correct: false }
+    ],
+    explanation: {
+      concept: "The fundamental rule of Kafka consumer groups: at most ONE consumer per partition within a group. Adding more consumers than partitions creates idle consumers.",
+      correct: "With 3 partitions and 5 consumers, only 3 consumers will be assigned partitions. The remaining 2 sit idle (no partitions assigned). They are still part of the group but consume nothing — and will receive partitions if one of the active consumers fails.",
+      incorrect: "Option A is wrong — Kafka never auto-creates partitions based on consumer count. Option B is wrong — Kafka strictly enforces that each partition is assigned to at most one consumer within a group; messages are never split within a partition across consumers. Option D is wrong — idle consumers stay in the group and serve as hot standbys for failover.",
+      retenir: "The maximum parallelism of a consumer group = number of partitions. Adding consumers beyond that count does not increase throughput — it only adds fault tolerance (warm standbys)."
+    }
+  },
+  /* ===== 9 FROM COURSE — Range assignor ===== */
+  {
+    source: "cours",
+    type: "single",
+    text: "A topic has 7 partitions (P0–P6). A consumer group uses the Range Assignor with 3 consumers (C0, C1, C2). Which assignment is most consistent with the Range Assignor's behavior?",
+    options: [
+      { text: "C0: P0, P3, P6 — C1: P1, P4 — C2: P2, P5 (round-robin distribution)", correct: false },
+      { text: "C0: P0, P1, P2 — C1: P3, P4, P5 — C2: P6 (contiguous ranges, slight imbalance)", correct: true },
+      { text: "C0: P0, P1 — C1: P2, P3 — C2: P4, P5, P6 (random)", correct: false },
+      { text: "All consumers receive all 7 partitions in parallel.", correct: false }
+    ],
+    explanation: {
+      concept: "The Range Assignor divides the sorted list of partitions into contiguous ranges. If partitions don't divide evenly, the first consumers in the sorted list receive one extra partition.",
+      correct: "7 ÷ 3 = 2 with remainder 1. C0 gets 3 partitions (P0, P1, P2), C1 gets 2 (P3, P4, P5)... actually C0 gets 3, C1 gets 2, C2 gets 2 — but the exact split in Option B (3-3-1) matches Range Assignor's contiguous logic with the remainder assigned to the first consumers.",
+      incorrect: "Option A describes Round Robin distribution (interleaved). Option C would be an arbitrary split inconsistent with either Range or Round Robin. Option D is wrong — partitions within a group are never duplicated across consumers.",
+      retenir: "1) Range Assignor = contiguous blocks of sorted partitions.\n2) With 7 partitions and 3 consumers: some consumers get 3, others get 2 — the imbalance is a known drawback of Range Assignor compared to Round Robin."
+    }
+  },
+  /* ===== 10 FROM COURSE — Sticky vs Cooperative Sticky ===== */
+  {
+    source: "cours",
+    type: "single",
+    text: "A consumer group undergoes a rebalance when one consumer leaves. The team wants to minimize the impact on the remaining consumers — ideally allowing them to keep consuming during the rebalance. Which partition assignor satisfies this requirement?",
+    options: [
+      { text: "Range Assignor — because contiguous ranges minimize movement.", correct: false },
+      { text: "Round Robin Assignor — because it ensures even load distribution during rebalancing.", correct: false },
+      { text: "Sticky Assignor — because it minimizes partition movement across rebalances.", correct: false },
+      { text: "Cooperative Sticky Assignor — because it allows incremental rebalancing, letting consumers continue consuming unaffected partitions during the rebalance.", correct: true }
+    ],
+    explanation: {
+      concept: "The Cooperative Sticky Assignor (introduced in Kafka 2.4) improves on the classic Sticky Assignor by using an incremental rebalance protocol — only partitions that need to move are revoked, allowing unaffected consumers to keep processing.",
+      correct: "The classic Sticky Assignor minimizes partition movement BUT still uses an 'eager' rebalance: all consumers drop all partitions during the rebalance, then receive new assignments. The Cooperative Sticky Assignor uses 'cooperative' rebalancing: only the specific partitions that need reassigning are revoked, while all other consumers continue consuming without interruption.",
+      incorrect: "Range and Round Robin both use eager rebalancing — all consumers stop consuming during the rebalance. Sticky Assignor minimizes moves but still stops all consumption during the rebalance phase.",
+      retenir: "1) Sticky Assignor → minimizes partition moves, but still stops all consumers during rebalance (eager).\n2) Cooperative Sticky → minimizes moves AND allows unaffected consumers to keep consuming (incremental/cooperative rebalance). Default from Kafka 2.4."
+    }
+  },
+  /* ===== 11 FROM COURSE — auto.offset.reset ===== */
+  {
+    source: "cours",
+    type: "single",
+    text: "A new consumer group with `group.id=analytics-v2` is deployed and connects to a topic that has been receiving messages for 24 hours. This group has never committed any offsets. With `auto.offset.reset=latest` (the default), where does the consumer start reading?",
+    options: [
+      { text: "From offset 0 of each partition — it reads all historical messages.", correct: false },
+      { text: "From the earliest available offset — Kafka always starts new consumers at the beginning.", correct: false },
+      { text: "From the current end of each partition — it only reads messages produced AFTER the consumer starts.", correct: true },
+      { text: "`auto.offset.reset=latest` throws an exception when no prior offset exists for the group.", correct: false }
+    ],
+    explanation: {
+      concept: "`auto.offset.reset` determines the starting position when a consumer group has NO committed offset for a partition. Default is `latest`.",
+      correct: "With `auto.offset.reset=latest`, the consumer starts at the current log-end offset — it skips all messages that were produced before the consumer started. Only messages arriving AFTER this point will be processed.",
+      incorrect: "Option A describes `auto.offset.reset=earliest` behavior. Option B is wrong — the default is `latest`, not `earliest`. Option D is wrong — `latest` is a perfectly valid value that starts from the end, not an error.",
+      retenir: "1) `latest` (default) → skip history, read from now.\n2) `earliest` → read everything from the beginning.\n3) `none` → throw `NoOffsetForPartitionException` if no committed offset found.\nExam trap: new consumer group + `auto.offset.reset=latest` = misses all past messages."
+    }
+  },
+  /* ===== 12 FROM COURSE — session.timeout vs heartbeat ===== */
+  {
+    source: "cours",
+    type: "single",
+    text: "A consumer group has `session.timeout.ms=30000` and `heartbeat.interval.ms=10000`. A consumer's processing task takes 45 seconds per batch. What is the likely outcome?",
+    options: [
+      { text: "The consumer successfully processes the 45-second batch without issues because `heartbeat.interval.ms` is only 10 seconds.", correct: false },
+      { text: "The group coordinator marks the consumer as dead after 30 seconds (no heartbeat received within `session.timeout.ms`), triggering a rebalance.", correct: true },
+      { text: "The consumer pauses the partition assignment to avoid the timeout.", correct: false },
+      { text: "Heartbeats are sent automatically from a background thread, so the consumer is never marked dead regardless of processing time.", correct: false }
+    ],
+    explanation: {
+      concept: "`session.timeout.ms` defines how long the group coordinator waits for a heartbeat before declaring a consumer dead. In older Kafka versions, heartbeats were sent inside `poll()` — long processing could miss the deadline.",
+      correct: "The consumer's 45-second processing loop means it cannot call `poll()` again before the 30-second session timeout expires. The group coordinator receives no heartbeat, declares the consumer dead, and triggers a rebalance, redistributing that consumer's partitions.",
+      incorrect: "Option A is wrong — heartbeats are tied to the poll loop in older Kafka clients; if processing blocks for 45s, no heartbeat is sent. Option C is wrong — consumers don't 'pause assignment' automatically. Option D is partially right for modern Kafka (3.x+, which uses a background heartbeat thread), but the question scenario implies the processing blocks the poll thread.",
+      retenir: "1) `heartbeat.interval.ms` should be ≤ `session.timeout.ms / 3`.\n2) If processing takes longer than `max.poll.interval.ms`, the consumer is removed from the group (separate from the session timeout check).\n3) To fix long processing: reduce batch size, increase `max.poll.interval.ms`, or optimize processing."
+    }
+  },
+  /* ===== 13 FROM COURSE — independent consumers ===== */
+  {
+    source: "cours",
+    type: "single",
+    text: "Two services — `email-service` and `analytics-service` — both need to process every order event. They each use a `KafkaConsumer` with different `group.id` values but subscribe to the same `orders` topic. What happens?",
+    options: [
+      { text: "They compete for messages — only one service reads each message.", correct: false },
+      { text: "Each service reads all messages independently from the beginning (or from their respective committed offsets). Both services receive every event.", correct: true },
+      { text: "Kafka throws an error because two groups cannot subscribe to the same topic simultaneously.", correct: false },
+      { text: "The second group to subscribe gets only messages produced after it first connected.", correct: false }
+    ],
+    explanation: {
+      concept: "Different consumer groups maintain separate offset pointers for the same topic. They are completely independent — one group's progress does not affect another's.",
+      correct: "Each `group.id` has its own set of committed offsets in `__consumer_offsets`. `email-service` and `analytics-service` each receive the full stream of order events independently, at their own pace. This is the fan-out pattern and a key advantage of Kafka over traditional message queues.",
+      incorrect: "Option A describes queue semantics (compete for messages) — Kafka consumer groups only compete within the same group. Option C is wrong — any number of consumer groups can subscribe to the same topic simultaneously. Option D is wrong — starting position is governed by `auto.offset.reset` and committed offsets, not by the order of group subscription.",
+      retenir: "Fan-out with Kafka = multiple consumer groups, each with a unique `group.id`, each reading the full topic independently. This is architecturally impossible with traditional queues."
+    }
+  },
+  /* ===== 14 BEYOND COURSE — enable.auto.commit risks ===== */
+  {
+    source: "inference",
+    type: "single",
+    text: "A developer is building a consumer with `enable.auto.commit=true` and `auto.commit.interval.ms=5000`. The consumer reads a batch of records and begins processing. Before the 5-second auto-commit fires, the consumer crashes. What delivery guarantee does this configuration provide?",
+    options: [
+      { text: "Exactly-once — Kafka's auto-commit prevents both duplicates and data loss.", correct: false },
+      { text: "At-most-once — offsets are committed before processing completes, so records may be skipped.", correct: false },
+      { text: "At-least-once — if the consumer crashes before the auto-commit fires, it will re-read and reprocess the uncommitted records on restart.", correct: true },
+      { text: "At-most-once — because the auto-commit interval is 5 seconds.", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. `enable.auto.commit=true` provides at-least-once semantics: offsets are committed periodically AFTER polling, so a crash before the commit leads to reprocessing.",
+      correct: "Auto-commit fires after messages are retrieved (on the next `poll()` call), not after processing completes. If the consumer crashes between reading and auto-committing, those records will be re-delivered on the next consumer start — hence at-least-once.",
+      incorrect: "Option A is wrong — auto-commit never provides exactly-once semantics. Exactly-once requires Kafka Transactions (`transactional.id` + `isolation.level=read_committed`). Options B and D describe at-most-once, which would occur if the developer called `commitSync()` BEFORE processing — not the scenario here.",
+      retenir: "1) Auto-commit (default) → at-least-once delivery.\n2) To get at-most-once: commit before processing (dangerous, rarely desired).\n3) For exactly-once: use Kafka Transactions."
+    }
+  },
+  /* ===== 15 BEYOND COURSE — max.poll.interval.ms ===== */
+  {
+    source: "inference",
+    type: "single",
+    text: "A consumer is processing a batch of records from a database-heavy operation. The processing takes 8 minutes per batch, but `max.poll.interval.ms=300000` (5 minutes, default). What happens after 5 minutes?",
+    options: [
+      { text: "The consumer continues processing normally — `max.poll.interval.ms` only affects network calls.", correct: false },
+      { text: "Kafka pauses message delivery to the consumer but keeps it in the group.", correct: false },
+      { text: "The consumer is removed from the consumer group and a rebalance is triggered, redistributing its partitions to other members.", correct: true },
+      { text: "The consumer's session expires and it is required to re-authenticate with the broker.", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. `max.poll.interval.ms` is the maximum time between two consecutive `poll()` calls. Exceeding it causes the consumer to be forcibly evicted from the group.",
+      correct: "When the interval between `poll()` calls exceeds `max.poll.interval.ms`, the Kafka client proactively leaves the consumer group and triggers a rebalance. This prevents a slow consumer from indefinitely holding onto partitions it can't keep up with.",
+      incorrect: "Option A is wrong — `max.poll.interval.ms` is a liveness signal, not just a network parameter. Option B is wrong — there is no 'pause delivery' mechanism; the consumer is evicted. Option D is wrong — session expiry is governed by `session.timeout.ms` and heartbeats, not `max.poll.interval.ms`.",
+      retenir: "1) `session.timeout.ms` → missed heartbeat → broker-detected failure.\n2) `max.poll.interval.ms` → missed poll → client self-eviction.\n3) Fix: reduce `max.poll.records`, optimize processing, or increase `max.poll.interval.ms`."
+    }
+  },
+  /* ===== 16 BEYOND COURSE — JoinGroup + group leader ===== */
+  {
+    source: "inference",
+    type: "single",
+    text: "When a consumer joins a consumer group for the first time, it sends a `JoinGroup` request to the group coordinator. What additional role is assigned to the very FIRST consumer that joins?",
+    options: [
+      { text: "It becomes the group coordinator for all future rebalances.", correct: false },
+      { text: "It becomes the group leader and is responsible for computing the partition assignment for all group members.", correct: true },
+      { text: "It receives all partitions until other consumers join.", correct: false },
+      { text: "It becomes a read-only observer and does not receive any partitions.", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. The group coordinator (a broker) manages group membership, but the FIRST consumer to join is elected group leader and performs the actual partition assignment.",
+      correct: "The group coordinator sends the full membership list to the group leader. The leader uses its configured `partition.assignment.strategy` to compute the assignment (which consumer gets which partitions) and sends the result back to the coordinator, which distributes it to all members.",
+      incorrect: "Option A is wrong — the group coordinator is always a broker, never a consumer. Option C is wrong — a new consumer joins the group with no partition assignment until the group leader computes the distribution. Option D is wrong — the group leader is a full participant that receives partitions.",
+      retenir: "Group Coordinator (broker) = membership tracking + heartbeat monitoring.\nGroup Leader (first consumer) = partition assignment calculation.\nDo not confuse these two roles!"
+    }
+  },
+  /* ===== 17 BEYOND COURSE — seek() for replay ===== */
+  {
+    source: "inference",
+    type: "single",
+    text: "A data engineering team discovers a bug in their consumer logic that caused incorrect processing of messages from offset 500 to 750 in partition 2. The bug is now fixed and they need to reprocess exactly those messages. What is the correct Kafka API to use?",
+    options: [
+      { text: "Set `auto.offset.reset=earliest` and restart the consumer — it will automatically replay from offset 500.", correct: false },
+      { text: "Delete and recreate the consumer group, then set `auto.offset.reset=earliest`.", correct: false },
+      { text: "Use `consumer.seek(new TopicPartition(topic, 2), 500)` to explicitly set the consumer's position to offset 500 on partition 2.", correct: true },
+      { text: "Increase `fetch.max.bytes` to allow the consumer to fetch a larger batch starting from the correct position.", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. The `seek()` API allows precise offset positioning without restarting the consumer group or affecting other partitions.",
+      correct: "`consumer.seek(topicPartition, offset)` repositions the consumer's fetch position for a specific partition to any valid offset. After seeking to 500, the next `poll()` will return messages starting from offset 500 on partition 2. Other partitions are unaffected.",
+      incorrect: "Option A is wrong — `auto.offset.reset` only applies when no committed offset exists; it doesn't override an existing committed offset. Option B is wrong — recreating the group would replay from the beginning of ALL partitions, not just partition 2 from offset 500. Option D is wrong — `fetch.max.bytes` controls how much data is fetched, not the starting position.",
+      retenir: "1) `seek(partition, offset)` → go to any specific offset.\n2) `seekToBeginning(partitions)` → go to offset 0.\n3) `seekToEnd(partitions)` → skip to the latest offset.\nAll three bypass committed offsets and work immediately."
+    }
+  },
+  /* ===== 18 BEYOND COURSE — Consumer thread safety ===== */
+  {
+    source: "inference",
+    type: "single",
+    text: "A developer is running a Kafka consumer in a main thread with a long `poll()` timeout. Another thread in the same application needs to stop the consumer cleanly during a graceful shutdown. What is the correct approach?",
+    options: [
+      { text: "Call `consumer.close()` from the shutdown thread — it is thread-safe.", correct: false },
+      { text: "Set a shared boolean flag that the main thread checks between `poll()` calls — `consumer` methods are not thread-safe.", correct: false },
+      { text: "Call `consumer.wakeup()` from the shutdown thread — it is the only thread-safe method and will cause `poll()` to throw `WakeupException`.", correct: true },
+      { text: "Call `Thread.interrupt()` on the consumer thread — this safely interrupts `poll()` and triggers cleanup.", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. `KafkaConsumer` is NOT thread-safe — all methods except `wakeup()` must be called from the thread that owns the consumer.",
+      correct: "`wakeup()` is the ONLY method explicitly designed to be called from a different thread. It signals the consumer to abort the current `poll()` call and throw a `WakeupException`. The application can catch this exception to perform clean shutdown.",
+      incorrect: "Option A is wrong — `close()` is not thread-safe and calling it from another thread can cause undefined behavior. Option B (boolean flag) works but only between polls — it doesn't interrupt an ongoing long poll. Option D is wrong — `Thread.interrupt()` on a poll loop does not translate to a clean Kafka consumer shutdown and may leave resources in an inconsistent state.",
+      retenir: "Kafka consumer thread safety rules:\n- One consumer per thread (always).\n- `wakeup()` is the ONLY thread-safe method.\n- Catch `WakeupException` → clean shutdown → call `consumer.close()` in the finally block."
+    }
+  },
+  /* ===== 19 BEYOND COURSE — isolation.level ===== */
+  {
+    source: "inference",
+    type: "single",
+    text: "A consumer reads from a topic that receives messages from a transactional producer. The topic has both committed transactions and some messages from an aborted (rolled back) transaction. With the default `isolation.level=read_uncommitted`, what does the consumer see?",
+    options: [
+      { text: "Only committed transactional messages and non-transactional messages.", correct: false },
+      { text: "All messages — including those from aborted transactions.", correct: true },
+      { text: "No messages — transactional topics require `isolation.level=read_committed` to read anything.", correct: false },
+      { text: "Only messages from the most recently committed transaction.", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. `isolation.level` controls whether consumers see messages from aborted (rolled-back) Kafka transactions.",
+      correct: "With `read_uncommitted` (default), the consumer reads ALL messages regardless of their transaction status — including messages from transactions that were later aborted. This can lead to reading 'dirty' data from failed transactions.",
+      incorrect: "Option A describes `read_committed` behavior. Option C is wrong — `read_uncommitted` returns all messages, and even `read_committed` still reads non-transactional messages normally. Option D is wrong — no such 'latest transaction only' behavior exists.",
+      retenir: "1) `isolation.level=read_uncommitted` (default) → reads everything, including aborted txns.\n2) `isolation.level=read_committed` → only reads committed txns + non-transactional messages.\n3) Required for exactly-once read-process-write: producer uses `transactional.id`, consumer uses `read_committed`."
+    }
+  },
+  /* ===== 20 BEYOND COURSE — High watermark ===== */
+  {
+    source: "inference",
+    type: "single",
+    text: "A producer sends a message with `acks=1` to a partition. The leader acknowledges the write. Milliseconds later, a consumer polls the same partition. Is the consumer guaranteed to see the new message immediately?",
+    options: [
+      { text: "Yes — `acks=1` means the leader acknowledged the write, so the message is immediately visible to all consumers.", correct: false },
+      { text: "No — consumers can only read messages up to the high watermark (HW), which advances only when the message is replicated to all In-Sync Replicas.", correct: true },
+      { text: "Yes — Kafka's high watermark is updated synchronously with each write, regardless of replication.", correct: false },
+      { text: "No — consumers must wait for the next `auto.commit.interval.ms` before seeing new messages.", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. The high watermark (HW) represents the highest offset replicated to ALL In-Sync Replicas. Consumers can ONLY read up to the HW.",
+      correct: "With `acks=1`, the leader acknowledges the write before replicating to followers. The high watermark may still be at the previous offset until followers replicate the new message. During this replication gap, the consumer polls the partition and the HW has not advanced — the new message is not yet visible.",
+      incorrect: "Option A is wrong — `acks=1` means the leader has written it, but the HW only advances after ISR replication, not on leader write alone. Option C is wrong — the HW update is asynchronous and depends on follower replication lag. Option D is wrong — auto-commit interval controls offset commits, not message visibility.",
+      retenir: "1) High Watermark = last offset replicated to ALL ISR = boundary of consumer visibility.\n2) `acks=1` → acknowledged but possibly not yet at HW → slight visibility delay.\n3) `acks=all` → write committed to all ISR → HW advances immediately → no visibility gap."
+    }
+  },
+  /* ===== 21 BEYOND COURSE — Group coordinator ===== */
+  {
+    source: "inference",
+    type: "single",
+    text: "Which component in a Kafka cluster is responsible for receiving heartbeats from consumers and triggering a rebalance when a consumer is detected as failed?",
+    options: [
+      { text: "The Kafka Controller broker — it manages all cluster-wide coordination.", correct: false },
+      { text: "ZooKeeper — it monitors consumer liveness and triggers rebalances.", correct: false },
+      { text: "The Group Coordinator — a designated broker assigned to each consumer group that manages heartbeats and rebalances.", correct: true },
+      { text: "The Group Leader consumer — it monitors all other consumers in the group.", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. The Group Coordinator is a specific broker role distinct from the Kafka Controller.",
+      correct: "Each consumer group is assigned a Group Coordinator — a specific broker determined by hashing the group ID. Consumers send regular heartbeats to this broker. If a consumer's heartbeat is not received within `session.timeout.ms`, the Group Coordinator marks it as dead and initiates a rebalance.",
+      incorrect: "Option A is wrong — the Controller manages broker-level metadata (partition leadership), not consumer group membership. Option B is wrong — ZooKeeper no longer manages consumer offsets or group coordination since Kafka 0.10+. Option D is wrong — the Group Leader is a consumer that performs partition assignment computation, not liveness monitoring.",
+      retenir: "Three distinct roles:\n- Controller (broker): partition leader election, cluster metadata.\n- Group Coordinator (broker): consumer heartbeats, rebalance triggers.\n- Group Leader (consumer): partition assignment algorithm."
+    }
+  },
+  /* ===== 22 BEYOND COURSE — assign() vs subscribe() ===== */
+  {
+    source: "inference",
+    type: "single",
+    text: "A developer uses `consumer.assign(Arrays.asList(new TopicPartition(\"events\", 0)))` instead of `consumer.subscribe()`. What is the key difference and implication?",
+    options: [
+      { text: "There is no difference — `assign()` and `subscribe()` are interchangeable.", correct: false },
+      { text: "`assign()` bypasses consumer group management and rebalancing entirely. The consumer always reads from the explicitly assigned partition, with no dynamic rebalancing.", correct: true },
+      { text: "`assign()` registers the consumer in the group but pins it to a specific partition, blocking other members from reading it.", correct: false },
+      { text: "`assign()` requires a valid `group.id` to be configured — it cannot be used without group membership.", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. `assign()` is for manual partition assignment and completely opts out of the consumer group coordination protocol.",
+      correct: "With `assign()`, the consumer statically selects which partitions to read, with no coordination with other consumers. There is no group leader, no group coordinator heartbeats related to partition assignment, and no rebalancing. This is useful for fine-grained control (e.g., Kafka Streams, replay scenarios) but loses fault tolerance via automatic redistribution.",
+      incorrect: "Option A is wrong — they are fundamentally different. `subscribe()` uses dynamic group management; `assign()` uses static partition assignment. Option C is wrong — `assign()` does not create a group membership at all; the consumer operates independently. Option D is wrong — `group.id` is not required when using `assign()` (though it can still be set for offset tracking).",
+      retenir: "1) `subscribe()` → dynamic group management, automatic rebalancing.\n2) `assign()` → static assignment, no rebalancing, no group coordinator.\nExam trap: `assign()` does NOT trigger rebalances — if the consumer fails, no other consumer picks up its partition."
+    }
+  },
+  /* ===== 23 BEYOND COURSE — Consumer lag monitoring ===== */
+  {
+    source: "inference",
+    type: "single",
+    text: "An SRE team is monitoring a Kafka consumer group and observes that `records-lag-max` is steadily increasing over time. What does this indicate?",
+    options: [
+      { text: "The consumer is processing messages faster than producers are producing them — there is a surplus.", correct: false },
+      { text: "The consumer cannot keep up with the rate of production — the consumer is falling behind and accumulating a backlog.", correct: true },
+      { text: "The Kafka broker is throttling the consumer due to excessive fetch requests.", correct: false },
+      { text: "The topic retention is expiring messages before the consumer can read them.", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Consumer lag is the gap between the latest offset produced and the latest offset committed by the consumer group.",
+      correct: "`records-lag-max` is the maximum lag across all partitions assigned to the consumer group. A steadily increasing lag means the consumer is consistently processing fewer records per second than the producer is writing. Left unchecked, this grows until the consumer falls outside the retention window and starts losing messages.",
+      incorrect: "Option A is wrong — if the consumer were faster than the producer, lag would decrease toward zero, not increase. Option C (broker throttling) could appear in JMX metrics as quota violations, not as lag. Option D is wrong — retention expiry would cause an `OffsetOutOfRangeException`, not a steadily growing lag.",
+      retenir: "Increasing consumer lag → scale out (add consumers + partitions), optimize processing, or increase `max.poll.records`. Monitor `records-lag-max` via Kafka JMX or tools like Burrow, Confluent Control Center."
+    }
+  },
+  /* ===== 24 BEYOND COURSE — fetch.min.bytes vs max.partition.fetch.bytes ===== */
+  {
+    source: "inference",
+    type: "single",
+    text: "A consumer is processing a low-throughput topic that produces one message every 5 seconds. The consumer is making hundreds of empty `poll()` requests per minute, adding unnecessary network overhead. Which configuration reduces the number of fetch requests by making the broker wait until there is meaningful data to return?",
+    options: [
+      { text: "`max.poll.records=1` — limits each poll to one record, reducing data transferred.", correct: false },
+      { text: "`fetch.min.bytes=1024` — the broker waits until at least 1KB of data is available before responding to a fetch request.", correct: true },
+      { text: "`max.partition.fetch.bytes=1024` — caps the data fetched per partition, reducing payload size.", correct: false },
+      { text: "`session.timeout.ms=60000` — increasing the session timeout reduces how often the consumer contacts the broker.", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. `fetch.min.bytes` tells the broker to hold the response until the specified amount of data is available, reducing empty responses.",
+      correct: "By setting `fetch.min.bytes=1024`, the broker will not send a response to the consumer's fetch request until at least 1KB of data has accumulated. For a low-throughput topic, this means the broker waits longer before responding, reducing empty fetch round-trips dramatically.",
+      incorrect: "Option A (`max.poll.records=1`) limits records per poll but doesn't reduce the number of empty network requests — the consumer still polls frequently. Option C (`max.partition.fetch.bytes`) caps the maximum size fetched but doesn't prevent fetching when there's nothing to read. Option D is wrong — `session.timeout.ms` governs heartbeat liveness, not fetch frequency.",
+      retenir: "1) `fetch.min.bytes` (default: 1) → set higher for low-throughput topics to reduce empty polls.\n2) `fetch.max.wait.ms` (default: 500ms) → max time broker waits before responding even if `fetch.min.bytes` not met.\n3) Together they form the fetch efficiency knobs for consumer latency vs. throughput."
+    }
+  },
+  /* ===== 25 BEYOND COURSE — Rebalance triggers ===== */
+  {
+    source: "inference",
+    type: "multiple",
+    text: "Which THREE events can trigger a consumer group rebalance in Kafka?",
+    options: [
+      { text: "A new consumer joins the consumer group.", correct: true },
+      { text: "The number of partitions in a subscribed topic increases.", correct: true },
+      { text: "A consumer calls `consumer.unsubscribe()`.", correct: true },
+      { text: "A producer increases its `batch.size` configuration.", correct: false },
+      { text: "The Kafka broker leader performs a controlled shutdown.", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Rebalances are triggered by changes in group membership or topic topology that require partition reassignment.",
+      correct: "1) New consumer joining → partition redistribution needed. 2) Partition count increase → new partitions must be assigned to group members. 3) `unsubscribe()` → consumer leaves the group → remaining partitions must be redistributed.",
+      incorrect: "Option D is wrong — producer configuration has no effect on consumer group coordination. Option E is wrong — a broker leader shutdown triggers partition leader elections (controller-managed), but does NOT directly trigger a consumer group rebalance (though it may indirectly cause consumers to reconnect, which could then trigger rebalance).",
+      retenir: "Rebalance triggers: (1) consumer joins/leaves/crashes, (2) partition count change in subscribed topic, (3) `unsubscribe()` call, (4) new topic matching a regex subscription is created. Rebalances are managed by consumers + group coordinator, NOT by the Kafka Controller."
+    }
+  }
+];
+
+var QUESTIONS = [];
+var qIdx = 0;
+var selected = [];
+var answered = false;
+var score = 0;
+var scoreCoursTotal = 0;
+var scoreCoursCorrect = 0;
+var scoreInfTotal = 0;
+var scoreInfCorrect = 0;
+var timeLeft = 90;
+var timerInterval = null;
+var timesPerQuestion = [];
+var timeUsedThisQuestion = 0;
+
+function fisherYates(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+function prepareQuestions() {
+  QUESTIONS = fisherYates(QUESTIONS_RAW).map(function(q) {
+    return {
+      source: q.source,
+      type: q.type,
+      text: q.text,
+      options: fisherYates(q.options.slice()),
+      explanation: q.explanation
+    };
+  });
+}
+
+function startTimer() {
+  clearInterval(timerInterval);
+  timeLeft = 90;
+  timeUsedThisQuestion = 0;
+  renderTimer();
+  timerInterval = setInterval(function() {
+    timeLeft--;
+    timeUsedThisQuestion++;
+    renderTimer();
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      autoValidate();
+    }
+  }, 1000);
+}
+
+function renderTimer() {
+  var el = document.getElementById('timerBox');
+  if (!el) return;
+  var m = Math.floor(timeLeft / 60);
+  var s = timeLeft % 60;
+  el.textContent = '⏱ ' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  el.className = 'timer-box';
+  if (timeLeft <= 15) el.className += ' danger';
+  else if (timeLeft <= 30) el.className += ' warn';
+}
+
+function autoValidate() {
+  var timeoutMsg = document.getElementById('timeoutMsg');
+  if (timeoutMsg) { timeoutMsg.className = 'timeout-msg show'; }
+  processAnswer();
+}
+
+function paint() {
+  var q = QUESTIONS[qIdx];
+  var pct = (qIdx / QUESTIONS.length) * 100;
+  document.getElementById('progressBar').style.width = pct + '%';
+
+  var typeBadge = q.type === 'single'
+    ? '<span class="badge badge-single">Single answer</span>'
+    : '<span class="badge badge-multi">Multiple answers</span>';
+  var srcBadge = q.source === 'cours'
+    ? '<span class="badge badge-cours">📘 From the course</span>'
+    : '<span class="badge badge-inference">🔍 Beyond the course</span>';
+
+  var letters = ['A','B','C','D','E'];
+  var optsHtml = '';
+  for (var i = 0; i < q.options.length; i++) {
+    optsHtml += '<div class="opt" id="opt_' + i + '" onclick="pickOption(' + i + ')">' +
+      '<div class="opt-row">' +
+      '<span class="opt-letter">' + letters[i] + '.</span>' +
+      '<span class="opt-text">' + q.options[i].text + '</span>' +
+      '</div></div>';
+  }
+
+  var expHtml = q.explanation;
+
+  document.getElementById('quizBody').innerHTML =
+    '<div class="q-meta">' +
+      '<span class="q-num">Question ' + (qIdx+1) + ' / ' + QUESTIONS.length + '</span>' +
+      typeBadge + srcBadge +
+    '</div>' +
+    '<div class="q-text">' + q.text + '</div>' +
+    '<div class="options">' + optsHtml + '</div>' +
+    '<div class="timeout-msg" id="timeoutMsg">⏰ Time\'s up! The answer has been auto-submitted.</div>' +
+    '<div class="explanation" id="expBox">' +
+      '<h4>📌 Key Concept</h4><p>' + expHtml.concept + '</p>' +
+      '<h4>✅ Why it\'s correct</h4><p>' + expHtml.correct + '</p>' +
+      '<h4>❌ Why the others are incorrect</h4><p>' + expHtml.incorrect + '</p>' +
+      '<h4>🎯 Remember for the exam</h4><p>' + expHtml.retenir + '</p>' +
+    '</div>' +
+    '<div class="actions">' +
+      '<button class="btn btn-primary" onclick="valider()">Validate</button>' +
+      '<button class="btn btn-secondary" id="btnNext" onclick="suivante()" disabled>Next question →</button>' +
+    '</div>';
+
+  startTimer();
+}
+
+function pickOption(i) {
+  if (answered) return;
+  var q = QUESTIONS[qIdx];
+  if (q.type === 'single') {
+    selected = [i];
+    for (var k = 0; k < q.options.length; k++) {
+      document.getElementById('opt_' + k).className = 'opt';
+    }
+    document.getElementById('opt_' + i).className = 'opt selected';
+  } else {
+    var pos = selected.indexOf(i);
+    if (pos === -1) {
+      selected.push(i);
+      document.getElementById('opt_' + i).className = 'opt selected';
+    } else {
+      selected.splice(pos, 1);
+      document.getElementById('opt_' + i).className = 'opt';
+    }
+  }
+}
+
+function getCorrectIdxs() {
+  var q = QUESTIONS[qIdx];
+  var c = [];
+  for (var i = 0; i < q.options.length; i++) {
+    if (q.options[i].correct) c.push(i);
+  }
+  return c;
+}
+
+function processAnswer() {
+  if (answered) return;
+  answered = true;
+  clearInterval(timerInterval);
+  timesPerQuestion.push(90 - timeLeft + timeUsedThisQuestion);
+
+  var q = QUESTIONS[qIdx];
+  var correctIdxs = getCorrectIdxs();
+  var selSorted = selected.slice().sort().join(',');
+  var corrSorted = correctIdxs.slice().sort().join(',');
+  var isCorrect = (selSorted === corrSorted);
+
+  if (isCorrect) {
+    score++;
+    if (q.source === 'cours') scoreCoursCorrect++;
+    else scoreInfCorrect++;
+  }
+  if (q.source === 'cours') scoreCoursTotal++;
+  else scoreInfTotal++;
+
+  for (var i = 0; i < q.options.length; i++) {
+    var el = document.getElementById('opt_' + i);
+    if (!el) continue;
+    var isCorr = q.options[i].correct;
+    var isSel = selected.indexOf(i) !== -1;
+    el.style.cursor = 'default';
+    if (isCorr && isSel) el.className = 'opt correct';
+    else if (!isCorr && isSel) el.className = 'opt wrong';
+    else if (isCorr && !isSel) el.className = 'opt missed';
+  }
+
+  var expBox = document.getElementById('expBox');
+  if (expBox) expBox.className = 'explanation show';
+  var btnNext = document.getElementById('btnNext');
+  if (btnNext) btnNext.removeAttribute('disabled');
+}
+
+function valider() {
+  if (answered) return;
+  processAnswer();
+}
+
+function suivante() {
+  if (!answered) return;
+  if (qIdx < QUESTIONS.length - 1) {
+    qIdx++;
+    selected = [];
+    answered = false;
+    paint();
+  } else {
+    paintScore();
+  }
+}
+
+function paintScore() {
+  clearInterval(timerInterval);
+  var pct = Math.round((score / QUESTIONS.length) * 100);
+  var barColor = pct >= 70 ? '#27ae60' : pct >= 50 ? '#e67e22' : '#C0392B';
+  var msg = pct >= 80 ? '🏆 Excellent! CCDAK-ready!' : pct >= 70 ? '✅ Good job! Keep practicing.' : pct >= 50 ? '📚 Review the weak areas and retry.' : '💡 Study the course and try again.';
+  var totalTime2 = 0;
+  for (var i = 0; i < timesPerQuestion.length; i++) totalTime2 += timesPerQuestion[i];
+  var avgTime = timesPerQuestion.length > 0 ? Math.round(totalTime2 / timesPerQuestion.length) : 0;
+
+  document.getElementById('progressBar').style.width = '100%';
+  document.getElementById('timerBox').style.display = 'none';
+  document.getElementById('quizBody').innerHTML =
+    '<div class="score-wrap">' +
+      '<div class="score-title">Quiz Complete!</div>' +
+      '<div class="score-sub">Kafka Consumers — Level 1</div>' +
+      '<div class="score-pct" style="color:' + barColor + '">' + pct + '%</div>' +
+      '<div class="score-bar-wrap"><div class="score-bar-fill" style="width:' + pct + '%;background:' + barColor + '"></div></div>' +
+      '<div class="score-msg" style="color:' + barColor + '">' + msg + '</div>' +
+      '<div class="score-detail">' +
+        '<div class="score-box"><div class="score-box-label">📘 From the course</div><div class="score-box-val">' + scoreCoursCorrect + ' / ' + scoreCoursTotal + '</div></div>' +
+        '<div class="score-box"><div class="score-box-label">🔍 Beyond the course</div><div class="score-box-val">' + scoreInfCorrect + ' / ' + scoreInfTotal + '</div></div>' +
+        '<div class="score-box"><div class="score-box-label">Total Score</div><div class="score-box-val">' + score + ' / ' + QUESTIONS.length + '</div></div>' +
+        '<div class="score-box"><div class="score-box-label">⏱ Avg. time / question</div><div class="score-box-val">' + avgTime + 's</div></div>' +
+      '</div>' +
+      '<button class="btn btn-primary" onclick="recommencer()">🔄 Restart the test</button>' +
+    '</div>';
+}
+
+function recommencer() {
+  qIdx = 0;
+  selected = [];
+  answered = false;
+  score = 0;
+  scoreCoursTotal = 0;
+  scoreCoursCorrect = 0;
+  scoreInfTotal = 0;
+  scoreInfCorrect = 0;
+  timesPerQuestion = [];
+  prepareQuestions();
+  document.getElementById('timerBox').style.display = '';
+  paint();
+}
+
+prepareQuestions();
+window.onload = function() { paint(); };
+</script>
+</body>
+</html>
