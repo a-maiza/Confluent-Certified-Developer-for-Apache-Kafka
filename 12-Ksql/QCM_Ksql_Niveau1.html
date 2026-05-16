@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CCDAK Prep — ksqlDB Level 1</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #1a1a2e; font-family: system-ui, sans-serif; min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 32px 16px; }
+.card { background: #fff; border-radius: 12px; border: 1px solid #ddd; max-width: 820px; width: 100%; padding: 32px; }
+h1 { font-size: 1.5rem; color: #1a1a2e; margin-bottom: 4px; }
+.subtitle { color: #888; font-size: 0.9rem; margin-bottom: 20px; }
+.progress-bar-wrap { background: #eee; border-radius: 8px; height: 8px; margin-bottom: 24px; }
+.progress-bar { background: #C0392B; height: 8px; border-radius: 8px; transition: width 0.3s; }
+.meta-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+.badge-single { background: #fff3e0; color: #e65100; }
+.badge-multiple { background: #e8f5e9; color: #2e7d32; }
+.badge-cours { background: #e8f4fd; color: #1a6fa8; }
+.badge-inference { background: #f0e8fd; color: #6a1ab8; }
+.timer { font-size: 1rem; font-weight: 700; color: #C0392B; background: #fff5f5; border: 2px solid #C0392B; border-radius: 8px; padding: 4px 14px; }
+.timer.warn { color: #e65100; border-color: #e65100; background: #fff3e0; }
+.timer.danger { color: #fff; border-color: #C0392B; background: #C0392B; animation: pulse 0.8s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+.question-text { font-size: 1.05rem; color: #1a1a2e; font-weight: 600; line-height: 1.5; margin-bottom: 20px; }
+.options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.option { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; border: 2px solid #ddd; border-radius: 8px; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+.option:hover { background: #f5f5f5; border-color: #bbb; }
+.option.selected { border-color: #1a6fa8; background: #e8f4fd; }
+.option.correct { border-color: #27ae60; background: #eafaf1; }
+.option.wrong { border-color: #C0392B; background: #fdecea; }
+.option.missed { border-color: #27ae60; background: #fff; border-style: dashed; }
+.option-letter { font-weight: 700; color: #888; min-width: 22px; font-size: 0.95rem; }
+.option-text { font-size: 0.95rem; color: #333; line-height: 1.4; }
+.btn { background: #C0392B; color: #fff; border: none; border-radius: 8px; padding: 12px 28px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn:hover:not(:disabled) { opacity: 0.88; }
+.btn-row { display: flex; gap: 12px; align-items: center; margin-top: 8px; }
+.explanation { background: #f9f9f9; border-left: 4px solid #C0392B; border-radius: 6px; padding: 16px; margin-top: 20px; font-size: 0.93rem; line-height: 1.6; color: #333; display: none; }
+.explanation h4 { font-size: 0.85rem; text-transform: uppercase; color: #888; margin-bottom: 6px; margin-top: 12px; }
+.explanation h4:first-child { margin-top: 0; }
+.explanation p { margin-bottom: 4px; }
+.timeout-msg { color: #C0392B; font-weight: 700; font-size: 0.95rem; }
+/* Score screen */
+.score-screen { display: none; text-align: center; }
+.score-screen h2 { font-size: 1.8rem; color: #1a1a2e; margin-bottom: 8px; }
+.score-msg { font-size: 1.1rem; color: #555; margin-bottom: 20px; }
+.score-bar-wrap { background: #eee; border-radius: 8px; height: 18px; margin: 12px 0 24px; }
+.score-bar { height: 18px; border-radius: 8px; transition: width 0.6s; }
+.score-detail { background: #f5f5f5; border-radius: 8px; padding: 16px; text-align: left; font-size: 0.95rem; color: #333; margin-bottom: 20px; }
+.score-detail p { margin-bottom: 6px; }
+.avg-time { font-size: 0.9rem; color: #666; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>CCDAK Prep</h1>
+  <div class="subtitle">ksqlDB — Level 1 · 24 questions</div>
+  <div class="progress-bar-wrap"><div class="progress-bar" id="progBar" style="width:0%"></div></div>
+
+  <!-- Quiz area -->
+  <div id="quizArea">
+    <div class="meta-row">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <span class="badge" id="badgeType"></span>
+        <span class="badge" id="badgeSource"></span>
+      </div>
+      <div class="timer" id="timerDisplay">01:30</div>
+    </div>
+    <div class="question-text" id="questionText"></div>
+    <div class="options" id="optionsContainer"></div>
+    <div class="btn-row">
+      <button class="btn" id="btnValidate" onclick="valider()">Validate</button>
+      <button class="btn" id="btnNext" onclick="suivante()" disabled style="background:#555;">Next question →</button>
+    </div>
+    <div class="explanation" id="explanationBox"></div>
+  </div>
+
+  <!-- Score screen -->
+  <div class="score-screen" id="scoreScreen">
+    <h2 id="scoreTitle"></h2>
+    <div class="score-msg" id="scoreMsg"></div>
+    <div class="score-bar-wrap"><div class="score-bar" id="scoreBar"></div></div>
+    <div class="avg-time" id="avgTimeDisplay"></div>
+    <div class="score-detail" id="scoreDetail"></div>
+    <button class="btn" onclick="recommencer()">Restart the test</button>
+  </div>
+</div>
+
+<script>
+var QUESTIONS_RAW = [
+  {
+    source: "cours",
+    type: "single",
+    text: "A developer is building a ksqlDB application that needs to track the latest account balance for each customer ID. Each new record for the same customer should overwrite the previous one. Which ksqlDB abstraction best models this requirement?",
+    options: [
+      { text: "STREAM — because it stores all records sequentially", correct: false },
+      { text: "TABLE — because records with the same key are treated as updates to previous records", correct: true },
+      { text: "STREAM — because ksqlDB STREAMs support key-based lookups", correct: false },
+      { text: "TABLE — because only tables can be backed by a Kafka topic", correct: false }
+    ],
+    explanation: {
+      concept: "In ksqlDB, a TABLE is a mutable, stateful entity where records with the same key are considered updates — modeling the latest state per key. A STREAM is an immutable, unbounded sequence of independent events.",
+      correct: "TABLE is correct: every new record for the same key replaces the previous value, which is exactly the semantics needed for tracking the latest account balance.",
+      incorrect: "STREAM is incorrect here because stream records with the same key are independent — they do not overwrite each other. Also, STREAMs do not support efficient key-based point-in-time lookups like tables do.",
+      retenir: "Exam tip: STREAM = append-only log (KStream semantics); TABLE = compacted changelog (KTable semantics). When you see 'latest value per key', think TABLE."
+    }
+  },
+  {
+    source: "cours",
+    type: "single",
+    text: "A ksqlDB stream is created without specifying `auto.offset.reset`. A producer publishes 100 records to the underlying topic before the stream starts consuming. How many of those 100 records will the new stream process?",
+    options: [
+      { text: "All 100 — ksqlDB defaults to reading from the beginning", correct: false },
+      { text: "0 — ksqlDB defaults to 'latest', so only records arriving after stream creation are consumed", correct: true },
+      { text: "It depends on the number of ksqlDB servers in the cluster", correct: false },
+      { text: "50 — ksqlDB processes 50% of existing records by default", correct: false }
+    ],
+    explanation: {
+      concept: "The `auto.offset.reset` property in ksqlDB defaults to 'latest', meaning new streams only consume records produced after the stream definition is created.",
+      correct: "With the default 'latest', only records arriving after stream creation are consumed. The 100 pre-existing records will not be processed.",
+      incorrect: "'Earliest' would read from the beginning. There is no partition-count or percentage dependency for this default behavior.",
+      retenir: "Exam tip: ksqlDB's default `auto.offset.reset=latest` differs from Kafka consumer default which is also 'latest'. To reprocess historical data, explicitly set `auto.offset.reset='earliest'` in the WITH clause."
+    }
+  },
+  {
+    source: "cours",
+    type: "single",
+    text: "A team wants to deploy ksqlDB in production to run a fixed set of vetted queries. They want to prevent any interactive access or ad-hoc query execution. Which deployment approach should they use?",
+    options: [
+      { text: "Interactive mode, but restrict the REST API using firewall rules", correct: false },
+      { text: "Headless mode — start ksqlDB servers with a predefined .sql file using --queries-file or ksql.queries.file", correct: true },
+      { text: "Interactive mode with ksqlDB CLI authentication", correct: false },
+      { text: "Standalone mode with a single ksqlDB server and no REST endpoint exposed", correct: false }
+    ],
+    explanation: {
+      concept: "Headless (Application) mode is the recommended ksqlDB production deployment. Servers are started with a .sql file containing predefined queries; the REST endpoint is automatically disabled, preventing any interactive access.",
+      correct: "Headless mode using `--queries-file` or `ksql.queries.file` compiles the SQL file into Kafka Streams applications and locks down interactive access — exactly what the team needs.",
+      incorrect: "Interactive mode always exposes a REST API and cannot be 'locked down' simply with firewall rules or authentication from ksqlDB's perspective. Standalone mode is about topology, not about disabling interactivity.",
+      retenir: "Exam tip: Headless = production-ready, no REST endpoint, SQL file only. Interactive = development/testing with CLI and REST API. The REST endpoint is automatically disabled in headless mode — no extra configuration needed."
+    }
+  },
+  {
+    source: "cours",
+    type: "single",
+    text: "In headless ksqlDB mode, where does the server store its configuration metadata to ensure query compatibility across restarts?",
+    options: [
+      { text: "In a local file on the ksqlDB server's filesystem", correct: false },
+      { text: "In the `ksql.streams.state.dir` RocksDB directory", correct: false },
+      { text: "In the ksqlDB config topic in Kafka", correct: true },
+      { text: "In Apache ZooKeeper", correct: false }
+    ],
+    explanation: {
+      concept: "In headless mode, ksqlDB stores its properties in a Kafka config topic. This allows ksqlDB to verify query compatibility on every server restart.",
+      correct: "The config topic in Kafka holds the ksqlDB properties from the first startup. On restart, ksqlDB reads this topic to ensure queries are rebuilt with compatible configurations.",
+      incorrect: "Filesystem storage is not used for config persistence. RocksDB (ksql.streams.state.dir) stores stateful query state, not server config. ZooKeeper is used for service discovery in clusters, not config persistence.",
+      retenir: "Exam tip: headless mode uses a Kafka config topic (not ZooKeeper, not filesystem) to persist startup properties and guarantee consistent query rebuilds after failures."
+    }
+  },
+  {
+    source: "cours",
+    type: "multiple",
+    text: "A developer runs a SELECT query in ksqlDB without the EMIT CHANGES clause. Which TWO statements accurately describe this query's behavior?",
+    options: [
+      { text: "It executes once and returns a result set, then terminates", correct: true },
+      { text: "It subscribes to future events and runs indefinitely", correct: false },
+      { text: "It can only be executed on materialized streams or tables that have a defined primary key", correct: true },
+      { text: "Results are persisted to an output Kafka topic", correct: false },
+      { text: "It supports GROUP BY and WINDOW clauses", correct: false }
+    ],
+    explanation: {
+      concept: "A SELECT without EMIT CHANGES is a Pull Query. It runs once, returns a bounded result set, and terminates — like a traditional SQL query.",
+      correct: "Pull queries (1) execute once and terminate and (2) can only run against materialized views (streams/tables) with a defined primary key. These are their two key constraints.",
+      incorrect: "Running indefinitely describes Push queries (EMIT CHANGES). Results are not persisted — that is the job of persistent queries (CREATE STREAM/TABLE AS SELECT). Pull queries do NOT support GROUP BY or WINDOW clauses.",
+      retenir: "Exam tip: Pull = once, point-in-time, needs primary key, no GROUP BY/WINDOW/JOIN. Push (EMIT CHANGES) = continuous, infinite, streams results to client."
+    }
+  },
+  {
+    source: "cours",
+    type: "single",
+    text: "A ksqlDB developer is enriching a clickstream STREAM with user profile data stored in a TABLE. Both datasets are on topics with the same key type and partition count. Which type of join must the developer use?",
+    options: [
+      { text: "Stream-Stream join with WITHIN clause", correct: false },
+      { text: "Stream-Table join using CREATE STREAM AS SELECT with a JOIN clause", correct: true },
+      { text: "Table-Table primary key join", correct: false },
+      { text: "GlobalKTable join — no co-partitioning required", correct: false }
+    ],
+    explanation: {
+      concept: "Stream-Table joins enrich each stream record with the current state of the table. They require co-partitioning (same key type and partition count) and are defined with CREATE STREAM AS SELECT … JOIN.",
+      correct: "Stream-Table join is the right pattern: for each click event (stream record), look up the matching user profile (table record) using the join key.",
+      incorrect: "Stream-Stream joins require a time window (WITHIN clause) and produce a new stream from two event streams. Table-Table joins work between two stateful datasets. GlobalKTable eliminates co-partitioning but at the cost of loading the full table into each instance.",
+      retenir: "Exam tip: Stream-Table join = enrich stream records with latest table state. Always requires co-partitioning (unless using GlobalKTable). Result is always a STREAM."
+    }
+  },
+  {
+    source: "cours",
+    type: "single",
+    text: "A ksqlDB stream named `orders` is created over a Kafka topic. A developer queries `SELECT ROWTIME, ROWKEY FROM orders`. Which fields are returned?",
+    options: [
+      { text: "ROWTIME returns the Kafka message timestamp; ROWKEY returns the message key", correct: true },
+      { text: "ROWTIME returns the wall-clock time of query execution; ROWKEY is always null for streams", correct: false },
+      { text: "ROWTIME is a user-defined timestamp column; ROWKEY is the partition offset", correct: false },
+      { text: "Both ROWTIME and ROWKEY are deprecated in ksqlDB and will throw an error", correct: false }
+    ],
+    explanation: {
+      concept: "Every ksqlDB stream includes ROWTIME (Kafka message timestamp) and ROWKEY (the message key) as implicit metadata columns automatically available in queries.",
+      correct: "ROWTIME = the Kafka message timestamp of the underlying topic record. ROWKEY = the key of the Kafka message. Both are available without explicit definition.",
+      incorrect: "ROWTIME is derived from the Kafka record timestamp, not the query execution time. ROWKEY is not the offset — it's the message key. These fields are fully supported, not deprecated.",
+      retenir: "Exam tip: ROWTIME and ROWKEY are implicit pseudo-columns in every ksqlDB stream. They do not need to be declared in the schema. ROWTIME is event time, not wall-clock time."
+    }
+  },
+  {
+    source: "cours",
+    type: "single",
+    text: "A ksqlDB developer inserts a record into a TABLE with a null key. What happens?",
+    options: [
+      { text: "The record is inserted with the key defaulting to an empty string", correct: false },
+      { text: "The record is dropped — null keys are not allowed in ksqlDB tables", correct: true },
+      { text: "The record is processed normally because null keys are treated as tombstones in tables", correct: false },
+      { text: "ksqlDB raises a deserialization error and sends the record to the DLQ", correct: false }
+    ],
+    explanation: {
+      concept: "In ksqlDB, TABLE semantics require a valid primary key. Records with null keys are silently dropped because there is no way to associate them with any table entry.",
+      correct: "Null-key records are dropped for tables because tables require a primary key to determine which row to update. Without a key, the record cannot be routed to any table entry.",
+      incorrect: "Null keys do not default to empty string. Null VALUES (not null keys) are tombstones. Null keys do not cause deserialization errors — they are silently filtered before processing.",
+      retenir: "Exam tip: TABLE = null key → record dropped silently. TABLE = null value → tombstone (record deleted). STREAM = null key and null value are both allowed with no special meaning."
+    }
+  },
+  {
+    source: "cours",
+    type: "single",
+    text: "A developer notices that a ksqlDB stream is failing to read records from an Avro-encoded Kafka topic. They need to determine the stream's configured VALUE_FORMAT. Which ksqlDB command should they run?",
+    options: [
+      { text: "SHOW STREAMS EXTENDED", correct: false },
+      { text: "DESCRIBE EXTENDED stream_name", correct: true },
+      { text: "EXPLAIN SELECT * FROM stream_name", correct: false },
+      { text: "SHOW TOPICS", correct: false }
+    ],
+    explanation: {
+      concept: "The DESCRIBE EXTENDED statement provides detailed metadata about a stream or table, including its serialization format (VALUE_FORMAT), backing topic, schema, and statistics.",
+      correct: "DESCRIBE EXTENDED stream_name returns the full schema definition including VALUE_FORMAT, which can be compared to the actual topic encoding to diagnose deserialization mismatches.",
+      incorrect: "SHOW STREAMS EXTENDED is not a valid ksqlDB command. EXPLAIN shows the execution plan for a query, not the schema. SHOW TOPICS lists Kafka topics, not ksqlDB stream metadata.",
+      retenir: "Exam tip: DESCRIBE EXTENDED = detailed stream/table info including format, topic, key/value schema. EXPLAIN = query execution plan. SHOW QUERIES = running queries status."
+    }
+  },
+  {
+    source: "cours",
+    type: "single",
+    text: "A ksqlDB application performs stateful windowed aggregations and requires local state persistence. Which configuration property controls the directory used by RocksDB for this state storage?",
+    options: [
+      { text: "ksql.queries.file", correct: false },
+      { text: "ksql.streams.state.dir", correct: true },
+      { text: "auto.offset.reset", correct: false },
+      { text: "ksql.schema.registry.url", correct: false }
+    ],
+    explanation: {
+      concept: "ksqlDB uses RocksDB to store local state for stateful operations (aggregations, joins). The `ksql.streams.state.dir` property defines the filesystem directory where RocksDB stores this state.",
+      correct: "`ksql.streams.state.dir` directly controls where RocksDB writes its state data. This is crucial for I/O tuning and ensuring sufficient disk space for stateful queries.",
+      incorrect: "`ksql.queries.file` is for headless mode SQL file path. `auto.offset.reset` controls consumer offset behavior. `ksql.schema.registry.url` configures the Schema Registry endpoint.",
+      retenir: "Exam tip: RocksDB is the embedded store used by Kafka Streams (and thus ksqlDB) for stateful operations. Disk performance at `ksql.streams.state.dir` directly impacts stateful query throughput."
+    }
+  },
+  {
+    source: "inference",
+    type: "single",
+    text: "A ksqlDB query uses `CREATE TABLE AS SELECT customer_id, COUNT(*) AS order_count FROM orders_stream GROUP BY customer_id EMIT CHANGES`. What type of query is this and where are results stored?",
+    options: [
+      { text: "Push query — results are streamed to the client and not persisted", correct: false },
+      { text: "Persistent query — results are continuously written to a backing Kafka topic", correct: true },
+      { text: "Pull query — results are returned once and the query terminates", correct: false },
+      { text: "Source query — it creates a new Kafka topic and maps it to a table", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. CREATE TABLE/STREAM AS SELECT defines a persistent query that continuously processes input events and writes results to a new Kafka topic.",
+      correct: "CREATE TABLE AS SELECT is a persistent query. It runs continuously, updates the result table for each new input event, and the results are stored in a Kafka topic automatically created by ksqlDB.",
+      incorrect: "Push queries use a standalone SELECT … EMIT CHANGES and are not persisted. Pull queries use SELECT without EMIT CHANGES and terminate. Source queries use CREATE STREAM/TABLE without AS SELECT.",
+      retenir: "Exam tip: CTAS (CREATE TABLE AS SELECT) and CSAS (CREATE STREAM AS SELECT) = persistent queries that write to Kafka topics. They are the ksqlDB equivalent of Kafka Streams topologies."
+    }
+  },
+  {
+    source: "inference",
+    type: "single",
+    text: "A ksqlDB developer wants to join two event streams: `payments` (4 partitions) and `refunds` (8 partitions). Both use String keys. The join fails. What is the most likely cause?",
+    options: [
+      { text: "Stream-Stream joins are not supported in ksqlDB", correct: false },
+      { text: "The two streams are not co-partitioned — they have different partition counts", correct: true },
+      { text: "The join window size exceeds the default 24-hour limit", correct: false },
+      { text: "Stream-Stream joins require Avro serialization on both streams", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Co-partitioning is required for Stream-Stream, Stream-Table, and Table-Table (primary key) joins in ksqlDB. Both sides must have the same key type and the same number of partitions.",
+      correct: "With 4 vs 8 partitions, the two streams are not co-partitioned. ksqlDB cannot correlate records by key across different partition counts — the join will fail with a co-partitioning validation error.",
+      incorrect: "Stream-Stream joins are fully supported. The 24-hour window is a default but not a partition issue. Avro is not required — JSON, Protobuf, and other formats are supported.",
+      retenir: "Exam tip: Co-partitioning requires (1) same key type, (2) same number of partitions, (3) same partitioning strategy. Fix: repartition one stream using PARTITION BY to match the other's partition count."
+    }
+  },
+  {
+    source: "inference",
+    type: "single",
+    text: "A ksqlDB developer needs to join a `clicks` stream against a `product_catalog` table, but the catalog is too large to require co-partitioning with the clicks stream. Which ksqlDB approach eliminates the co-partitioning requirement?",
+    options: [
+      { text: "Use a TABLE-TABLE foreign key join instead of a Stream-Table join", correct: false },
+      { text: "Use a Stream-GlobalKTable join — GlobalKTable is fully replicated to all instances, removing the co-partitioning constraint", correct: true },
+      { text: "Set ksql.streams.num.stream.threads to match the number of partitions", correct: false },
+      { text: "Use EMIT CHANGES on the table to make it behave like a stream", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. GlobalKTable (used via ksqlDB's CREATE TABLE … AS SELECT with GLOBAL_TABLE hint or Kafka Streams API) replicates the entire dataset to every application instance, eliminating the co-partitioning requirement for joins.",
+      correct: "Stream-GlobalKTable joins bypass co-partitioning by loading the full table into each ksqlDB server's memory. This is ideal for small-to-medium lookup tables that don't change frequently.",
+      incorrect: "Table-Table foreign key joins still exist within ksqlDB's standard join model. Increasing thread count doesn't address co-partitioning. EMIT CHANGES converts a query to a push query, not a GlobalKTable.",
+      retenir: "Exam tip: GlobalKTable = no co-partitioning needed but each instance holds the full dataset in memory. Trade-off: flexibility vs memory footprint. Only use when the table fits in memory per node."
+    }
+  },
+  {
+    source: "inference",
+    type: "single",
+    text: "A ksqlDB aggregation pipeline processes sensor events in 5-minute windows. The developer needs windows that do NOT overlap and each window starts immediately after the previous one ends. Which window type should they use?",
+    options: [
+      { text: "Hopping window — overlapping windows with fixed size and hop interval", correct: false },
+      { text: "Tumbling window — fixed-size, non-overlapping, contiguous windows", correct: true },
+      { text: "Session window — inactivity-gap-based windows of variable duration", correct: false },
+      { text: "Sliding window — windows triggered by each event's timestamp", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. ksqlDB supports three window types: Tumbling (fixed, non-overlapping), Hopping (fixed, overlapping), and Session (activity-based, variable size).",
+      correct: "Tumbling windows are fixed-size and non-overlapping. A 5-minute tumbling window groups [0:00–5:00], [5:00–10:00], etc. Each event belongs to exactly one window.",
+      incorrect: "Hopping windows overlap (e.g., 5min window every 1min = each event in 5 windows). Session windows are driven by inactivity gaps, not fixed intervals. Sliding windows (in standard SQL) are not a ksqlDB window type.",
+      retenir: "Exam tip: Tumbling = non-overlapping, each event in exactly one window. Hopping = overlapping, each event in window_size/hop_interval windows. Session = variable size, based on event activity gaps."
+    }
+  },
+  {
+    source: "inference",
+    type: "multiple",
+    text: "A ksqlDB developer wants to implement custom processing logic not available in built-in functions. Which TWO extension mechanisms does ksqlDB support?",
+    options: [
+      { text: "User-Defined Functions (UDFs) — for scalar operations on individual records", correct: true },
+      { text: "User-Defined Aggregation Functions (UDAFs) — for custom aggregation logic across multiple records", correct: true },
+      { text: "User-Defined Serializers (UDSs) — for custom serialization formats", correct: false },
+      { text: "Custom Kafka Streams processors injected directly into ksqlDB's topology", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. ksqlDB supports UDFs (scalar, per-record) and UDAFs (aggregation, across records) as extension points for custom business logic.",
+      correct: "UDFs apply a transformation to each individual record (e.g., parse a custom date format). UDAFs accumulate state across multiple records within a GROUP BY (e.g., custom statistical function).",
+      incorrect: "There is no UDS concept in ksqlDB. Custom serialization is handled through Schema Registry integration, not a function extension point. Kafka Streams processors cannot be directly injected into ksqlDB — you'd use Kafka Streams API directly instead.",
+      retenir: "Exam tip: UDF = stateless, row-level function. UDAF = stateful, aggregation function with initialize/aggregate/merge/map lifecycle. Both are packaged as JAR files placed in the ksqlDB extensions directory."
+    }
+  },
+  {
+    source: "inference",
+    type: "single",
+    text: "A ksqlDB pipeline is reading from an Avro topic, but some records fail to deserialize. The developer wants failed records to be sent to a separate Kafka topic for inspection rather than crashing the pipeline. Which ksqlDB feature enables this?",
+    options: [
+      { text: "Set `ksql.streams.state.dir` to a separate error directory", correct: false },
+      { text: "Configure a Dead Letter Queue (DLQ) for production/deserialization errors", correct: true },
+      { text: "Set `auto.offset.reset=none` to skip bad records", correct: false },
+      { text: "Use DESCRIBE EXTENDED to filter out records with schema mismatches", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. ksqlDB supports Dead Letter Queues (DLQs) for handling deserialization errors and production exceptions, routing problematic records to a separate topic instead of failing the entire query.",
+      correct: "A DLQ configuration routes records that fail deserialization or production to a dedicated Kafka topic. The pipeline continues processing valid records uninterrupted.",
+      incorrect: "`ksql.streams.state.dir` is for RocksDB state storage, not error handling. `auto.offset.reset=none` throws an exception when no committed offset is found — it does not skip bad records. DESCRIBE EXTENDED is a metadata inspection command, not a runtime filter.",
+      retenir: "Exam tip: ksqlDB DLQ = `ksql.streams.deserialization.exceptionhandler.production.exceptionhandler` settings. DLQ is the ksqlDB equivalent of Kafka Connect's error tolerance DLQ pattern."
+    }
+  },
+  {
+    source: "inference",
+    type: "single",
+    text: "A ksqlDB cluster has 3 servers and a topic with 6 partitions. A persistent query is deployed. How many ksqlDB servers actively process this query?",
+    options: [
+      { text: "1 server — the leader handles all partitions", correct: false },
+      { text: "3 servers — all servers share the 6 partitions (2 partitions per server)", correct: true },
+      { text: "6 servers — each partition is processed by a dedicated server", correct: false },
+      { text: "It depends on the replication factor of the output topic", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. ksqlDB distributes query processing across servers based on the number of partitions in the input topic. Idle servers consume minimal resources; active servers correspond to partition assignments.",
+      correct: "With 6 partitions and 3 servers, each server is assigned 2 partitions. All 3 servers actively process the query. Adding more servers beyond the partition count results in idle servers.",
+      incorrect: "There is no single leader for query processing — ksqlDB distributes work across all available servers up to the partition count. You cannot have more active servers than partitions. The output topic's replication factor does not affect processing distribution.",
+      retenir: "Exam tip: max parallelism in ksqlDB = number of input partitions. Servers beyond the partition count sit idle. Scale-out by increasing partition count AND adding servers."
+    }
+  },
+  {
+    source: "inference",
+    type: "single",
+    text: "A developer uses `CREATE STREAM AS SELECT … FROM stream_a JOIN stream_b WITHIN 1 HOURS ON stream_a.id = stream_b.id`. What happens to join candidates where the time difference between matching records exceeds 1 hour?",
+    options: [
+      { text: "They are matched using the most recent record within the last 24 hours by default", correct: false },
+      { text: "Records outside the 1-hour window are not joined — they are excluded from the output stream", correct: true },
+      { text: "ksqlDB stores unmatched records indefinitely until a match is found", correct: false },
+      { text: "The join fails with an error if any record falls outside the window", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Stream-Stream joins in ksqlDB are windowed joins. Records that do not find a match within the specified WITHIN window are silently dropped from the output.",
+      correct: "WITHIN 1 HOURS means ksqlDB will only join records from stream_a and stream_b if their timestamps are within 1 hour of each other. Records outside this window are excluded from the output.",
+      incorrect: "The 24-hour default applies when no WITHIN clause is specified. ksqlDB does not store unmatched records indefinitely — the join window bounds memory usage. No error is raised for out-of-window records.",
+      retenir: "Exam tip: Stream-Stream joins are always windowed in ksqlDB. The WITHIN clause defines the maximum time difference for a valid join. Unmatched records are silently dropped, not buffered forever."
+    }
+  },
+  {
+    source: "inference",
+    type: "single",
+    text: "A ksqlDB stream is backed by a topic with records using Protobuf format. The stream was created without specifying a Schema Registry URL. Which property must be configured to enable Protobuf deserialization with Schema Registry?",
+    options: [
+      { text: "ksql.streams.state.dir", correct: false },
+      { text: "ksql.schema.registry.url", correct: true },
+      { text: "ksql.queries.file", correct: false },
+      { text: "value.deserializer", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. ksqlDB integrates with Confluent Schema Registry for Avro, Protobuf, and JSON Schema formats. The `ksql.schema.registry.url` property must point to the Schema Registry to enable schema-based deserialization.",
+      correct: "`ksql.schema.registry.url` connects ksqlDB to the Schema Registry. Without it, ksqlDB cannot fetch the schema needed to deserialize Protobuf (or Avro/JSON Schema) records.",
+      incorrect: "`ksql.streams.state.dir` is for RocksDB. `ksql.queries.file` is for headless mode. `value.deserializer` is a low-level Kafka consumer property, not a ksqlDB configuration.",
+      retenir: "Exam tip: Any schema-based format (AVRO, PROTOBUF, JSON_SR) requires `ksql.schema.registry.url`. Without it, ksqlDB will throw a configuration error when creating streams/tables with those formats."
+    }
+  },
+  {
+    source: "inference",
+    type: "single",
+    text: "A ksqlDB developer wants to check if internal state topics left over from deleted queries are causing issues. The cleanup fails. Which Kafka broker configuration must be enabled to allow topic deletion?",
+    options: [
+      { text: "unclean.leader.election.enable=true", correct: false },
+      { text: "delete.topic.enable=true", correct: true },
+      { text: "auto.create.topics.enable=false", correct: false },
+      { text: "log.retention.ms=-1", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Kafka brokers must have `delete.topic.enable=true` for ksqlDB to clean up internal state and changelog topics when queries are terminated.",
+      correct: "`delete.topic.enable=true` on the Kafka broker allows the deletion of topics — including ksqlDB's internal topics — when requested. Without this, ksqlDB cannot clean up state after queries are dropped.",
+      incorrect: "`unclean.leader.election.enable` controls whether out-of-sync replicas can become leader. `auto.create.topics.enable` controls automatic topic creation. `log.retention.ms=-1` retains logs indefinitely — none of these affect topic deletion.",
+      retenir: "Exam tip: If ksqlDB fails to clean up internal topics, verify `delete.topic.enable=true` on the broker. This is a common production gotcha that appears frequently in CCDAK exam scenarios."
+    }
+  },
+  {
+    source: "inference",
+    type: "single",
+    text: "A ksqlDB developer uses a `SELECT` with nested data and the `->` operator: `SELECT payload->user->address->city FROM events`. What does the `->` operator do?",
+    options: [
+      { text: "It defines a JOIN between nested streams", correct: false },
+      { text: "It dereferences nested fields within a STRUCT data type, drilling down to a specific field", correct: true },
+      { text: "It applies a filter (WHERE equivalent) on nested columns", correct: false },
+      { text: "It is used to access Kafka record headers", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. ksqlDB uses the `->` operator to navigate into nested STRUCT fields. This allows queries on complex, hierarchical data structures.",
+      correct: "The `->` operator dereferences STRUCT fields. `payload->user->address->city` navigates from the top-level `payload` STRUCT into `user`, then `address`, then retrieves the `city` field.",
+      incorrect: "The `->` operator is not for JOINs (those use JOIN … ON syntax), not a filter (that's WHERE), and not for accessing Kafka headers (those use HEADERS or HEADER() functions).",
+      retenir: "Exam tip: STRUCT navigation uses `->`. Arrays use indexing: `field[0]`. Maps use string keys: `field['key']`. EXPLODE() flattens arrays into separate rows."
+    }
+  },
+  {
+    source: "inference",
+    type: "single",
+    text: "A developer needs to monitor the number of messages consumed per second by a ksqlDB query, as well as the number of errors. Through which interface does ksqlDB expose these metrics?",
+    options: [
+      { text: "ksqlDB REST API only — metrics are exposed as JSON endpoints", correct: false },
+      { text: "JMX (Java Management Extensions) — metrics including messages-consumed-per-sec and error-rate are available via JMX", correct: true },
+      { text: "ksqlDB CLI using the SHOW METRICS command", correct: false },
+      { text: "Kafka broker's AdminClient API", correct: false }
+    ],
+    explanation: {
+      concept: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. ksqlDB exposes operational metrics (throughput, error rate, active queries) through JMX, which can be scraped by tools like Prometheus, JConsole, or VisualVM.",
+      correct: "JMX is the primary metrics interface for ksqlDB. Key metrics include `messages-consumed-per-sec`, `messages-produced-per-sec`, `error-rate`, and `num-active-queries`.",
+      incorrect: "The REST API manages and monitors cluster state (SHOW QUERIES, SHOW STREAMS) but does not expose raw performance metrics in JMX format. SHOW METRICS is not a valid ksqlDB CLI command. Kafka's AdminClient is for broker/topic management.",
+      retenir: "Exam tip: ksqlDB metrics = JMX. Use Prometheus + JMX Exporter for production monitoring. Key metrics: `messages-consumed-per-sec`, `error-rate`, `num-active-queries`."
+    }
+  },
+  {
+    source: "cours",
+    type: "single",
+    text: "A developer runs `SHOW QUERIES` in the ksqlDB CLI and sees a persistent query in ERROR state. After fixing the underlying issue, what does ksqlDB automatically do when a persistent query fails or is restarted?",
+    options: [
+      { text: "The query resets to the earliest offset and reprocesses all data from the beginning", correct: false },
+      { text: "The query resumes from the last committed offset, ensuring no data loss or duplication", correct: true },
+      { text: "The query is permanently terminated and must be manually recreated", correct: false },
+      { text: "The query switches to pull mode until the issue is resolved", correct: false }
+    ],
+    explanation: {
+      concept: "ksqlDB persistent queries are fault-tolerant. When a query fails or its server crashes, ksqlDB restarts the query from the last committed offset using Kafka's offset management — no data is lost.",
+      correct: "Resuming from the last committed offset ensures at-least-once (or exactly-once with processing.guarantee=exactly_once) semantics. The query picks up exactly where it left off.",
+      incorrect: "Resetting to earliest would reprocess all historical data, causing duplicates in the output. The query is NOT permanently terminated — it is automatically restarted. Pull mode is a query type, not a failover mechanism.",
+      retenir: "Exam tip: ksqlDB persistent query fault tolerance = Kafka Streams fault tolerance. State is rebuilt from changelog topics. The query restarts automatically on another server in the cluster."
+    }
+  },
+  {
+    source: "cours",
+    type: "single",
+    text: "A team wants ksqlDB to guarantee correct results even if a server crashes mid-processing. Which configuration property controls exactly-once processing semantics in ksqlDB?",
+    options: [
+      { text: "enable.idempotence=true on the underlying Kafka producer", correct: false },
+      { text: "processing.guarantee=exactly_once (or exactly_once_v2)", correct: true },
+      { text: "isolation.level=read_committed on the ksqlDB consumer", correct: false },
+      { text: "acks=all in the ksqlDB server configuration", correct: false }
+    ],
+    explanation: {
+      concept: "ksqlDB exposes exactly-once semantics through the `processing.guarantee` setting, which maps directly to the Kafka Streams `processing.guarantee` configuration under the hood.",
+      correct: "`processing.guarantee=exactly_once` (or `exactly_once_v2` for improved performance with fewer transactions) enables end-to-end exactly-once semantics: no duplicate output records even in the event of failures.",
+      incorrect: "`enable.idempotence` alone only guarantees idempotent producer behavior (no duplicate writes from the same producer session), not end-to-end exactly-once. `isolation.level=read_committed` is the consumer-side setting. `acks=all` ensures durability, not exactly-once.",
+      retenir: "Exam tip: ksqlDB exactly-once = `processing.guarantee=exactly_once_v2` (preferred from Kafka 3.x). It requires brokers with transactions support. `exactly_once_v2` reduces the number of transactional producers needed vs. `exactly_once`."
+    }
+  }
+];
+
+var QUESTIONS = [];
+var qIdx = 0;
+var selected = [];
+var answered = false;
+var score = 0;
+var scoreCoursTotal = 0;
+var scoreCoursCorrect = 0;
+var scoreInfTotal = 0;
+var scoreInfCorrect = 0;
+var timeLeft = 90;
+var timerInterval = null;
+var timesPerQuestion = [];
+var timeUsedThisQuestion = 0;
+
+function fisherYates(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+function prepareQuestions() {
+  var shuffled = fisherYates(QUESTIONS_RAW);
+  QUESTIONS = shuffled.map(function(q) {
+    var opts = q.options.map(function(o, idx) { return { text: o.text, correct: o.correct, origIdx: idx }; });
+    return {
+      source: q.source,
+      type: q.type,
+      text: q.text,
+      options: fisherYates(opts),
+      explanation: q.explanation
+    };
+  });
+}
+
+function startTimer() {
+  clearInterval(timerInterval);
+  timeLeft = 90;
+  timeUsedThisQuestion = 0;
+  updateTimerDisplay();
+  timerInterval = setInterval(function() {
+    timeLeft--;
+    timeUsedThisQuestion++;
+    updateTimerDisplay();
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      autoSubmit();
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  var el = document.getElementById('timerDisplay');
+  var mins = Math.floor(timeLeft / 60);
+  var secs = timeLeft % 60;
+  el.textContent = (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
+  el.className = 'timer';
+  if (timeLeft <= 15) { el.className = 'timer danger'; }
+  else if (timeLeft <= 30) { el.className = 'timer warn'; }
+}
+
+function autoSubmit() {
+  var expBox = document.getElementById('explanationBox');
+  expBox.style.display = 'block';
+  var q = QUESTIONS[qIdx];
+  var correctIdxs = [];
+  q.options.forEach(function(o, i) { if (o.correct) correctIdxs.push(i); });
+  q.options.forEach(function(o, i) {
+    var el = document.getElementById('opt_' + i);
+    if (!el) return;
+    if (o.correct) { el.classList.add('missed'); }
+  });
+  expBox.innerHTML = '<span class="timeout-msg">⏱ Time\'s up!</span><br><br>' + buildExplanationHTML(q);
+  answered = true;
+  timesPerQuestion.push(90);
+  document.getElementById('btnValidate').disabled = true;
+  document.getElementById('btnNext').disabled = false;
+  updateProgress();
+}
+
+function buildExplanationHTML(q) {
+  var e = q.explanation;
+  return '<h4>🧠 Key Concept</h4><p>' + e.concept + '</p>' +
+    '<h4>✅ Why it\'s correct</h4><p>' + e.correct + '</p>' +
+    '<h4>❌ Why others are incorrect</h4><p>' + e.incorrect + '</p>' +
+    '<h4>📌 Remember for the exam</h4><p>' + e.retenir + '</p>';
+}
+
+function paint() {
+  var q = QUESTIONS[qIdx];
+  selected = [];
+  answered = false;
+
+  // badges
+  var bType = document.getElementById('badgeType');
+  bType.className = 'badge ' + (q.type === 'single' ? 'badge-single' : 'badge-multiple');
+  bType.textContent = q.type === 'single' ? 'Single answer' : 'Multiple answers';
+
+  var bSrc = document.getElementById('badgeSource');
+  bSrc.className = 'badge ' + (q.source === 'cours' ? 'badge-cours' : 'badge-inference');
+  bSrc.textContent = q.source === 'cours' ? '📘 From the course' : '🔍 Beyond the course';
+
+  document.getElementById('questionText').textContent = (qIdx + 1) + '. ' + q.text;
+
+  var letters = ['A','B','C','D','E'];
+  var container = document.getElementById('optionsContainer');
+  container.innerHTML = '';
+  q.options.forEach(function(o, i) {
+    var div = document.createElement('div');
+    div.className = 'option';
+    div.id = 'opt_' + i;
+    div.setAttribute('onclick', 'pickOption(' + i + ')');
+    div.innerHTML = '<span class="option-letter">' + letters[i] + '</span><span class="option-text">' + o.text + '</span>';
+    container.appendChild(div);
+  });
+
+  document.getElementById('explanationBox').style.display = 'none';
+  document.getElementById('explanationBox').innerHTML = '';
+  document.getElementById('btnValidate').disabled = false;
+  document.getElementById('btnNext').disabled = true;
+
+  updateProgress();
+  startTimer();
+}
+
+function updateProgress() {
+  var pct = ((qIdx) / QUESTIONS.length) * 100;
+  document.getElementById('progBar').style.width = pct + '%';
+}
+
+function pickOption(i) {
+  if (answered) return;
+  var q = QUESTIONS[qIdx];
+  if (q.type === 'single') {
+    selected = [i];
+    q.options.forEach(function(o, idx) {
+      document.getElementById('opt_' + idx).className = 'option' + (idx === i ? ' selected' : '');
+    });
+  } else {
+    var pos = selected.indexOf(i);
+    if (pos === -1) { selected.push(i); document.getElementById('opt_' + i).classList.add('selected'); }
+    else { selected.splice(pos, 1); document.getElementById('opt_' + i).classList.remove('selected'); }
+  }
+}
+
+function valider() {
+  if (answered) return;
+  clearInterval(timerInterval);
+  timesPerQuestion.push(90 - timeLeft);
+  answered = true;
+
+  var q = QUESTIONS[qIdx];
+  var correctIdxs = [];
+  q.options.forEach(function(o, i) { if (o.correct) correctIdxs.push(i); });
+
+  var isCorrect = selected.slice().sort().join(',') === correctIdxs.slice().sort().join(',');
+  if (isCorrect) {
+    score++;
+    if (q.source === 'cours') scoreCoursCorrect++;
+    else scoreInfCorrect++;
+  }
+  if (q.source === 'cours') scoreCoursTotal++;
+  else scoreInfTotal++;
+
+  q.options.forEach(function(o, i) {
+    var el = document.getElementById('opt_' + i);
+    el.className = 'option';
+    if (o.correct && selected.indexOf(i) !== -1) { el.classList.add('correct'); }
+    else if (!o.correct && selected.indexOf(i) !== -1) { el.classList.add('wrong'); }
+    else if (o.correct && selected.indexOf(i) === -1) { el.classList.add('missed'); }
+  });
+
+  var expBox = document.getElementById('explanationBox');
+  expBox.style.display = 'block';
+  expBox.innerHTML = buildExplanationHTML(q);
+
+  document.getElementById('btnValidate').disabled = true;
+  document.getElementById('btnNext').disabled = false;
+  updateProgress();
+}
+
+function suivante() {
+  qIdx++;
+  if (qIdx >= QUESTIONS.length) {
+    paintScore();
+  } else {
+    paint();
+  }
+}
+
+function paintScore() {
+  clearInterval(timerInterval);
+  document.getElementById('quizArea').style.display = 'none';
+  document.getElementById('scoreScreen').style.display = 'block';
+
+  var pct = Math.round((score / QUESTIONS.length) * 100);
+  var msg = pct >= 80 ? '🎉 Excellent! You\'re well prepared for the CCDAK.' :
+            pct >= 60 ? '👍 Good effort. Review the highlighted topics.' :
+            '📚 Keep studying — revisit the ksqlDB concepts.';
+
+  document.getElementById('scoreTitle').textContent = score + ' / ' + QUESTIONS.length + ' (' + pct + '%)';
+  document.getElementById('scoreMsg').textContent = msg;
+
+  var bar = document.getElementById('scoreBar');
+  bar.style.width = pct + '%';
+  bar.style.background = pct >= 80 ? '#27ae60' : pct >= 60 ? '#f39c12' : '#C0392B';
+
+  var totalTime = 0;
+  timesPerQuestion.forEach(function(t) { totalTime += t; });
+  var avg = timesPerQuestion.length > 0 ? Math.round(totalTime / timesPerQuestion.length) : 0;
+  document.getElementById('avgTimeDisplay').textContent = '⏱ Average time per question: ' + avg + 's';
+
+  document.getElementById('scoreDetail').innerHTML =
+    '<p><strong>📘 From the course:</strong> ' + scoreCoursCorrect + ' / ' + scoreCoursTotal + '</p>' +
+    '<p><strong>🔍 Beyond the course:</strong> ' + scoreInfCorrect + ' / ' + scoreInfTotal + '</p>';
+}
+
+function recommencer() {
+  qIdx = 0; selected = []; answered = false; score = 0;
+  scoreCoursTotal = 0; scoreCoursCorrect = 0;
+  scoreInfTotal = 0; scoreInfCorrect = 0;
+  timesPerQuestion = [];
+  prepareQuestions();
+  document.getElementById('scoreScreen').style.display = 'none';
+  document.getElementById('quizArea').style.display = 'block';
+  paint();
+}
+
+prepareQuestions();
+window.onload = function() { paint(); };
+</script>
+</body>
+</html>

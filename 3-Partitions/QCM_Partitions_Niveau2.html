@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CCDAK Prep — Level 2 | Kafka Partitions</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1a1a2e; font-family: system-ui, -apple-system, sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 30px 16px; }
+  .card { background: #fff; border-radius: 12px; border: 1px solid #e0e0e0; max-width: 820px; width: 100%; padding: 32px 36px; position: relative; }
+  .card-header { margin-bottom: 24px; }
+  .card-title { font-size: 22px; font-weight: 700; color: #1a1a2e; letter-spacing: -0.3px; }
+  .card-sub { font-size: 13px; color: #888; margin-top: 4px; }
+  .progress-bar-wrap { background: #f0f0f0; border-radius: 999px; height: 6px; margin-bottom: 20px; }
+  .progress-bar-fill { background: #C0392B; height: 6px; border-radius: 999px; transition: width 0.3s; }
+  .timer-wrap { position: absolute; top: 28px; right: 32px; background: #1a1a2e; color: #fff; padding: 6px 14px; border-radius: 20px; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; transition: background 0.3s; }
+  .timer-wrap.warning { background: #e67e22; }
+  .timer-wrap.danger { background: #C0392B; }
+  .q-meta { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+  .badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.4px; }
+  .badge-single { background: #fff3cd; color: #856404; }
+  .badge-multi { background: #cff4fc; color: #0c5460; }
+  .badge-cours { background: #e8f4fd; color: #1a6fa8; }
+  .badge-inference { background: #f0e8fd; color: #6a1ab8; }
+  .q-num { font-size: 13px; color: #999; }
+  .q-text { font-size: 16px; font-weight: 600; color: #1a1a2e; line-height: 1.55; margin-bottom: 22px; }
+  .options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px; }
+  .opt { border: 2px solid #e0e0e0; border-radius: 8px; padding: 12px 16px; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+  .opt:hover { background: #f7f7f7; border-color: #bbb; }
+  .opt.selected { border-color: #1a1a2e; background: #f0f0f8; }
+  .opt.correct { border-color: #27ae60; background: #eafaf1; }
+  .opt.wrong { border-color: #C0392B; background: #fdf0ee; }
+  .opt.missed { border-color: #27ae60; background: #fff; border-style: dashed; }
+  .opt-label { display: flex; align-items: flex-start; gap: 10px; }
+  .opt-letter { font-weight: 700; font-size: 14px; color: #555; min-width: 20px; }
+  .opt-text { font-size: 14px; color: #333; line-height: 1.45; flex: 1; }
+  .opt-exp { font-size: 12px; color: #666; margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee; line-height: 1.5; display: none; }
+  .opt-exp.show { display: block; }
+  .opt-exp-icon { margin-right: 4px; }
+  .global-exp { background: #1a1a2e; border-left: 5px solid #C0392B; border-radius: 6px; padding: 14px 18px; margin-top: 16px; margin-bottom: 20px; display: none; }
+  .global-exp.show { display: block; }
+  .global-exp-title { font-size: 13px; font-weight: 700; color: #C0392B; margin-bottom: 8px; letter-spacing: 0.3px; }
+  .global-exp-text { font-size: 13px; color: #ccc; line-height: 1.6; }
+  .btn { display: inline-block; padding: 11px 28px; border-radius: 8px; font-size: 15px; font-weight: 700; border: none; cursor: pointer; transition: opacity 0.15s; }
+  .btn-primary { background: #C0392B; color: #fff; }
+  .btn-primary:hover { opacity: 0.88; }
+  .btn-primary:disabled { opacity: 0.4; cursor: default; }
+  .btn-secondary { background: #1a1a2e; color: #fff; }
+  .btn-secondary:hover { opacity: 0.85; }
+  .actions { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .score-card { text-align: center; padding: 10px 0 20px; }
+  .score-title { font-size: 26px; font-weight: 800; color: #1a1a2e; margin-bottom: 8px; }
+  .score-sub { font-size: 15px; color: #666; margin-bottom: 28px; }
+  .score-bar-wrap { background: #f0f0f0; border-radius: 999px; height: 12px; margin-bottom: 12px; }
+  .score-bar-fill { height: 12px; border-radius: 999px; transition: width 0.6s; }
+  .score-pct { font-size: 42px; font-weight: 900; margin-bottom: 6px; }
+  .score-msg { font-size: 15px; margin-bottom: 28px; font-weight: 600; }
+  .score-detail { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin-bottom: 28px; }
+  .score-detail-box { background: #f7f7f7; border-radius: 10px; padding: 16px 24px; min-width: 160px; }
+  .score-detail-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+  .score-detail-val { font-size: 20px; font-weight: 800; color: #1a1a2e; }
+</style>
+</head>
+<body>
+<div class="card" id="quizCard">
+  <div class="card-header">
+    <div class="card-title">CCDAK Prep — Level 2</div>
+    <div class="card-sub">Kafka Partitions · Enterprise Scenarios · 20 Questions</div>
+  </div>
+  <div id="timerWrap" class="timer-wrap">⏱ 30:00</div>
+  <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBar" style="width:0%"></div></div>
+  <div id="quizBody"></div>
+</div>
+
+<script>
+var QUESTIONS_RAW = [
+  /* ===== 1. FROM COURSE — Why partitioning enables scalability ===== */
+  {
+    source: "cours",
+    type: "single",
+    question: "A startup is designing a Kafka-based event pipeline expected to handle 50TB of data per day. Their initial architecture uses a single topic with 1 partition. The infrastructure team warns this will not scale. What is the fundamental scalability constraint that partitioning solves, and what is the correct architectural decision?",
+    options: [
+      { text: "A single partition is limited by the broker's CPU speed. Adding partitions distributes CPU processing across brokers.", explanation: "Incorrect. While multiple partitions can involve multiple brokers, the primary constraint is not CPU. The fundamental bottleneck is that a single partition resides on a single disk of a single node — storage capacity and I/O throughput are bounded by that machine.", correct: false },
+      { text: "A single-partition topic is limited to the storage and throughput capacity of one broker node. Increasing the partition count distributes the topic across multiple brokers, enabling horizontal scaling beyond single-machine limits.", explanation: "Correct. Without partitioning, a topic is confined to one node — throughput and storage are capped at that node's capabilities. Partitions allow a topic to span multiple brokers, so total capacity equals the aggregate of all participating nodes.", correct: true },
+      { text: "A single partition limits the number of consumer groups that can read the topic. More partitions allow more consumer groups to subscribe.", explanation: "Incorrect. Multiple consumer groups can read from a single-partition topic — each group maintains its own offset independently. Partition count limits parallelism within a consumer group, not the number of groups.", correct: false },
+      { text: "Single-partition topics cannot use replication. Adding partitions enables replicas to be placed on separate brokers.", explanation: "Incorrect. Replication is independent of partition count — even a single-partition topic can and should have replicas on multiple brokers for fault tolerance.", correct: false }
+    ],
+    globalExplanation: "Partitioning is Kafka's fundamental horizontal scaling mechanism. A single partition is an append-only log stored on one broker's disk — it cannot exceed that node's capacity. By splitting a topic into multiple partitions distributed across brokers, Kafka allows a topic's total storage and throughput to scale linearly with cluster size. This is why partition count is one of the most critical decisions in a Kafka deployment."
+  },
+  /* ===== 2. FROM COURSE — Ordering guarantee scope ===== */
+  {
+    source: "cours",
+    type: "single",
+    question: "A financial platform produces trade events to a Kafka topic with 5 partitions. A downstream consumer needs to ensure that events for the SAME trade are always processed in the order they were produced. However, the team notices that events for different trades appear interleaved in unpredictable order. Is this expected behavior, and what is the correct approach?",
+    options: [
+      { text: "Unexpected. Kafka guarantees global ordering across all partitions within a topic, regardless of configuration.", explanation: "Incorrect. Kafka provides NO global ordering guarantee across partitions. Messages written to different partitions are independent and can be read in any interleaved order.", correct: false },
+      { text: "Expected. Kafka only guarantees order within a single partition. To ensure per-trade ordering, the trade ID must be used as the message key so all events for the same trade route to the same partition.", explanation: "Correct. Order is guaranteed only within a partition. Using the trade ID as the message key ensures hash(tradeId) % numPartitions always routes all events for the same trade to the same partition, preserving their production order for that partition's consumer.", correct: true },
+      { text: "Expected. To fix this, set `max.inflight.requests.per.connection=1` on the producer — this enforces global ordering across all partitions.", explanation: "Incorrect. `max.inflight.requests.per.connection=1` prevents reordering during retries within a single partition, but it does not enforce any ordering across different partitions. Inter-partition ordering is fundamentally impossible in Kafka.", correct: false },
+      { text: "Unexpected. Increasing the replication factor to 3 ensures events are replicated in order across brokers, providing global ordering.", explanation: "Incorrect. Replication factor affects fault tolerance and durability — it has no impact on message ordering. Ordering is a property of partitions, not replicas.", correct: false }
+    ],
+    globalExplanation: "Kafka's ordering guarantee is scoped to the partition: messages within a single partition are always read in the order they were written. There is no cross-partition ordering guarantee. The standard pattern for entity-level ordering is to use the entity's identifier (trade ID, user ID, sensor ID) as the message key, which deterministically routes all events for that entity to the same partition via `hash(key) % numPartitions`."
+  },
+  /* ===== 3. FROM COURSE — Null key = round-robin, no ordering ===== */
+  {
+    source: "cours",
+    type: "single",
+    question: "A telemetry platform produces temperature readings from sensor 42 to a Kafka topic. Events are produced without a message key. The consumer team reports that temperature readings for sensor 42 arrive out of chronological order. A developer proposes setting `acks=all` to fix the ordering issue. Will this solve the problem?",
+    options: [
+      { text: "Yes — `acks=all` ensures all replicas acknowledge the write in sequence, preserving producer order.", explanation: "Incorrect. `acks=all` controls how many replicas must acknowledge before the producer considers a write successful — it is a durability setting, not an ordering mechanism. It has no influence on which partition a message is routed to.", correct: false },
+      { text: "No — without a key, messages are distributed round-robin across partitions. Sensor 42's readings land in multiple partitions, making cross-partition ordering impossible. The fix is to set the message key to the sensor ID.", explanation: "Correct. Null-key messages use round-robin distribution — consecutive readings from sensor 42 go to different partitions. Since Kafka only guarantees ordering within a partition, readings for the same sensor appear out of order at the consumer. Using the sensor ID as the key ensures all readings route to the same partition.", correct: true },
+      { text: "No — the fix is to set `enable.idempotence=true` on the producer to prevent out-of-order retries.", explanation: "Incorrect. Idempotence prevents duplicate messages during retries within a single partition, but does not affect which partition a message is routed to. Without a key, messages still distribute round-robin across partitions.", correct: false },
+      { text: "Yes — setting `linger.ms=0` ensures messages are sent immediately in order, before the producer has time to batch across partitions.", explanation: "Incorrect. `linger.ms=0` affects batch assembly timing on the producer side but does not change the partition assignment algorithm. Messages without a key still go to different partitions regardless of `linger.ms`.", correct: false }
+    ],
+    globalExplanation: "Messages without a key (null key) are distributed across partitions using round-robin (or the Sticky Partitioner in Kafka 2.4+). This distributes load evenly but destroys any ordering guarantees across messages from the same producer. For sensor telemetry where per-sensor ordering matters, the sensor ID must be the message key: `hash(sensorId) % numPartitions` guarantees all readings for a given sensor land on the same partition."
+  },
+  /* ===== 4. FROM COURSE — Key routing guarantees same partition ===== */
+  {
+    source: "cours",
+    type: "single",
+    question: "An IoT platform produces events for 10,000 different devices. Each device sends status updates that must be processed in order. The architecture team decides to use the device ID as the message key. A developer asks: 'With 50 partitions, are we guaranteed that ALL updates for device-7 always go to partition 12 (determined by the current hash)?' What is the correct answer?",
+    options: [
+      { text: "Yes, permanently — `hash(device-7) % 50 = 12` is a deterministic and immutable mapping as long as the partition count stays at 50.", explanation: "Correct. The hash function applied to a key is deterministic — the same key always produces the same hash. As long as the partition count remains 50, `hash('device-7') % 50` always produces the same result. The ordering guarantee is stable as long as the number of partitions does not change.", correct: true },
+      { text: "No — Kafka re-evaluates the hash on every message and may assign different partitions each time.", explanation: "Incorrect. The hash function is deterministic and stable. For a given key and partition count, the result is always the same. Kafka does not randomly re-evaluate per message.", correct: false },
+      { text: "Yes, but only if `enable.idempotence=true` is set — otherwise hash collisions can send the message to a different partition.", explanation: "Incorrect. Idempotence has nothing to do with partition routing. Hash collisions in partition assignment (different keys mapping to the same partition) are expected and normal, but a specific key always maps to the same partition deterministically.", correct: false },
+      { text: "No — the broker periodically rebalances partition assignments to equalize load, which can change where a key maps to.", explanation: "Incorrect. Partition assignment of MESSAGES (based on key hash) is a producer-side calculation and is never changed by the broker. Broker-side rebalancing refers to replica/leadership redistribution, which does not affect the key → partition mapping formula.", correct: false }
+    ],
+    globalExplanation: "Key-based partition routing uses a deterministic hash: `murmur2(key) % numPartitions`. For a fixed partition count, any given key always maps to the same partition — providing a stable ordering guarantee for all messages of that key. The critical caveat: if the partition count is changed, the formula changes, and the same key may map to a DIFFERENT partition, breaking the ordering guarantee for messages across the boundary."
+  },
+  /* ===== 5. FROM COURSE — Effect of adding partitions on key routing ===== */
+  {
+    source: "cours",
+    type: "single",
+    question: "A payment processing system has used a 10-partition topic for 6 months, with `transactionId` as the message key. All transactions are being processed in order. The ops team wants to increase throughput and increases the partition count from 10 to 15. What is the risk to the ordering guarantee?",
+    options: [
+      { text: "No risk — Kafka automatically remaps existing messages to the new partition scheme during the partition increase.", explanation: "Incorrect. Kafka does NOT move or re-index existing messages when partitions are added. Existing messages remain in their original partitions with their original offsets. Only NEW messages are affected by the new partition count.", correct: false },
+      { text: "The ordering guarantee is broken at the transition boundary. Some transaction IDs that previously mapped to partition X (with 10 partitions) now map to a different partition Y (with 15 partitions). New and old messages for the same key may now live in different partitions.", explanation: "Correct. `hash(key) % 10` and `hash(key) % 15` produce different results for most keys. Historical messages for `transactionId-ABC` are in their old partition; new messages for the same ID go to a potentially different partition. Any consumer reading sequentially will encounter the ordering break.", correct: true },
+      { text: "The risk is only on partition 0 — Kafka always reroutes new messages to partition 0 during transitions.", explanation: "Incorrect. There is no special behavior for partition 0 during partition increases. Every key's mapping is recalculated with the new modulo, affecting all keys differently.", correct: false },
+      { text: "No risk — Kafka's sticky partitioner ensures keys maintain their partition affinity during partition count changes.", explanation: "Incorrect. The Sticky Partitioner applies to null-key messages and is unrelated to key-based routing. Key-based routing always uses `hash(key) % numPartitions`, which changes when `numPartitions` changes.", correct: false }
+    ],
+    globalExplanation: "Increasing partition count is one of the most dangerous operations for ordering guarantees. When `numPartitions` changes, `hash(key) % numPartitions` produces different results, redistributing keys across partitions. Historical messages remain in original partitions; new messages go to new partitions. For consumers that rely on per-key ordering, this creates a split-brain scenario: the same key now has messages in two different partitions. This is why partition count decisions should be made carefully upfront."
+  },
+  /* ===== 6. FROM COURSE — No global ordering even within same producer ===== */
+  {
+    source: "cours",
+    type: "single",
+    question: "A developer produces a sequence of 9 messages to a 3-partition topic without using a message key. They expect a consumer reading all 3 partitions to receive the messages in production order: m1, m2, m3, m4, m5, m6, m7, m8, m9. Will this expectation be met?",
+    options: [
+      { text: "Yes — even without a key, Kafka preserves the global production order across partitions for messages from the same producer.", explanation: "Incorrect. Kafka provides no global ordering guarantee across partitions. This is a fundamental architectural property — partitions are independent logs on different nodes.", correct: false },
+      { text: "No — without a key, messages are distributed round-robin (m1→P0, m2→P1, m3→P2, m4→P0, ...). A consumer reading all partitions will receive messages in per-partition order but not in the original cross-partition production order.", explanation: "Correct. Round-robin distribution sends m1 to P0, m2 to P1, m3 to P2, m4 to P0, etc. A consumer reading P0 sees [m1, m4, m7] in order. A consumer reading all partitions sees messages interleaved across partitions — the global order m1, m2, m3... is not preserved.", correct: true },
+      { text: "No — without a key, messages are randomly distributed, so even within a single partition the order is not guaranteed.", explanation: "Incorrect. Ordering within a partition is always guaranteed regardless of key usage. The issue is cross-partition ordering, not intra-partition ordering.", correct: false },
+      { text: "Yes — using `acks=1` on the producer ensures that the broker acknowledges each message in order, preserving global sequence.", explanation: "Incorrect. `acks=1` is a producer durability setting — it does not affect the partition routing algorithm or impose any cross-partition ordering.", correct: false }
+    ],
+    globalExplanation: "Without a message key, round-robin distribution deliberately spreads messages across partitions for load balancing. The consumer receives messages in per-partition order (within each partition, the sequence is preserved), but the global production order is lost. This is the correct trade-off when ordering is not required: maximum load distribution. When production order must be preserved, a message key is mandatory."
+  },
+  /* ===== 7. FROM COURSE — Distribution vs ordering trade-off ===== */
+  {
+    source: "cours",
+    type: "multiple",
+    question: "A data engineering team is designing a Kafka topic for two different types of events: (1) user clickstream events where ordering does not matter, and (2) bank transfer events where the order of operations per account is critical. Which TWO design decisions correctly match each use case?",
+    options: [
+      { text: "For clickstream events: produce without a message key to achieve uniform load distribution across all partitions.", explanation: "Correct. Clickstream events are independent — ordering is not required. Null-key (round-robin or sticky) distribution spreads the load evenly across partitions, maximizing throughput and broker parallelism.", correct: true },
+      { text: "For bank transfer events: use the account ID as the message key to ensure all operations for the same account route to the same partition and are processed in order.", explanation: "Correct. Using the account ID as a key ensures `hash(accountId) % numPartitions` deterministically routes all transfers for the same account to the same partition, preserving their production order for downstream processors.", correct: true },
+      { text: "For bank transfer events: produce without a key but set `acks=all` to ensure durability and ordering.", explanation: "Incorrect. `acks=all` ensures durability (all ISRs acknowledge) but does not guarantee ordering for messages sent without a key — they still distribute round-robin across partitions.", correct: false },
+      { text: "For clickstream events: use a random UUID as the message key to ensure even distribution while maintaining the ordering guarantee.", explanation: "Incorrect. Using a random UUID as a key wastes a hash computation and provides no semantic benefit. More importantly, it doesn't guarantee even distribution (hash collisions can skew), and ordering per UUID is meaningless. Null key is simpler and correct for this use case.", correct: false }
+    ],
+    globalExplanation: "The fundamental partition routing decision is: ordered processing per entity → use entity ID as key; even load distribution without ordering requirements → use null key. These two patterns are complementary and can coexist in the same system with different topics. The key is not just a routing mechanism — it carries business semantics (entity identity) that makes the ordering guarantee meaningful."
+  },
+  /* ===== 8. FROM COURSE — Kafka partition count scale ===== */
+  {
+    source: "cours",
+    type: "single",
+    question: "A solutions architect is planning a Kafka cluster (v4.0) for a global streaming platform. They need to support 500 topics with an average of 500 partitions each (250,000 total partitions). A stakeholder questions whether this is within Kafka's supported limits. What is the correct answer?",
+    options: [
+      { text: "No — Kafka supports a maximum of 100,000 partitions per cluster. 250,000 partitions would require multiple clusters.", explanation: "Incorrect. The limit cited is incorrect. Kafka has been continuously increasing its partition capacity across versions.", correct: false },
+      { text: "Yes — Kafka (around v4.0) supports approximately 2 million partitions per cluster. 250,000 partitions is well within this limit.", explanation: "Correct. Apache Kafka around version 4.0 supports approximately 2 million partitions per cluster. 250,000 partitions (500 topics × 500 partitions) represents only 12.5% of the maximum supported capacity.", correct: true },
+      { text: "No — Kafka limits topics to a maximum of 1,000 partitions each. 500 partitions per topic exceeds this limit.", explanation: "Incorrect. There is no hard limit of 1,000 partitions per topic. Topics can have thousands of partitions, and the cluster-level limit (not per-topic) is approximately 2 million total partitions.", correct: false },
+      { text: "Yes — Kafka has no practical partition limit; the only constraint is available disk space across the cluster.", explanation: "Incorrect. Kafka does have a tested and documented partition limit (~2 million per cluster in v4.0). Beyond this limit, controller performance degrades, and ZooKeeper (pre-KRaft) or KRaft metadata management becomes a bottleneck.", correct: false }
+    ],
+    globalExplanation: "Kafka's partition capacity has grown significantly over versions. Around Kafka 4.0, the supported limit is approximately 2 million partitions per cluster. This is a cluster-wide constraint, not per-topic. The partition limit is primarily governed by the metadata management layer: in KRaft mode (Kafka 3.3+), the controller stores partition metadata in its log, and very large numbers of partitions can impact controller performance and recovery time."
+  },
+  /* ===== 9. FROM COURSE — Hot partition with key-based routing ===== */
+  {
+    source: "cours",
+    type: "single",
+    question: "A social media platform uses user ID as the message key for a `user-actions` topic with 20 partitions. One celebrity account generates 40% of all events. Operations monitoring shows partition 7 (where the celebrity's key hashes to) is consistently at 10× the load of other partitions. What is the root cause?",
+    options: [
+      { text: "Partition 7 has a faulty disk that slows down reads and writes, causing message buildup.", explanation: "Incorrect. The described symptom — 40% of events concentrated on one partition correlating exactly with a high-volume key — is a classic hot partition caused by key-based routing, not hardware failure.", correct: false },
+      { text: "The hash function has a flaw that always maps most keys to partition 7.", explanation: "Incorrect. Kafka uses the murmur2 hash, which distributes keys relatively uniformly across partitions. The problem is not the hash function — it is that one specific key produces vastly more events than others.", correct: false },
+      { text: "Key-based routing concentrates all messages with the same key on one partition. When one key generates disproportionate traffic (celebrity account), its partition becomes a 'hot partition' with significantly higher load.", explanation: "Correct. The hash-based routing guarantee (same key → same partition) is a feature for ordering, but it becomes a liability when key cardinality is highly skewed. All events for the celebrity user route to partition 7, making it receive 40% of total load while other partitions share the remaining 60%.", correct: true },
+      { text: "The celebrity account is assigned to partition 7 because it was the first user to register — Kafka assigns early users to low-numbered partitions.", explanation: "Incorrect. Kafka does not maintain any relationship between registration order and partition assignment. Partition assignment is purely determined by `murmur2(key) % numPartitions` at message production time.", correct: false }
+    ],
+    globalExplanation: "Hot partitions occur when key cardinality is skewed — a small number of keys generate a large fraction of messages. Key-based routing is deterministic but not load-aware: it cannot redistribute a high-volume key across multiple partitions without sacrificing the ordering guarantee. Solutions include: (1) a custom Partitioner that detects hot keys and salts them; (2) using a composite key (e.g., `userId + bucketId`); (3) accepting the hot partition and over-provisioning that broker's resources."
+  },
+  /* ===== 10. FROM COURSE — Partition is an ordered log ===== */
+  {
+    source: "cours",
+    type: "single",
+    question: "A developer describes a Kafka partition to a new team member as follows: 'A partition is like a shared message queue where multiple producers can push messages and the queue automatically sorts them globally.' Which part of this description is incorrect?",
+    options: [
+      { text: "Multiple producers cannot write to the same partition.", explanation: "Incorrect — this is wrong as a correction. Multiple producers CAN write to the same partition (they all route to the partition leader). The described flaw is elsewhere.", correct: false },
+      { text: "A partition does NOT automatically sort messages globally. It is an append-only ordered log where messages are appended in arrival order and read in that same order — no sorting occurs.", explanation: "Correct. A Kafka partition is an immutable, append-only log. Messages are written in arrival order and assigned sequential offsets (0, 1, 2...). There is no sorting mechanism — the order IS the append order. The 'global sorting' description is completely wrong.", correct: true },
+      { text: "A partition is not associated with a queue — it is associated with a topic.", explanation: "Incorrect. While this is technically a distinction worth making (queue vs. log), the more fundamental error in the description is the 'globally sorted' claim. Partitions are indeed not traditional queues, but the sorting claim is the primary inaccuracy.", correct: false },
+      { text: "Kafka partitions cannot be written to by multiple producers simultaneously — only one producer can hold a lock on a partition at a time.", explanation: "Incorrect. Kafka does not use partition-level write locks. Multiple producers can concurrently write to the same partition via the partition leader broker, which serializes the writes at the leader.", correct: false }
+    ],
+    globalExplanation: "A Kafka partition is an append-only, immutable ordered log. Messages are appended sequentially and assigned monotonically increasing offsets (0, 1, 2, ...). Consumers read messages in offset order — this IS the ordering guarantee. There is no sorting, no prioritization, and no global reordering. The log abstraction is fundamental to understanding Kafka's behavior: it explains retention policies, offset management, and why ordering is per-partition."
+  },
+  /* ===== 11. BEYOND COURSE — Choosing partition count ===== */
+  {
+    source: "inference",
+    type: "single",
+    question: "A platform architect is designing a new Kafka topic for a payment processing system. The system must handle a peak throughput of 50,000 messages/second. Benchmarking shows each broker can sustain 10,000 messages/second per partition with the target message size. The topic will be consumed by a consumer group. What is the recommended minimum partition count?",
+    options: [
+      { text: "1 partition — Kafka's internal batching handles any throughput automatically.", explanation: "Incorrect. A single partition can only be written to and consumed by one thread/process at a time. 10,000 msg/s per partition × 1 partition = 10,000 msg/s total — far below the 50,000 msg/s requirement.", correct: false },
+      { text: "At least 5 partitions — so that 5 partitions × 10,000 msg/s per partition = 50,000 msg/s throughput capacity, while also enabling up to 5 parallel consumers.", explanation: "Correct. Partition count determines maximum parallelism for both producers and consumers. 5 partitions × 10,000 msg/s per partition meets the 50,000 msg/s target. Additionally, the consumer group can scale to exactly 5 parallel consumers (one per partition) to match production throughput.", correct: true },
+      { text: "50 partitions — always use 10× the target throughput in partitions for safety margin.", explanation: "Incorrect. There is no universal '10× safety' rule. Excessive partitions increase overhead: more open file handles, more replication traffic, slower controller operations, and longer recovery times after failures. Partitions should be sized to throughput requirements plus a reasonable growth buffer.", correct: false },
+      { text: "3 partitions — this is the Kafka default and provides adequate parallelism for most use cases.", explanation: "Incorrect. The Kafka default `num.partitions=1` (not 3), and it is not appropriate for high-throughput use cases. Partition count must be sized to the throughput requirement, not defaulted.", correct: false }
+    ],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. The standard partition sizing formula is: `minPartitions = targetThroughput / throughputPerPartition`. Partitions also determine max consumer group parallelism — the consumer group can scale to at most N consumers for an N-partition topic. Common guidance: start with a partition count that meets throughput requirements plus 20–50% growth headroom, since increasing partitions later is risky for key-ordered topics."
+  },
+  /* ===== 12. BEYOND COURSE — num.partitions default and topic creation ===== */
+  {
+    source: "inference",
+    type: "single",
+    question: "A developer creates a new Kafka topic using `kafka-topics.sh --create --topic my-topic` without specifying `--partitions`. The broker's `num.partitions` configuration has not been changed from its default. How many partitions will the topic have?",
+    options: [
+      { text: "3 partitions — Confluent Platform's default for new topics.", explanation: "Incorrect. Confluent Platform may have different defaults, but the Apache Kafka broker default for `num.partitions` is 1. The question specifies the default has not been changed.", correct: false },
+      { text: "1 partition — this is the default value of `num.partitions` in Apache Kafka.", explanation: "Correct. The broker-level configuration `num.partitions` defaults to 1. When creating a topic without specifying `--partitions`, Kafka uses this default. A single-partition topic provides no parallelism and should only be used for very low-throughput scenarios.", correct: true },
+      { text: "The topic creation fails — `--partitions` is a required parameter for `kafka-topics.sh --create`.", explanation: "Incorrect. `--partitions` is not a required parameter when creating topics via `kafka-topics.sh`. The broker falls back to its `num.partitions` configuration if not specified.", correct: false },
+      { text: "6 partitions — Kafka uses the number of brokers in the cluster as the default partition count.", explanation: "Incorrect. Kafka does not auto-set partition count based on broker count. The default is controlled by the `num.partitions` broker configuration, which defaults to 1.", correct: false }
+    ],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. The broker-level `num.partitions` configuration (default: 1) controls the default partition count for auto-created topics and topics created without explicit `--partitions`. For production deployments, the broker default is typically increased (e.g., to 3 or more) to prevent single-partition bottlenecks from topics created without explicit partition counts."
+  },
+  /* ===== 13. BEYOND COURSE — Partitions and consumer group parallelism ===== */
+  {
+    source: "inference",
+    type: "single",
+    question: "An engineering team wants to maximize the throughput of a consumer group processing a `sensor-data` topic. The topic currently has 6 partitions. The team scales the consumer group from 6 to 12 consumers. What is the actual outcome on processing throughput?",
+    options: [
+      { text: "Throughput doubles — each of the 12 consumers processes half the data from each partition in parallel.", explanation: "Incorrect. In a consumer group, each partition is assigned to exactly one consumer. No two consumers in the same group share a partition. Doubling consumers beyond the partition count does not increase parallelism.", correct: false },
+      { text: "Throughput remains the same — the extra 6 consumers are idle (no partition assignments), since the maximum consumer group parallelism equals the number of partitions.", explanation: "Correct. With 6 partitions and 12 consumers in the same group, only 6 consumers receive partition assignments. The remaining 6 are idle, consuming no messages. Effective parallelism is capped at 6 (the partition count).", correct: true },
+      { text: "Kafka automatically creates 6 additional partitions to utilize the new consumers.", explanation: "Incorrect. Kafka never auto-creates partitions to match consumer count. Partition count is a deliberate administrative decision and must be changed explicitly.", correct: false },
+      { text: "The consumer group splits into two subgroups of 6, each processing all 6 partitions independently.", explanation: "Incorrect. Consumer groups do not automatically split. All 12 consumers remain in the same group under the same `group.id`. Kafka's assignment algorithm will assign at most one consumer per partition.", correct: false }
+    ],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. The maximum parallelism of a consumer group equals the topic's partition count. Adding consumers beyond this count creates warm standbys (for fault tolerance) but does not increase throughput. To increase processing parallelism beyond 6, the topic's partition count must first be increased — keeping in mind that this can break key-based ordering guarantees for existing messages."
+  },
+  /* ===== 14. BEYOND COURSE — Partition leader and ISR ===== */
+  {
+    source: "inference",
+    type: "single",
+    question: "A Kafka topic with 3 partitions and replication factor 3 is deployed across 3 brokers. A new producer writes a message to partition 0. The message goes to broker 2 (the partition 0 leader). What happens next before the consumer can read the message?",
+    options: [
+      { text: "The consumer can read the message immediately after broker 2 acknowledges it with `acks=1`.", explanation: "Partially correct but incomplete. With `acks=1`, the producer receives acknowledgment from the leader, but consumers can only read up to the high watermark — which only advances after all ISRs replicate the message. There is a brief window where the message exists on the leader but is not yet visible to consumers.", correct: false },
+      { text: "Broker 2 (leader) writes the message to its local log, then replicates it to brokers 1 and 3 (followers/ISRs). The high watermark advances after all ISRs acknowledge, making the message visible to consumers.", explanation: "Correct. The write flow is: (1) producer → partition leader (broker 2); (2) leader replicates to follower brokers; (3) once all ISRs have the message, the high watermark advances; (4) consumers can now read up to the high watermark. The high watermark is the consumer visibility boundary.", correct: true },
+      { text: "All 3 brokers must acknowledge the write before any processing begins, regardless of `acks` setting.", explanation: "Incorrect. The `acks` setting controls when the PRODUCER receives acknowledgment — not when consumers can read. `acks=1` means only the leader acknowledges; `acks=all` means all ISRs acknowledge. Either way, consumer visibility is governed by the high watermark.", correct: false },
+      { text: "The message is broadcast to all 3 brokers simultaneously, and the consumer reads from whichever broker responds first.", explanation: "Incorrect. Producers write to the partition LEADER only. Followers replicate from the leader asynchronously. By default, consumers also read from the leader (rack-aware follower reads require explicit configuration).", correct: false }
+    ],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Each partition has one leader broker (handles all reads and writes) and zero or more follower brokers (ISRs that replicate from the leader). Consumers can only read messages up to the high watermark (HW) — the highest offset replicated to ALL ISRs. This design ensures consumers only see fully replicated, durable data, preventing reads of messages that could be lost if the leader fails."
+  },
+  /* ===== 15. BEYOND COURSE — Sticky Partitioner for null-key batching ===== */
+  {
+    source: "inference",
+    type: "single",
+    question: "A developer is running a Kafka producer in Kafka 2.3 sending events without a message key. They notice that the producer creates many small batches spread across all partitions simultaneously, leading to inefficient network usage. After upgrading to Kafka 2.4, batching efficiency improves significantly without any configuration change. What feature explains this improvement?",
+    options: [
+      { text: "Kafka 2.4 increased the default `batch.size` from 16KB to 64KB, allowing more records per batch.", explanation: "Incorrect. The default `batch.size` was not changed in Kafka 2.4. The improvement for null-key messages specifically comes from a new partitioning strategy.", correct: false },
+      { text: "Kafka 2.4 introduced the Sticky Partitioner as the default strategy for null-key messages. Instead of round-robin per message, it 'sticks' to one partition until a batch is full or `linger.ms` expires, then switches — creating larger, more efficient batches.", explanation: "Correct. KIP-480 introduced the Sticky Partitioner in Kafka 2.4. For null-key messages, it concentrates consecutive records on the same partition until a batch is full, then moves to the next. This dramatically reduces the number of small batches and partial-fill network requests compared to the old per-record round-robin.", correct: true },
+      { text: "Kafka 2.4 changed the default `linger.ms` from 0 to 5ms, allowing more time to fill batches.", explanation: "Incorrect. The default `linger.ms` was not changed in Kafka 2.4. The efficiency improvement comes from the new Sticky Partitioner algorithm, not from a `linger.ms` change.", correct: false },
+      { text: "Kafka 2.4 enabled producer-side compression by default, reducing the overhead of small batches.", explanation: "Incorrect. `compression.type` defaults to `none` in all Kafka versions and was not changed in 2.4. The batching improvement is specifically due to the Sticky Partitioner.", correct: false }
+    ],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Prior to Kafka 2.4, the DefaultPartitioner used strict round-robin for null-key messages: each message went to a different partition, creating many tiny batches. KIP-480 introduced the StickyPartitioner (default from 2.4+): it 'sticks' to one partition for a batch cycle, creating larger, more efficient batches. This is transparent to application code — the same null-key behavior, just more efficient batching."
+  },
+  /* ===== 16. BEYOND COURSE — Custom Partitioner ===== */
+  {
+    source: "inference",
+    type: "single",
+    question: "An e-commerce company needs to guarantee that all orders from VIP customers are processed before standard orders. They want VIP orders to always land on partitions 0–2, and standard orders on partitions 3–9, using a 10-partition topic. The default hash-based partitioner cannot achieve this routing logic. What is the correct solution?",
+    options: [
+      { text: "Create two separate topics — one for VIP orders and one for standard orders — and use separate consumer groups for each.", explanation: "Correct alternative but not the most targeted answer. Two topics is a valid architectural solution, but the question asks about the mechanism when a single topic is required. Custom Partitioner is the more precise answer.", correct: false },
+      { text: "Implement a custom class that implements the `Partitioner` interface and configure `partitioner.class` on the producer. The custom partitioner can inspect the message key or value to route VIP vs. standard orders to specific partition ranges.", explanation: "Correct. The `Partitioner` interface provides `partition(topic, key, keyBytes, value, valueBytes, cluster)`. A custom implementation can inspect any field of the message — key, value headers, or metadata — and return a specific partition number, enabling arbitrary routing logic including VIP priority routing.", correct: true },
+      { text: "Use explicit partition numbers by setting the `partition` field in every `ProducerRecord` for VIP orders to 0, 1, or 2.", explanation: "Correct alternative. Explicit partition assignment via `ProducerRecord(topic, partition, key, value)` works for VIP routing. However, it requires the producer application to know the VIP status at call time and explicitly set the partition — it's less reusable than a custom Partitioner that centralizes the routing logic.", correct: false },
+      { text: "Set `partitioner.class=org.apache.kafka.clients.producer.RoundRobinPartitioner` — this will evenly distribute VIP and standard orders across all partitions.", explanation: "Incorrect. `RoundRobinPartitioner` distributes all null-key messages evenly across all partitions without any priority or segment-based routing. VIP and standard orders would be mixed together on all partitions.", correct: false }
+    ],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Kafka's `Partitioner` interface allows producers to implement arbitrary partition routing logic. Configure it via `partitioner.class` on the producer. The custom partitioner receives the full record metadata (key, value, headers, topic, cluster info) and returns the target partition number. This enables use cases like: VIP priority routing, geographic affinity, A/B testing, and hot-key mitigation through salting."
+  },
+  /* ===== 17. BEYOND COURSE — Ordering + idempotence + max.inflight ===== */
+  {
+    source: "inference",
+    type: "single",
+    question: "A developer uses a keyed producer to guarantee ordering of messages per key. They enable `retries=5` for fault tolerance. A colleague warns that retries can cause message reordering if multiple requests are in-flight simultaneously. What is the modern Kafka solution that eliminates this risk without sacrificing throughput?",
+    options: [
+      { text: "Set `max.inflight.requests.per.connection=1` — this serializes all requests, preventing reordering at the cost of reduced throughput.", explanation: "Suboptimal. `max.inflight=1` does prevent reordering during retries, but it serializes requests completely — only one request can be in-flight at any time, significantly reducing producer throughput. This was the pre-idempotence workaround.", correct: false },
+      { text: "Set `enable.idempotence=true` — this automatically configures `retries=MAX_VALUE`, `acks=all`, and `max.inflight<=5`. The broker uses sequence numbers to detect and deduplicate out-of-order retried batches while allowing up to 5 in-flight requests.", explanation: "Correct. Idempotent producers assign each batch a sequence number. The broker detects if a retried batch arrives out of order (sequence gap) and rejects it, maintaining both ordering and exactly-once delivery guarantees. This allows up to 5 concurrent in-flight requests without sacrificing ordering.", correct: true },
+      { text: "Set `retries=0` — eliminating retries prevents any reordering at the cost of potential data loss on transient errors.", explanation: "Incorrect. `retries=0` prevents retry-based reordering but introduces data loss risk. This is at-most-once semantics — the original requirement includes fault tolerance, which `retries=0` violates.", correct: false },
+      { text: "Set `linger.ms=0` — immediate sending ensures messages are acknowledged before new ones are sent, preventing reordering.", explanation: "Incorrect. `linger.ms=0` sends batches as soon as threads are available but does not prevent concurrent in-flight requests. Multiple batches can still be in-flight simultaneously with `linger.ms=0`.", correct: false }
+    ],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Before idempotence (pre-Kafka 0.11), preventing retry-based reordering required `max.inflight=1`, sacrificing throughput. `enable.idempotence=true` (Kafka 0.11+) solves both problems: the broker maintains a per-producer sequence number state and rejects out-of-order retries, allowing up to 5 concurrent in-flight requests. This is the modern best practice for ordered, fault-tolerant producers."
+  },
+  /* ===== 18. BEYOND COURSE — Partition reassignment impact ===== */
+  {
+    source: "inference",
+    type: "single",
+    question: "An operations team uses `kafka-reassign-partitions.sh` to move partition 3 of topic `orders` from broker 1 to broker 5 for load balancing purposes. The `orders` topic uses `orderId` as the message key. What is the impact of this operation on message ordering and key routing?",
+    options: [
+      { text: "Ordering is permanently broken — partition reassignment changes the partition number, causing the hash formula to produce different results.", explanation: "Incorrect. Partition REASSIGNMENT moves a partition between brokers but does NOT change the partition's number or the total number of partitions. The formula `hash(key) % numPartitions` is unchanged.", correct: false },
+      { text: "There is no impact on ordering or key routing. Partition 3 retains its number and all its messages after the move. The key → partition mapping formula is unchanged since the partition count is unchanged.", explanation: "Correct. `kafka-reassign-partitions.sh` moves partition data between brokers for load balancing or fault tolerance — it does not change partition numbers or the total partition count. `hash('orderId-X') % numPartitions` still maps to the same partition 3, now hosted on broker 5.", correct: true },
+      { text: "Key routing is broken temporarily during the reassignment, then self-heals when the reassignment completes.", explanation: "Incorrect. There is no temporary breakage of key routing during reassignment. The partition number is unchanged throughout. The only observable effect is a brief period of increased replication traffic.", correct: false },
+      { text: "All messages are re-hashed and redistributed across partitions during the reassignment for optimal balance.", explanation: "Incorrect. Partition reassignment moves existing messages as-is to the new broker — messages are NOT re-hashed or redistributed. The partition content (all existing messages with their offsets) is copied verbatim to the destination broker.", correct: false }
+    ],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Partition reassignment (moving partitions between brokers) is safe for key ordering because it preserves partition numbers and all existing messages. Contrast this with INCREASING the partition count, which changes `numPartitions` and therefore changes the hash formula — causing the same key to route to a different partition going forward. Reassignment = safe; increasing partition count = risky for key-ordered topics."
+  },
+  /* ===== 19. BEYOND COURSE — Partition offset and retention ===== */
+  {
+    source: "inference",
+    type: "single",
+    question: "A consumer group has been offline for 10 days. The topic it reads from has `retention.ms=604800000` (7 days). When the consumer group restarts, what determines where it will resume reading?",
+    options: [
+      { text: "The consumer resumes from offset 0 — Kafka retains all messages permanently for consumer groups that have committed offsets.", explanation: "Incorrect. Kafka's log retention is independent of consumer group offset commits. If retention has expired segments, the corresponding messages are deleted regardless of whether any consumer has read them.", correct: false },
+      { text: "If the committed offset points to messages that have been deleted by retention, the consumer falls back to `auto.offset.reset`. With `auto.offset.reset=latest` (default), it skips to the current end and misses the 7-day gap. With `earliest`, it reads from the oldest still-available message.", explanation: "Correct. Log retention can delete messages that a consumer group has committed past offsets for, or more critically, messages between committed offsets and the current end. If committed offsets point to deleted log segments, the next `poll()` triggers the `auto.offset.reset` logic — potentially causing data gaps or full re-reads.", correct: true },
+      { text: "The consumer always resumes exactly from its last committed offset — Kafka guarantees messages are retained as long as a consumer group's offset exists.", explanation: "Incorrect. Kafka's retention policies are not aware of consumer group offset positions. Messages are deleted based on time/size retention regardless of whether consumers have processed them.", correct: false },
+      { text: "Kafka extends retention automatically to 14 days when it detects an active consumer group with uncommitted messages.", explanation: "Incorrect. Kafka has no mechanism to extend retention based on consumer group state. Retention is a topic-level configuration that applies uniformly regardless of consumer activity.", correct: false }
+    ],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. When a consumer's committed offset points to a deleted log segment (offset out of range), Kafka throws `OffsetOutOfRangeException` and falls back to `auto.offset.reset`. With the default `latest`, the consumer skips all messages produced during the offline period — data loss. With `earliest`, it replays from the oldest available message — potentially processing older data. For long offline consumers, `log.retention.ms` vs. expected consumer downtime must be carefully planned."
+  },
+  /* ===== 20. BEYOND COURSE — Partition increase is (mostly) irreversible ===== */
+  {
+    source: "inference",
+    type: "multiple",
+    question: "A team is considering increasing the partition count of a production topic from 10 to 20. Which TWO consequences must they explicitly plan for before executing this change?",
+    options: [
+      { text: "Messages with the same key that were previously co-located in the same partition may now route to DIFFERENT partitions after the change, breaking the per-key ordering guarantee for the transition period.", explanation: "Correct. `hash(key) % 10` and `hash(key) % 20` produce different results for most keys. Historical messages for a key are in their old partition; new messages for the same key may go to a new partition. Consumers relying on per-key ordering will encounter the break.", correct: true },
+      { text: "Decreasing the partition count back to 10 is not supported in Apache Kafka — the partition count can only be increased, never decreased.", explanation: "Correct. Kafka does not support decreasing partition count. Once increased to 20, the only way to go back to 10 is to create a new topic with 10 partitions and migrate data. This irreversibility means partition count decisions must be made carefully.", correct: true },
+      { text: "The replication factor is automatically reduced proportionally when the partition count is doubled.", explanation: "Incorrect. The replication factor is independent of the partition count. Increasing partitions does not affect the replication factor of existing or new partitions.", correct: false },
+      { text: "All existing consumer groups are automatically reset to offset 0 when the partition count changes.", explanation: "Incorrect. Consumer group offsets are stored per-partition in `__consumer_offsets`. When new partitions are added, the consumer group's offset for the new partitions starts at `auto.offset.reset` behavior — but existing partition offsets are completely unaffected.", correct: false }
+    ],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Two critical constraints of Kafka partition count changes: (1) Irreversibility — partition count can only be increased, never decreased; (2) Key redistribution — increasing partitions changes `hash(key) % N`, redistributing keys to different partitions and breaking per-key ordering at the transition boundary. Best practice: plan partition count generously at topic creation time, based on expected peak throughput multiplied by a growth factor, to avoid costly increases later."
+  }
+];
+
+var QUESTIONS = [];
+var qIdx = 0;
+var selected = [];
+var answered = false;
+var score = 0;
+var scoreCoursTotal = 0;
+var scoreCoursCorrect = 0;
+var scoreInfTotal = 0;
+var scoreInfCorrect = 0;
+var totalTime = 90 * QUESTIONS_RAW.length;
+var timeLeft = totalTime;
+var timerInterval = null;
+
+function fisherYates(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+function prepareQuestions() {
+  QUESTIONS = fisherYates(QUESTIONS_RAW).map(function(q) {
+    return {
+      source: q.source,
+      type: q.type,
+      question: q.question,
+      options: fisherYates(q.options.slice()),
+      globalExplanation: q.globalExplanation
+    };
+  });
+}
+
+function startGlobalTimer() {
+  clearInterval(timerInterval);
+  timeLeft = totalTime;
+  renderTimer();
+  timerInterval = setInterval(function() {
+    timeLeft--;
+    renderTimer();
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      suivanteAuto();
+    }
+  }, 1000);
+}
+
+function renderTimer() {
+  var el = document.getElementById('timerWrap');
+  if (!el) return;
+  var m = Math.floor(timeLeft / 60);
+  var s = timeLeft % 60;
+  el.textContent = '⏱ ' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  var pct = timeLeft / totalTime;
+  el.className = 'timer-wrap';
+  if (pct < 0.1) el.className += ' danger';
+  else if (pct < 0.2) el.className += ' warning';
+}
+
+function suivanteAuto() {
+  if (!answered) { processAnswer(); }
+  if (qIdx < QUESTIONS.length - 1) {
+    qIdx++;
+    selected = [];
+    answered = false;
+    paint();
+  } else {
+    paintScore();
+  }
+}
+
+function paint() {
+  var q = QUESTIONS[qIdx];
+  var pct = (qIdx / QUESTIONS.length) * 100;
+  document.getElementById('progressBar').style.width = pct + '%';
+
+  var typeBadge = q.type === 'single'
+    ? '<span class="badge badge-single">Single answer</span>'
+    : '<span class="badge badge-multi">Multiple answers</span>';
+  var srcBadge = q.source === 'cours'
+    ? '<span class="badge badge-cours">📘 From the course</span>'
+    : '<span class="badge badge-inference">🔍 Beyond the course</span>';
+
+  var letters = ['A','B','C','D','E'];
+  var optsHtml = '';
+  for (var i = 0; i < q.options.length; i++) {
+    optsHtml += '<div class="opt" id="opt_' + i + '" onclick="pickOption(' + i + ')">' +
+      '<div class="opt-label">' +
+      '<span class="opt-letter">' + letters[i] + '.</span>' +
+      '<span class="opt-text">' + q.options[i].text + '</span>' +
+      '</div>' +
+      '<div class="opt-exp" id="optexp_' + i + '"></div>' +
+      '</div>';
+  }
+
+  document.getElementById('quizBody').innerHTML =
+    '<div class="q-meta">' +
+      '<span class="q-num">Question ' + (qIdx+1) + ' / ' + QUESTIONS.length + '</span>' +
+      typeBadge + srcBadge +
+    '</div>' +
+    '<div class="q-text">' + q.question + '</div>' +
+    '<div class="options">' + optsHtml + '</div>' +
+    '<div class="global-exp" id="globalExpBlock">' +
+      '<div class="global-exp-title">💡 Key Concept</div>' +
+      '<div class="global-exp-text" id="globalExpText"></div>' +
+    '</div>' +
+    '<div class="actions">' +
+      '<button class="btn btn-primary" onclick="valider()">Validate</button>' +
+      '<button class="btn btn-secondary" id="btnNext" onclick="suivante()" disabled>Next question →</button>' +
+    '</div>';
+}
+
+function pickOption(i) {
+  if (answered) return;
+  var q = QUESTIONS[qIdx];
+  if (q.type === 'single') {
+    selected = [i];
+    for (var k = 0; k < q.options.length; k++) {
+      document.getElementById('opt_' + k).className = 'opt';
+    }
+    document.getElementById('opt_' + i).className = 'opt selected';
+  } else {
+    var pos = selected.indexOf(i);
+    if (pos === -1) {
+      selected.push(i);
+      document.getElementById('opt_' + i).className = 'opt selected';
+    } else {
+      selected.splice(pos, 1);
+      document.getElementById('opt_' + i).className = 'opt';
+    }
+  }
+}
+
+function getCorrectIndices() {
+  var q = QUESTIONS[qIdx];
+  var c = [];
+  for (var i = 0; i < q.options.length; i++) {
+    if (q.options[i].correct) c.push(i);
+  }
+  return c;
+}
+
+function processAnswer() {
+  if (answered) return;
+  answered = true;
+  var q = QUESTIONS[qIdx];
+  var correctIdxs = getCorrectIndices();
+  var selSorted = selected.slice().sort().join(',');
+  var corrSorted = correctIdxs.slice().sort().join(',');
+  var isCorrect = (selSorted === corrSorted);
+
+  if (isCorrect) {
+    score++;
+    if (q.source === 'cours') scoreCoursCorrect++;
+    else scoreInfCorrect++;
+  }
+  if (q.source === 'cours') scoreCoursTotal++;
+  else scoreInfTotal++;
+
+  for (var i = 0; i < q.options.length; i++) {
+    var opt = document.getElementById('opt_' + i);
+    var expDiv = document.getElementById('optexp_' + i);
+    var isCorr = q.options[i].correct;
+    var isSel = selected.indexOf(i) !== -1;
+    opt.style.cursor = 'default';
+    if (isCorr && isSel) opt.className = 'opt correct';
+    else if (!isCorr && isSel) opt.className = 'opt wrong';
+    else if (isCorr && !isSel) opt.className = 'opt missed';
+    expDiv.className = 'opt-exp show';
+    var icon = isCorr
+      ? '<span class="opt-exp-icon" style="color:#27ae60">✓</span>'
+      : '<span class="opt-exp-icon" style="color:#C0392B">✗</span>';
+    expDiv.innerHTML = icon + q.options[i].explanation;
+  }
+
+  document.getElementById('globalExpText').textContent = q.globalExplanation;
+  document.getElementById('globalExpBlock').className = 'global-exp show';
+  var btnNext = document.getElementById('btnNext');
+  if (btnNext) btnNext.removeAttribute('disabled');
+}
+
+function valider() {
+  if (answered) return;
+  processAnswer();
+}
+
+function suivante() {
+  if (!answered) return;
+  if (qIdx < QUESTIONS.length - 1) {
+    qIdx++;
+    selected = [];
+    answered = false;
+    paint();
+  } else {
+    clearInterval(timerInterval);
+    paintScore();
+  }
+}
+
+function paintScore() {
+  clearInterval(timerInterval);
+  document.getElementById('timerWrap').style.display = 'none';
+  var pct = Math.round((score / QUESTIONS.length) * 100);
+  var barColor = pct >= 70 ? '#27ae60' : pct >= 50 ? '#e67e22' : '#C0392B';
+  var msg = pct >= 80 ? '🏆 Excellent! CCDAK-ready!' : pct >= 70 ? '✅ Good job! Keep practicing.' : pct >= 50 ? '📚 Review the weak areas and retry.' : '💡 Study the course materials and try again.';
+  document.getElementById('progressBar').style.width = '100%';
+  document.getElementById('quizBody').innerHTML =
+    '<div class="score-card">' +
+      '<div class="score-title">Quiz Complete!</div>' +
+      '<div class="score-sub">Kafka Partitions — Level 2</div>' +
+      '<div class="score-pct" style="color:' + barColor + '">' + pct + '%</div>' +
+      '<div class="score-bar-wrap"><div class="score-bar-fill" style="width:' + pct + '%;background:' + barColor + '"></div></div>' +
+      '<div class="score-msg" style="color:' + barColor + '">' + msg + '</div>' +
+      '<div class="score-detail">' +
+        '<div class="score-detail-box"><div class="score-detail-label">📘 From the course</div><div class="score-detail-val">' + scoreCoursCorrect + ' / ' + scoreCoursTotal + '</div></div>' +
+        '<div class="score-detail-box"><div class="score-detail-label">🔍 Beyond the course</div><div class="score-detail-val">' + scoreInfCorrect + ' / ' + scoreInfTotal + '</div></div>' +
+        '<div class="score-detail-box"><div class="score-detail-label">Total Score</div><div class="score-detail-val">' + score + ' / ' + QUESTIONS.length + '</div></div>' +
+      '</div>' +
+      '<button class="btn btn-primary" onclick="recommencer()">🔄 Restart the test</button>' +
+    '</div>';
+}
+
+function recommencer() {
+  qIdx = 0; selected = []; answered = false; score = 0;
+  scoreCoursTotal = 0; scoreCoursCorrect = 0;
+  scoreInfTotal = 0; scoreInfCorrect = 0;
+  prepareQuestions();
+  document.getElementById('timerWrap').style.display = '';
+  paint();
+  startGlobalTimer();
+}
+
+prepareQuestions();
+window.onload = function() { paint(); startGlobalTimer(); };
+</script>
+</body>
+</html>

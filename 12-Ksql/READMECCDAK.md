@@ -12,6 +12,9 @@ ksqlDB supports exactly-once processing, ensuring correct results even in the ev
 
 Idle servers in a ksqlDB cluster consume minimal resources. When running a query against a Kafka topic with multiple partitions, only the servers corresponding to the number of partitions perform the actual work.
 
+![Key-Concepts.png](images/Key-Concepts.png)
+
+
 ### Essential Components
 
 - **KSQL Server**: The server that runs KSQL queries. It interacts with Kafka to execute stream processing applications.
@@ -46,6 +49,8 @@ Idle servers in a ksqlDB cluster consume minimal resources. When running a query
 
 - **TOPK/TOPKDISTINCT**: Functions for retrieving the top K values within a window, useful for analytics and leaderboards.
 - **GEO_DISTANCE**: A function for calculating geospatial distances, enabling location-based filtering and analysis.
+
+![Essential-Components.png](images/Essential-Components.png)
 
 ### Important Commands and Concepts
 
@@ -97,6 +102,8 @@ When a `ksqlDB` server is running with a predefined script (`.sql` file), it aut
 In headless mode, ksqlDB stores metadata in the config topic. The config topic stores the ksqlDB properties provided to ksqlDB when the application was first started.
 ksqlDB uses these configs to ensure that your ksqlDB queries are built compatibly on every restart of the server.
 
+![Best-Practices.png](images/Best-Practices.png)
+
 ### ksqlDB In-Depth
 
 #### 1. ksqlDB Overview
@@ -107,6 +114,8 @@ ksqlDB uses these configs to ensure that your ksqlDB queries are built compatibl
 - Question: How does ksqlDB handle state management and fault tolerance?
     - ksqlDB leverages Kafka's fault-tolerant and distributed architecture for state management and fault tolerance.
     - It uses Kafka topics to store intermediate state and supports exactly-once semantics through transaction support.
+  
+![ksqlDB-Overview.png](images/ksqlDB-Overview.png)
 
 #### 2. Streams and Tables
 - ksqlDB supports creating `STREAM`s and `TABLE`s, which have similar semantics to KStream and KTable in Kafka Streams.
@@ -120,6 +129,8 @@ ksqlDB uses these configs to ensure that your ksqlDB queries are built compatibl
 - Question: Can you create a stream or table without an underlying Kafka topic?
     - No, every stream or table in ksqlDB must be backed by a Kafka topic.
     - The Kafka topic can be pre-existing, or ksqlDB can create it automatically based on the stream or table definition.
+
+![Streams-and-Tables.png](images/Streams-and-Tables.png)
 
 #### 3. Query Types
 1. **Source queries**:
@@ -152,6 +163,8 @@ ksqlDB uses these configs to ensure that your ksqlDB queries are built compatibl
     - If a persistent query fails, ksqlDB will automatically restart it from the last committed offset.
     - The query will resume processing events from where it left off, ensuring no data loss.
     - If a query is terminated unexpectedly (e.g., due to server failure), it will be automatically restarted on another ksqlDB server in the cluster.
+
+![Query-Types.png](images/Query-Types.png)
 
 #### 4. Schema Registry Integration
 - ksqlDB integrates with Schema Registry for Avro, Protobuf, and JSON Schema serialization formats.
