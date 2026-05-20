@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CCDAK Prep — Replication Level 2</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #1a1a2e; font-family: system-ui, sans-serif; min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 32px 16px; }
+.card { background: #fff; border-radius: 12px; border: 1px solid #ddd; max-width: 860px; width: 100%; padding: 32px; }
+h1 { font-size: 1.5rem; color: #1a1a2e; margin-bottom: 4px; }
+.subtitle { color: #888; font-size: 0.9rem; margin-bottom: 20px; }
+.progress-bar-wrap { background: #eee; border-radius: 8px; height: 8px; margin-bottom: 24px; }
+.progress-bar { background: #C0392B; height: 8px; border-radius: 8px; transition: width 0.3s; }
+.meta-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+.badge-single { background: #fff3e0; color: #e65100; }
+.badge-multiple { background: #e8f5e9; color: #2e7d32; }
+.badge-cours { background: #e8f4fd; color: #1a6fa8; }
+.badge-inference { background: #f0e8fd; color: #6a1ab8; }
+.timer-global { font-size: 0.97rem; font-weight: 700; color: #C0392B; background: #fff5f5; border: 2px solid #C0392B; border-radius: 8px; padding: 5px 14px; white-space: nowrap; }
+.timer-global.warn { color: #e65100; border-color: #e65100; background: #fff3e0; }
+.timer-global.danger { color: #fff; border-color: #C0392B; background: #C0392B; animation: pulse 0.8s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+.question-text { font-size: 1.05rem; color: #1a1a2e; font-weight: 600; line-height: 1.55; margin-bottom: 22px; }
+.options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.option-wrap { border: 2px solid #ddd; border-radius: 8px; overflow: hidden; cursor: pointer; transition: border-color 0.15s; }
+.option-wrap:hover { border-color: #bbb; }
+.option-wrap.selected { border-color: #1a6fa8; }
+.option-wrap.correct { border-color: #27ae60; }
+.option-wrap.wrong { border-color: #C0392B; }
+.option-wrap.missed { border-color: #27ae60; border-style: dashed; }
+.option-header { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; background: #fff; }
+.option-wrap.selected .option-header { background: #e8f4fd; }
+.option-wrap.correct .option-header { background: #eafaf1; }
+.option-wrap.wrong .option-header { background: #fdecea; }
+.option-wrap.missed .option-header { background: #f9fff9; }
+.option-letter { font-weight: 700; color: #888; min-width: 22px; font-size: 0.95rem; }
+.option-text { font-size: 0.95rem; color: #333; line-height: 1.4; }
+.opt-exp { display: none; padding: 8px 16px 10px 50px; font-size: 13px; color: #555; line-height: 1.5; border-top: 1px solid #eee; background: #fafafa; }
+.opt-exp.correct-exp { background: #f0faf4; border-top-color: #c8e6c9; }
+.opt-exp.wrong-exp { background: #fdf3f2; border-top-color: #ffcdd2; }
+.opt-exp .icon { font-weight: 700; margin-right: 6px; }
+.opt-exp.correct-exp .icon { color: #27ae60; }
+.opt-exp.wrong-exp .icon { color: #C0392B; }
+.global-exp { display: none; margin-top: 20px; background: #2a1a2e; border-left: 5px solid #C0392B; border-radius: 6px; padding: 16px; color: #e8e0f0; font-size: 0.93rem; line-height: 1.65; }
+.global-exp-title { font-size: 0.85rem; font-weight: 700; color: #f4a261; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+.btn { background: #C0392B; color: #fff; border: none; border-radius: 8px; padding: 12px 28px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn:hover:not(:disabled) { opacity: 0.88; }
+.btn-secondary { background: #555; }
+.btn-row { display: flex; gap: 12px; align-items: center; margin-top: 16px; }
+.score-screen { display: none; text-align: center; }
+.score-screen h2 { font-size: 1.8rem; color: #1a1a2e; margin-bottom: 8px; }
+.score-msg { font-size: 1.1rem; color: #555; margin-bottom: 20px; }
+.score-bar-wrap { background: #eee; border-radius: 8px; height: 18px; margin: 12px 0 24px; }
+.score-bar { height: 18px; border-radius: 8px; transition: width 0.6s; }
+.score-detail { background: #f5f5f5; border-radius: 8px; padding: 16px; text-align: left; font-size: 0.95rem; color: #333; margin-bottom: 20px; }
+.score-detail p { margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>CCDAK Prep — Level 2</h1>
+  <div class="subtitle">Kafka Replication — Enterprise scenarios · 22 questions · Global timer</div>
+  <div class="progress-bar-wrap"><div class="progress-bar" id="progBar" style="width:0%"></div></div>
+
+  <div id="quizArea">
+    <div class="meta-row">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <span class="badge" id="badgeType"></span>
+        <span class="badge" id="badgeSource"></span>
+      </div>
+      <div class="timer-global" id="timerDisplay">⏱ --:--</div>
+    </div>
+    <div class="question-text" id="questionText"></div>
+    <div class="options" id="optionsContainer"></div>
+    <div class="btn-row">
+      <button class="btn" id="btnValidate" onclick="valider()">Validate</button>
+      <button class="btn btn-secondary" id="btnNext" onclick="suivante()" disabled>Next question →</button>
+    </div>
+    <div class="global-exp" id="globalExpBox">
+      <div class="global-exp-title">💡 Key Concept</div>
+      <div id="globalExpText"></div>
+    </div>
+  </div>
+
+  <div class="score-screen" id="scoreScreen">
+    <h2 id="scoreTitle"></h2>
+    <div class="score-msg" id="scoreMsg"></div>
+    <div class="score-bar-wrap"><div class="score-bar" id="scoreBar"></div></div>
+    <div class="score-detail" id="scoreDetail"></div>
+    <button class="btn" onclick="recommencer()">Restart the test</button>
+  </div>
+</div>
+
+<script>
+var QUESTIONS_RAW = [
+  {
+    source: "cours",
+    type: "single",
+    question: "A fintech company runs a Kafka cluster with 5 brokers. They configure a critical payments topic with replication.factor=3. The SLA requires the system to survive the simultaneous loss of any 2 brokers without data loss. Does this configuration satisfy the SLA, and what is the maximum number of simultaneous broker failures the system can tolerate without losing data?",
+    options: [
+      { text: "Yes — replication.factor=3 tolerates up to 2 simultaneous broker failures per partition without data loss", explanation: "Correct. With RF=3, each partition has 3 copies on 3 different brokers. The cluster can tolerate RF-1 = 2 simultaneous broker failures per partition before data is at risk. The SLA is satisfied.", correct: true },
+      { text: "No — only 1 broker failure is tolerated; the 2nd failure would leave only 1 replica which cannot serve reads", explanation: "Incorrect. With RF=3, losing 2 brokers leaves 1 surviving replica — and that single replica CAN serve as leader and serve reads/writes. Data is not lost as long as 1 replica remains intact.", correct: false },
+      { text: "Yes — replication.factor=3 tolerates any number of broker failures as long as the leader survives", explanation: "Incorrect. RF=3 tolerates exactly RF-1 = 2 failures. If all 3 brokers hosting replicas for a partition fail, data is permanently lost. The leader being alive is not the only requirement.", correct: false },
+      { text: "No — with 5 brokers, the effective replication is distributed across all 5, limiting fault tolerance", explanation: "Incorrect. Even on a 5-broker cluster, each partition has exactly RF=3 replicas on 3 specific brokers. Fault tolerance is determined by RF, not total broker count.", correct: false }
+    ],
+    answers: [0],
+    globalExplanation: "Kafka's replication fault tolerance formula is: maximum simultaneous failures tolerated = RF - 1. With RF=3, the system survives the loss of any 2 brokers that host replicas for a given partition, as long as the 3rd replica remains intact. Data is safe as long as at least 1 replica survives — this is the fundamental guarantee of Kafka's replication mechanism."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A high-throughput event streaming platform has producers writing 100,000 messages per second to a Kafka topic. The topic has replication.factor=3. A performance engineer proposes routing some write requests directly to follower replicas to reduce leader bottleneck. The lead architect rejects this proposal. Which of the following correctly justifies the rejection?",
+    options: [
+      { text: "All writes must go to the partition leader — followers are passive replicas that only fetch from the leader and cannot accept producer writes", explanation: "Correct. Kafka's architecture mandates that ALL producer writes go exclusively to the partition leader. Followers replicate by fetching from the leader — they have no write API exposed to producers.", correct: true },
+      { text: "Writing to followers is allowed but only if replication.factor > 3", explanation: "Incorrect. There is no replication.factor threshold that enables direct follower writes. Follower replicas NEVER accept producer writes, regardless of RF value.", correct: false },
+      { text: "Followers can accept writes only if the leader is in a different availability zone", explanation: "Incorrect. Network topology (AZ placement) has no effect on write routing. All writes always go to the leader regardless of geographic placement.", correct: false },
+      { text: "Write routing to followers requires enabling unclean.leader.election.enable=true on the broker", explanation: "Incorrect. unclean.leader.election.enable controls whether out-of-ISR replicas can be elected as leader during failover — it has nothing to do with enabling producer writes to followers.", correct: false }
+    ],
+    answers: [0],
+    globalExplanation: "Kafka's replication model is fundamentally leader-centric: the partition leader is the sole entry point for ALL producer writes. Followers are passive consumers of the leader's data, continuously fetching new messages to stay in sync. This design ensures consistency (single write point) at the cost of making the leader a potential bottleneck — which is addressed by partitioning the topic, not by routing writes to followers."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A Kafka topic is created with replication.factor=5 on a cluster with 8 brokers. How many follower replicas exist per partition, and on how many brokers are they distributed?",
+    options: [
+      { text: "4 follower replicas distributed across 4 different brokers (total 5 copies: 1 leader + 4 followers)", explanation: "Correct. replication.factor=5 means 5 total copies: 1 leader + (5-1) = 4 followers. Each copy is placed on a different broker, so 5 out of 8 brokers host this partition's replicas.", correct: true },
+      { text: "5 follower replicas distributed across 5 brokers — RF=5 means 5 followers plus 1 leader = 6 total copies", explanation: "Incorrect. RF=5 means 5 TOTAL copies (leader + followers), not 5 followers in addition to the leader. The formula is: followers = RF - 1 = 4.", correct: false },
+      { text: "2 follower replicas — replication.factor defines the number of followers, not the total copies", explanation: "Incorrect. replication.factor defines the TOTAL number of copies (leader + all followers). With RF=5: 4 followers, not 2.", correct: false },
+      { text: "It depends on the rack configuration — rack-aware assignment may reduce the number of replicas per partition", explanation: "Incorrect. Rack-aware assignment influences WHICH brokers host the replicas (to spread across racks), but does NOT change the total number of replicas. RF=5 always produces 5 copies.", correct: false }
+    ],
+    answers: [0],
+    globalExplanation: "The replication.factor parameter defines the total number of copies for each partition, following the formula: total copies = 1 leader + (RF - 1) followers. With RF=5: 4 follower replicas on 4 different brokers, plus 1 leader, totaling 5 copies across 5 different brokers. The cluster must have at least RF brokers to place each replica on a distinct broker."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A retail analytics platform has Kafka consumers in EU-West-2 (London) reading from a topic whose partition leader is in EU-West-1 (Ireland). The team observes 40ms cross-region read latency. They want to reduce consumer read latency without compromising write consistency. The topic has replication.factor=3 with a follower in EU-West-2. Which configuration achieves this?",
+    options: [
+      { text: "Set client.rack on the consumer to match the EU-West-2 broker's rack identifier — Kafka will route fetch requests to the nearest replica", explanation: "Correct. The client.rack property tells Kafka the consumer's rack/AZ. Kafka's rack-aware replica assignment then routes consumer fetch requests to the nearest in-sync follower (in EU-West-2), reducing the cross-region 40ms penalty.", correct: true },
+      { text: "Move the partition leader to EU-West-2 using kafka-reassign-partitions.sh — reads and writes will then occur locally", explanation: "Incorrect. Moving the leader to EU-West-2 fixes consumer latency but increases producer write latency for producers in EU-West-1 (now cross-region writes). The question specifies not compromising write consistency.", correct: false },
+      { text: "Set fetch.min.bytes=1 on the consumer — this ensures the broker returns data immediately, reducing latency", explanation: "Incorrect. fetch.min.bytes controls the minimum response size threshold, not the geographic routing of fetch requests. It would not reduce cross-region network latency.", correct: false },
+      { text: "Increase replication.factor to 5 — more replicas reduce individual replica load and lower latency", explanation: "Incorrect. Increasing RF adds more copies but does not route fetch requests to the nearest one by default. The client.rack configuration is required to enable proximity-based routing.", correct: false }
+    ],
+    answers: [0],
+    globalExplanation: "Kafka's follower fetch feature (introduced in KIP-392) allows consumers to read from the nearest replica instead of always fetching from the leader. Configuring client.rack on the consumer and ensuring brokers have broker.rack set enables this rack-aware routing. The trade-off: follower reads may return slightly stale data (up to the follower's replication lag behind the leader's high watermark), so this is suitable for use cases tolerating eventual consistency."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A cost-optimized Kafka deployment for non-critical event logging uses replication.factor=1 to minimize storage costs. During a routine maintenance window, the single broker hosting a partition's data experiences a disk failure. What is the outcome and what does this reveal about the RF=1 design choice?",
+    options: [
+      { text: "All data on that partition is permanently lost — RF=1 provides zero fault tolerance; a disk or broker failure causes irreversible data loss", explanation: "Correct. With RF=1, there is only one copy of the data. A disk or broker failure with no other replicas means the data is permanently gone. There is no follower to elect as leader, and no recovery is possible.", correct: true },
+      { text: "The broker restarts and Kafka replays the data from producer buffers — no data is lost because producers retry automatically", explanation: "Incorrect. A disk failure destroys the local log. Kafka has no mechanism to replay data from producer buffers after a disk failure — producers may have already received acks and cleared their buffers. Data IS lost.", correct: false },
+      { text: "Kafka automatically reroutes the partition to another broker using the default replication mechanism", explanation: "Incorrect. With RF=1, there is no other broker hosting this partition. There are no replicas to promote or reroute to. The partition simply becomes unavailable and data is unrecoverable.", correct: false },
+      { text: "Data is preserved in the Kafka commit log on other brokers due to the ISR mechanism", explanation: "Incorrect. ISR (In-Sync Replicas) only includes replicas that exist. With RF=1, there is only 1 replica and therefore only 1 ISR member. No other broker holds any copy of this data.", correct: false }
+    ],
+    answers: [0],
+    globalExplanation: "replication.factor=1 is the most dangerous production configuration: a single disk or broker failure results in permanent, unrecoverable data loss for all partitions on that broker. The course explicitly warns against this. Even for non-critical data, RF=1 should be avoided unless data loss is truly acceptable. RF=2 provides basic fault tolerance; RF=3 is the production standard for any data worth keeping."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A streaming platform's Kafka cluster undergoes an unplanned broker failure. The broker hosted the leader for 12 partitions across 3 topics. Within 8 seconds, producers resume writing and consumers resume reading without any application code changes. Which Kafka mechanism made this recovery transparent to clients?",
+    options: [
+      { text: "Automatic leader election — Kafka's controller detected the broker failure and elected new leaders from ISR members for all affected partitions; clients fetched updated metadata and reconnected", explanation: "Correct. Kafka's controller continuously monitors broker liveness. On detecting a failure, it triggers leader elections for all affected partitions, electing new leaders from the ISR. Clients automatically retry and fetch new leader metadata, making the failover transparent.", correct: true },
+      { text: "Kafka's active-active replication — both the leader and followers accept writes simultaneously, so no election is needed", explanation: "Incorrect. Kafka uses active-passive replication: only the leader accepts writes. Followers are passive. There is no active-active write model in standard Kafka.", correct: false },
+      { text: "ZooKeeper restarted the failed broker automatically — no leader election was needed", explanation: "Incorrect. ZooKeeper (or KRaft in newer Kafka) handles coordination but does NOT restart failed brokers. Leader election, not broker restart, is the recovery mechanism.", correct: false },
+      { text: "Kafka's quorum-based replication ensured no leader election was necessary — any replica could serve reads and writes", explanation: "Incorrect. Kafka is NOT quorum-based in the Raft sense for normal read/write operations. A dedicated leader per partition is always required; any-replica-serves-all is not a Kafka concept.", correct: false }
+    ],
+    answers: [0],
+    globalExplanation: "Kafka's controller (or KRaft controller in newer versions) is responsible for monitoring broker health and triggering leader elections when a broker fails. The election is automatic and transparent to clients: producers and consumers receive a new leader metadata response on their next request and seamlessly reconnect. The course correctly emphasizes that failover is 'automatic and transparent to client applications' — a key CCDAK exam point."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "After a planned maintenance window requiring a broker restart, a Kafka operations team runs kafka-topics.sh --describe and finds that the payments topic has under-replicated partitions: only 2 out of 3 RF=3 replicas are ISR members. The restored broker has rejoined the cluster. What must the team do to return the cluster to its intended resilience level?",
+    options: [
+      { text: "Trigger replica restoration — either wait for automatic catch-up or use kafka-reassign-partitions.sh to ensure the 3rd replica re-syncs and the partition returns to fully replicated state", explanation: "Correct. As the course states, after a failure or maintenance, restoring the replica count to the RF target is necessary to regain the full resilience level. The restored broker will catch up by fetching from the leader; the team should monitor URP count until it reaches 0.", correct: true },
+      { text: "Delete and recreate the topic with a higher replication factor — this is the only way to restore replicas", explanation: "Incorrect. Deleting the topic destroys all data. Replica restoration does not require topic recreation — the rejoined broker catches up by fetching from the leader and re-joins the ISR.", correct: false },
+      { text: "No action is needed — Kafka permanently reduces the RF to 2 after a single broker failure", explanation: "Incorrect. Kafka does NOT permanently reduce the topic's replication factor. The configured RF remains 3; the cluster is simply temporarily under-replicated until the 3rd replica catches up.", correct: false },
+      { text: "Restart all remaining brokers to trigger a full replica redistribution", explanation: "Incorrect. Restarting healthy brokers would cause additional disruption and is completely unnecessary. The rejoined broker should catch up by fetching from the leader without any additional restarts.", correct: false }
+    ],
+    answers: [0],
+    globalExplanation: "After a broker failure or maintenance, the Kafka cluster operates in an under-replicated state (fewer ISR members than the configured RF) until the affected replicas catch up. The course emphasizes: 'it remains necessary to restore the replica count after failure to regain the desired resilience level.' Monitor under-replicated partitions via JMX or kafka-topics.sh --describe. Until URPs reach 0, the cluster has degraded fault tolerance — another failure during this window could cause data loss."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A gaming analytics company has consumers in 3 geographic regions (US, EU, APAC) reading from a single Kafka cluster. The head of engineering wants to minimize read latency for all regions while keeping writes in the US (where the leader resides). The team enables follower reads. A developer warns that this introduces a trade-off. Which trade-off is the developer referring to?",
+    options: [
+      { text: "Follower reads may return slightly stale data — a follower that is not fully caught up with the leader's high watermark may serve records that are behind the leader's latest offset", explanation: "Correct. As the course warns: 'reading from a follower can introduce a slight lag if the follower is not fully synchronized.' Followers replicate asynchronously — a follower may be several messages behind the leader at any instant.", correct: true },
+      { text: "Follower reads require acks=all on all producers to maintain consistency", explanation: "Incorrect. Consumer read routing (follower vs leader) is independent of producer ack configuration. acks=all is a producer durability setting, not a prerequisite for enabling follower reads.", correct: false },
+      { text: "Follower reads increase overall cluster CPU utilization beyond safe operating thresholds", explanation: "Incorrect. Follower reads shift CPU load from the leader to follower brokers — they do not inherently increase total cluster CPU beyond what was already being consumed for replication.", correct: false },
+      { text: "Follower reads require a dedicated follower topic to be created for each region", explanation: "Incorrect. No separate topics are created. Follower reads use the same topic and partitions — the routing is transparent, controlled by the client.rack consumer configuration.", correct: false }
+    ],
+    answers: [0],
+    globalExplanation: "Follower reads (enabled via client.rack) reduce cross-region network latency but introduce eventual consistency: a consumer may read slightly stale data if the local follower hasn't yet replicated the latest messages from the leader. This lag is bounded by the follower's replication speed and is typically very small (milliseconds to seconds). The course explicitly reserves this option 'for cases where performance takes priority over strict consistency.'"
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A startup team uses Confluent Cloud for their Kafka deployment. They ask the platform team whether they need to configure replication.factor, monitor under-replicated partitions, and run leader election scripts as part of their operational responsibilities. What is the correct answer?",
+    options: [
+      { text: "No — managed cloud services handle replication automatically in the background; the team has no operational replication responsibilities", explanation: "Correct. The course explicitly states: 'if you use a managed cloud Kafka service, replication is handled automatically in the background — you do not need to worry about it operationally.' Confluent Cloud manages RF, ISR health, leader elections, and failover automatically.", correct: true },
+      { text: "Yes — even on Confluent Cloud, teams must set replication.factor=3 manually for each topic", explanation: "Incorrect. Confluent Cloud sets replication policies automatically. While teams can sometimes influence topic config, monitoring URPs and running election scripts are provider responsibilities.", correct: false },
+      { text: "Partially — replication is automated but teams must manually trigger leader elections after broker failures", explanation: "Incorrect. On fully managed services, leader elections are entirely automated by the provider. No manual intervention is required or possible for these internal operations.", correct: false },
+      { text: "No — Confluent Cloud uses a different architecture that doesn't use replication at all", explanation: "Incorrect. Confluent Cloud is built on Apache Kafka and absolutely uses replication for fault tolerance — it's just managed transparently. The replication mechanism is the same; only the operational responsibility differs.", correct: false }
+    ],
+    answers: [0],
+    globalExplanation: "One of Kafka's key operational distinctions tested on the CCDAK is self-managed vs. managed deployments. On self-hosted Kafka (bare metal, EC2, K8s), teams are responsible for configuring RF, monitoring URP, running preferred leader elections, and maintaining replica health. On managed services (Confluent Cloud, Amazon MSK), the provider handles all of this — teams focus on topic design and application logic, not cluster operations."
+  },
+  {
+    source: "cours",
+    type: "multiple",
+    question: "A payment processing platform is reviewing their Kafka topic configuration to ensure maximum data reliability. The SRE team identifies two critical risks: (1) data loss if a broker fails before replication completes, and (2) the cluster accepting writes even when resilience is dangerously degraded. Which TWO actions address these risks directly?",
+    options: [
+      { text: "Set replication.factor=3 — ensures 3 copies of each partition across different brokers, tolerating up to 2 broker failures", explanation: "Correct. RF=3 provides 3 copies and ensures the cluster can survive RF-1=2 broker failures per partition without data loss. This directly addresses risk #1 by ensuring data survives broker failures.", correct: true },
+      { text: "Avoid replication.factor=1 — a single copy provides zero fault tolerance, meaning one disk failure causes permanent data loss", explanation: "Correct. This directly addresses risk #1: RF=1 is the textbook example of zero fault tolerance. Any disk or broker failure results in irreversible data loss. For a payment system, RF=1 is unacceptable.", correct: true },
+      { text: "Set auto.offset.reset=earliest on all consumers — this ensures consumers reprocess all messages after a failure", explanation: "Incorrect. auto.offset.reset controls consumer behavior when no committed offset exists — it does not affect data durability or replication. Consumer offset reset is unrelated to broker-level data reliability.", correct: false },
+      { text: "Disable follower reads by removing client.rack configuration — follower reads introduce lag that degrades reliability", explanation: "Incorrect. Follower reads introduce eventual consistency for reads (slight lag) but do not affect data durability or replication integrity. Disabling them is unrelated to protecting against data loss.", correct: false }
+    ],
+    answers: [0, 1],
+    globalExplanation: "The course identifies two replication anti-patterns that directly threaten data reliability: (1) RF=1 — zero fault tolerance, one failure = data loss; (2) failing to restore replicas after a failure — leaving the cluster under-replicated degrades resilience. The remedies are RF ≥ 2 (preferably 3 for production) and active monitoring/restoration of under-replicated partitions. These are foundational CCDAK replication concepts."
+  },
+  {
+    source: "cours",
+    type: "single",
+    question: "A Kafka architect is designing a topic for a real-time fraud detection system. Producers must confirm that each write has been committed before alerting the fraud team. Consumers require the most up-to-date data with strict consistency — no stale reads. Given these requirements, which combination of configurations satisfies both constraints?",
+    options: [
+      { text: "Producer acks=1, consumer reads from nearest follower replica via client.rack", explanation: "Incorrect. acks=1 means only the leader confirms the write — if the leader fails before replication, the ack is given but the message is lost. Follower reads introduce potential lag, violating the strict consistency requirement.", correct: false },
+      { text: "Producer acks=all, consumer reads from the partition leader (default behavior)", explanation: "Correct. acks=all ensures the producer only gets confirmation after all ISR members have replicated the message — maximum write durability. Default leader reads ensure consumers always read the most up-to-date data at or below the high watermark — no stale reads.", correct: true },
+      { text: "Producer acks=0, consumer reads from the partition leader", explanation: "Incorrect. acks=0 means fire-and-forget — no acknowledgment at all. The producer has no confirmation that the message was written, which is incompatible with the fraud detection use case.", correct: false },
+      { text: "Producer acks=all, consumer reads from nearest follower replica via client.rack", explanation: "Incorrect. While acks=all satisfies write durability, follower reads may return slightly stale data — violating the strict consistency requirement for the fraud detection system.", correct: false }
+    ],
+    answers: [1],
+    globalExplanation: "For strict consistency requirements: (1) acks=all on the producer ensures write durability — the producer waits for all ISR members to confirm. (2) Default leader reads ensure consumers see only fully replicated data (up to the high watermark) — no stale reads. Follower reads are reserved for use cases where performance takes priority over strict consistency, as the course explicitly states. This combination is the correct answer for latency-sensitive, consistency-critical systems."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A financial services firm configures their critical settlement topic with replication.factor=3 and min.insync.replicas=2. During a network partition, 2 of the 3 brokers hosting the partition's replicas become unreachable, leaving only 1 ISR member. A producer with acks=all attempts to write a settlement record. What happens?",
+    options: [
+      { text: "The write fails with NotEnoughReplicasException — the ISR has 1 member, which is below min.insync.replicas=2, so the broker refuses the write to protect durability", explanation: "Correct. When ISR size < min.insync.replicas, the broker rejects writes with acks=all/−1, throwing NotEnoughReplicasException. This is the designed safety valve: prefer unavailability over data loss. With 1 ISR member, min.insync.replicas=2 is violated.", correct: true },
+      { text: "The write succeeds — acks=all only requires the surviving leader to acknowledge", explanation: "Incorrect. acks=all requires acknowledgment from ALL current ISR members AND the ISR size must be ≥ min.insync.replicas. With ISR=1 and min.insync.replicas=2, the broker refuses the write entirely.", correct: false },
+      { text: "The write is buffered on the producer side until the 2 unreachable brokers rejoin", explanation: "Incorrect. The broker actively rejects the write with an exception. The producer receives NotEnoughReplicasException and must handle it according to its retry and error handling logic. There is no automatic buffering until ISR recovers.", correct: false },
+      { text: "The write succeeds with acks=all because at least one ISR member remains available", explanation: "Incorrect. acks=all with min.insync.replicas=2 requires a minimum of 2 ISR members. With only 1 ISR member, the combined constraint is violated and the write is rejected, not accepted.", correct: false }
+    ],
+    answers: [0],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. min.insync.replicas (broker/topic level) works in tandem with producer acks=all: it defines the minimum ISR size required before the broker accepts a write. When ISR shrinks below this threshold, the broker throws NotEnoughReplicasException — deliberately trading availability for durability. This 'safety valve' prevents data from being written with insufficient redundancy, even if a leader exists."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A Kafka cluster's partition P0 has replication.factor=3. All 3 brokers are running but Broker 3 (a follower) has been experiencing high GC pauses, causing it to miss fetch requests to the leader for more than replica.lag.time.max.ms. What happens to Broker 3's replica?",
+    options: [
+      { text: "Broker 3's replica is removed from the ISR — it is now out-of-sync; the partition becomes under-replicated until Broker 3 catches up and rejoins", explanation: "Correct. When a follower fails to fetch from the leader within replica.lag.time.max.ms (default 30s), it is removed from the ISR. The partition is then under-replicated (ISR size < RF). Once GC pauses resolve and Broker 3 catches up, it automatically rejoins the ISR.", correct: true },
+      { text: "Broker 3 is evicted from the cluster — the Kafka controller shuts it down to prevent data corruption", explanation: "Incorrect. Kafka's controller does not evict or shut down slow brokers. It only removes the lagging replica from the ISR — the broker and its replica continue to exist outside the ISR.", correct: false },
+      { text: "The replication factor is permanently reduced to 2 — Kafka removes Broker 3's replica from the topic configuration", explanation: "Incorrect. The ISR is dynamic; the configured RF stays at 3. Broker 3's replica still exists — it is simply out-of-sync. Once it catches up, it rejoins the ISR and the partition is fully replicated again.", correct: false },
+      { text: "acks=all writes are blocked immediately on all partitions until Broker 3 rejoins the ISR", explanation: "Incorrect. Only THIS partition (P0 on Broker 3) is affected. Other partitions on other brokers continue normally. And even for P0, writes are only blocked if ISR size drops below min.insync.replicas.", correct: false }
+    ],
+    answers: [0],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. The ISR (In-Sync Replicas) is a dynamic set managed by the partition leader. A replica is removed from the ISR when it fails to fetch new messages within replica.lag.time.max.ms (default: 30,000ms). This creates an under-replicated partition. The replica automatically rejoins the ISR once it fully catches up. Monitoring URP count (Under-Replicated Partitions) is essential for cluster health — URPs indicate degraded fault tolerance."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A Kafka producer sends a transaction record with acks=1. The leader writes the record and sends an acknowledgment to the producer. Milliseconds later, before any follower has replicated the record, the leader broker crashes. A follower is elected as the new leader. What is the fate of the transaction record?",
+    options: [
+      { text: "The record is permanently lost — acks=1 only guarantees leader persistence; the new leader (former follower) never received the record before the crash", explanation: "Correct. acks=1 means the leader acknowledges after writing to its own log, but before any follower replication. If the leader crashes before replication, the record exists nowhere else — the new leader is missing it, and it is permanently lost.", correct: true },
+      { text: "The record is recovered from the producer's buffer — the producer retries automatically and the record is safely delivered", explanation: "Incorrect. After receiving acks=1, the producer considers the message delivered. It may have already removed it from its retry buffer. Even if retried, this produces a duplicate (at-least-once), not a recovery of the lost message.", correct: false },
+      { text: "The new leader requests the missing record from the producer's network buffer via Kafka's recovery protocol", explanation: "Incorrect. Kafka has no mechanism to request data from producer buffers. The broker log is the source of truth — if a record is not in any replica's log, it is gone.", correct: false },
+      { text: "The record is preserved in ZooKeeper as part of the metadata commit log", explanation: "Incorrect. ZooKeeper (or KRaft) stores cluster metadata (broker info, topic configs, leader assignments) — NOT topic data. Record data lives exclusively in broker partition logs.", correct: false }
+    ],
+    answers: [0],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. acks=1 is the classic 'at-most-once in the face of leader failure' scenario: if the leader crashes between writing to its local log and replicating to followers, the acknowledged record is lost. This is the fundamental trade-off between latency (acks=1 is faster) and durability (acks=all with min.insync.replicas=2 prevents this). For critical data, always use acks=all."
+  },
+  {
+    source: "inference",
+    type: "multiple",
+    question: "A payment processing company needs the strongest possible Kafka durability guarantees for wire transfer events. They require that no message is ever lost and no duplicate is ever written. Which THREE settings should be combined to achieve this?",
+    options: [
+      { text: "replication.factor=3 — ensures 3 copies of each partition, tolerating up to 2 broker failures", explanation: "Correct. RF=3 is the production standard for durability. It ensures 3 copies and tolerates RF-1=2 broker failures. Without sufficient replication, no other setting can prevent data loss.", correct: true },
+      { text: "Producer acks=all (or -1) combined with min.insync.replicas=2 — ensures at least 2 ISR replicas confirm each write before the producer receives an ack", explanation: "Correct. acks=all + min.insync.replicas=2 form the write durability guarantee: the producer waits for 2 ISR members to confirm, ensuring the message survives a single broker failure even immediately after the write.", correct: true },
+      { text: "enable.idempotence=true on the producer — prevents duplicate messages caused by producer retries", explanation: "Correct. Idempotent producers (enable.idempotence=true) assign a sequence number to each message. If the producer retries after a network failure, the broker detects and discards duplicates — essential for exactly-once delivery.", correct: true },
+      { text: "auto.offset.reset=none on consumers — prevents consumers from reading stale data after a failure", explanation: "Incorrect. auto.offset.reset=none throws an exception when no committed offset exists — it does not affect data durability or prevent duplicates. It is a consumer behavior setting, not a producer/replication durability mechanism.", correct: false }
+    ],
+    answers: [0, 1, 2],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. The CCDAK 'gold standard' durability pattern combines three layers: (1) RF=3 for multi-copy redundancy; (2) acks=all + min.insync.replicas=2 for write confirmation guarantees; (3) enable.idempotence=true for duplicate-free producer retries. Together, these settings provide at-least-once delivery without duplicates — the foundation of Kafka's exactly-once semantics (EOS)."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A Kafka cluster has been running with unclean.leader.election.enable=true. A partition's leader crashes and none of the replicas in the ISR are reachable. Only an out-of-sync follower (which missed 5,000 messages) is available. What happens, and what is the risk?",
+    options: [
+      { text: "The out-of-sync follower is elected as leader — the partition becomes available immediately, but the 5,000 unrepicated messages are permanently lost", explanation: "Correct. unclean.leader.election.enable=true allows replicas outside the ISR to become leader when no ISR member is available. This prioritizes availability over consistency: the partition resumes, but the 5,000 messages that were not yet replicated are gone.", correct: true },
+      { text: "The partition remains offline until an ISR member recovers — unclean elections do not occur regardless of configuration", explanation: "Incorrect. unclean.leader.election.enable=true explicitly enables out-of-ISR leader elections. When no ISR member is available, the out-of-sync follower IS elected as leader.", correct: false },
+      { text: "Kafka creates a new empty partition on an available broker and resumes from offset 0", explanation: "Incorrect. Kafka never creates empty replacement partitions during failover. The out-of-sync replica (with its existing data) is elected as leader — it has partial data, not zero data.", correct: false },
+      { text: "The 5,000 missing messages are fetched from the producer's retry buffer and written to the new leader automatically", explanation: "Incorrect. Kafka has no mechanism to retroactively fetch data from producer buffers. Once an ack has been sent (acks=1 or acks=all), the message is considered committed — but without replication, it is lost when the leader crashes.", correct: false }
+    ],
+    answers: [0],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. unclean.leader.election.enable is the availability vs. consistency dial for Kafka partition leadership. true = elect out-of-ISR replicas when no ISR member is available (availability wins, possible data loss). false = keep partition offline until an ISR member recovers (consistency wins, partition unavailable). The default changed to false in Kafka 0.11 — reflecting Kafka's preference for consistency over availability when no ISR member exists."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A Kafka consumer application processes financial audit logs and requires that it only reads messages that have been fully replicated to all ISR members — it must never read data that could be rolled back due to leader failure. Which Kafka concept defines the maximum offset the consumer can safely read?",
+    options: [
+      { text: "The High Watermark (HW) — the highest offset that has been replicated to all current ISR members; consumers can only read up to this offset", explanation: "Correct. The High Watermark is Kafka's consumer read boundary. It represents the last offset replicated to ALL ISR members. Consumers can only fetch messages at offsets ≤ HW, ensuring they never read uncommitted (not-yet-replicated) data.", correct: true },
+      { text: "The Log End Offset (LEO) — the last offset written to the leader's local log; consumers read up to LEO for maximum freshness", explanation: "Incorrect. The LEO is the leader's latest written offset, which includes messages not yet replicated to ISR followers. Kafka deliberately prevents consumers from reading past the HW to avoid reading data that could be lost on leader failure.", correct: false },
+      { text: "The committed offset in __consumer_offsets — consumers read up to their last committed offset", explanation: "Incorrect. The committed offset in __consumer_offsets tracks consumer GROUP progress (which messages have been processed) — not the replication boundary. It is orthogonal to the HW concept.", correct: false },
+      { text: "The min.insync.replicas offset — consumers read up to the offset confirmed by min.insync.replicas members", explanation: "Incorrect. There is no 'min.insync.replicas offset' concept in Kafka. The HW is computed from ALL ISR members (not just min.insync.replicas). min.insync.replicas is a write gate, not a read boundary.", correct: false }
+    ],
+    answers: [0],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. The High Watermark (HW) is the consumer-facing replication commitment boundary: consumers can only read up to HW, which represents the last offset replicated to ALL ISR members. The gap between LEO (leader's latest write) and HW represents messages not yet replicated — potentially lossy data. This design ensures consumer reads are always 'committed' data that survives any single ISR member failure."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A Kafka platform team notices that after adding several new topics, partition leaders are unevenly distributed — Broker 1 hosts 80% of all leaders. This causes CPU and network imbalance. The preferred leaders for these partitions are spread across all brokers. Which configuration enables Kafka to automatically rebalance leadership to preferred leaders?",
+    options: [
+      { text: "Set auto.leader.rebalance.enable=true on brokers — Kafka periodically runs preferred leader elections to restore balanced leadership distribution", explanation: "Correct. auto.leader.rebalance.enable=true (broker config) triggers periodic preferred leader elections. Kafka checks leader imbalance every leader.imbalance.check.interval.seconds and re-elects preferred leaders (first replica in the replica list) when the imbalance threshold is exceeded.", correct: true },
+      { text: "Set default.replication.factor=1 — reducing RF eliminates the follower overhead causing the imbalance", explanation: "Incorrect. Reducing RF to 1 eliminates fault tolerance entirely — it does not address leadership imbalance. Leadership distribution is a separate concern from RF.", correct: false },
+      { text: "Restart Broker 1 — this forces all its hosted leaders to fail over to other brokers", explanation: "Incorrect. Restarting Broker 1 would cause a brief unavailability of all its partitions and trigger emergency failover — not controlled rebalancing. This is a disruptive anti-pattern for addressing leadership imbalance.", correct: false },
+      { text: "Increase min.insync.replicas=3 — requiring more ISR acknowledgments automatically redistributes leadership", explanation: "Incorrect. min.insync.replicas affects write durability requirements (minimum ISR size for writes) and has no effect on leadership distribution or preferred leader election.", correct: false }
+    ],
+    answers: [0],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Kafka assigns a 'preferred leader' to each partition (the first broker in the replica list, determined at topic creation using rack-aware assignment). After failures and recoveries, leadership may drift to non-preferred brokers. auto.leader.rebalance.enable=true enables periodic background preferred leader elections controlled by leader.imbalance.check.interval.seconds (default: 300s) and leader.imbalance.per.broker.percentage (default: 10%)."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A Kafka operations team observes that follower replicas on a high-partition-count broker are consistently lagging 2-3 seconds behind leaders, causing frequent ISR shrinkages and under-replicated partition alerts. The broker has sufficient CPU and memory. Which single configuration change is most likely to resolve the replication lag issue?",
+    options: [
+      { text: "Increase num.replica.fetchers on the lagging broker — more fetcher threads allow the follower to replicate multiple leader partitions in parallel, increasing replication throughput", explanation: "Correct. num.replica.fetchers (default: 1) controls how many threads a follower broker dedicates to fetching from leader brokers. On brokers with many partitions, a single thread becomes the bottleneck. Increasing this to 2-4 significantly improves replication throughput.", correct: true },
+      { text: "Increase replication.factor to 5 — more replicas distribute the replication load", explanation: "Incorrect. Increasing RF adds more replica copies but does not help the lagging follower catch up faster. It actually increases replication pressure on the cluster by adding more follower fetch operations.", correct: false },
+      { text: "Increase replica.lag.time.max.ms to 120,000ms — this gives followers more time before being removed from the ISR", explanation: "Incorrect. Increasing replica.lag.time.max.ms only delays ISR removal — it does not fix the underlying lag. The follower still lags; it just takes longer to be evicted from the ISR. This masks the problem rather than solving it.", correct: false },
+      { text: "Reduce the number of partitions in the topic — fewer partitions reduce replication overhead per broker", explanation: "Incorrect. Reducing partition count is a disruptive operation (Kafka cannot reduce partitions; a new topic would need to be created). Also, this would reduce parallelism — not the correct approach for fixing follower lag.", correct: false }
+    ],
+    answers: [0],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. num.replica.fetchers is a critical replication performance tuning knob on follower brokers. With the default of 1, a single fetch thread must replicate data from potentially hundreds of leader partitions sequentially. High-partition brokers frequently need num.replica.fetchers=2 to 4 to maintain sub-second replication lag. Always pair this with monitoring kafka.server:type=ReplicaFetcherManager,name=MaxLag to validate the fix."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A Kafka administrator wants all new topics created by developers — without explicitly specifying a replication factor — to automatically use RF=3 in production. Which broker configuration property achieves this?",
+    options: [
+      { text: "default.replication.factor=3 — sets the RF applied to all topics created without an explicit replication.factor override", explanation: "Correct. default.replication.factor is a broker-level configuration that sets the RF for topics created without an explicit replication.factor specification. Setting it to 3 ensures all auto-created and developer-created topics (without RF override) use RF=3 automatically.", correct: true },
+      { text: "min.insync.replicas=3 — ensures all writes require 3 ISR acknowledgments, implicitly forcing RF=3", explanation: "Incorrect. min.insync.replicas enforces a minimum ISR size for write acceptance — it does NOT set the replication factor at topic creation. A topic could have RF=1 and min.insync.replicas=3 (which would always reject writes).", correct: false },
+      { text: "replication.factor=3 — this global setting overrides all per-topic RF configurations", explanation: "Incorrect. replication.factor is a per-topic property set at creation time, not a global broker configuration. The broker-level default is default.replication.factor, not replication.factor.", correct: false },
+      { text: "num.replica.fetchers=3 — more fetcher threads ensure each topic has enough replicas", explanation: "Incorrect. num.replica.fetchers controls the number of replication threads per broker — it has nothing to do with setting the replication factor of topics.", correct: false }
+    ],
+    answers: [0],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. default.replication.factor (broker config, default: 1) sets the RF applied to topics created without an explicit RF specification. In production, setting this to 3 ensures all topics have adequate replication by default — a critical cluster hardening step. It only applies to NEW topics created after the change; existing topics retain their current RF unless explicitly reassigned."
+  },
+  {
+    source: "inference",
+    type: "single",
+    question: "A Kafka developer is troubleshooting consumer lag on a topic where the consumer reads significantly behind the leader. They discover the consumer is configured with client.rack pointing to a remote AZ where the follower replica lags 8 seconds behind the leader. The SLA requires consumer reads to be no more than 1 second behind real-time. What is the correct fix?",
+    options: [
+      { text: "Remove the client.rack configuration — the consumer will revert to reading from the partition leader, which always serves the most up-to-date data (up to the high watermark)", explanation: "Correct. Removing client.rack disables follower reads and reverts to default leader reads. The leader serves data up to the High Watermark — always the most current committed data. With an 8-second follower lag violating the 1-second SLA, leader reads are the correct choice.", correct: true },
+      { text: "Increase fetch.max.wait.ms to 8,000ms — this gives the follower more time to catch up before responding to fetch requests", explanation: "Incorrect. fetch.max.wait.ms sets how long the broker waits before responding to a fetch request if fetch.min.bytes hasn't been met. It does not reduce follower replication lag — it would increase consumer latency further.", correct: false },
+      { text: "Increase replica.lag.time.max.ms to 60,000ms — this allows the follower more time to catch up without being removed from the ISR", explanation: "Incorrect. Increasing replica.lag.time.max.ms only delays ISR eviction for the lagging follower — it does not reduce the actual replication lag or fix the consumer's 8-second staleness issue.", correct: false },
+      { text: "Set auto.offset.reset=earliest on the consumer — this causes it to re-read from the beginning, catching up to the latest data faster", explanation: "Incorrect. auto.offset.reset controls what happens when no committed offset exists — setting it to 'earliest' would cause the consumer to reprocess ALL historical data from offset 0, not fix the staleness caused by follower lag.", correct: false }
+    ],
+    answers: [0],
+    globalExplanation: "⚠️ This concept was not explicitly in the course but is frequently tested in the CCDAK exam. Follower reads (enabled via client.rack) trade latency for consistency: if a follower lags significantly, consumers using that follower see stale data. When the staleness violates SLA requirements, the correct solution is to revert to leader reads by removing client.rack. As the course states: 'reading from a follower can introduce a slight lag — reserve this for cases where performance takes priority over strict consistency.'"
+  }
+];
+
+var QUESTIONS = [];
+var qIdx = 0;
+var selected = [];
+var answered = false;
+var score = 0;
+var scoreCoursTotal = 0;
+var scoreCoursCorrect = 0;
+var scoreInfTotal = 0;
+var scoreInfCorrect = 0;
+var totalTime = 0;
+var timeLeft = 0;
+var timerInterval = null;
+
+function fisherYates(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+function prepareQuestions() {
+  var shuffled = fisherYates(QUESTIONS_RAW);
+  QUESTIONS = shuffled.map(function(q) {
+    var idxMap = [];
+    for (var i = 0; i < q.options.length; i++) { idxMap.push(i); }
+    var shuffledMap = fisherYates(idxMap);
+    var newOptions = [];
+    for (var j = 0; j < shuffledMap.length; j++) {
+      var origIdx = shuffledMap[j];
+      newOptions.push({
+        text: q.options[origIdx].text,
+        explanation: q.options[origIdx].explanation,
+        correct: q.answers.indexOf(origIdx) !== -1
+      });
+    }
+    var newAnswers = [];
+    for (var k = 0; k < newOptions.length; k++) {
+      if (newOptions[k].correct) newAnswers.push(k);
+    }
+    return {
+      source: q.source,
+      type: q.type,
+      question: q.question,
+      options: newOptions,
+      answers: newAnswers,
+      globalExplanation: q.globalExplanation
+    };
+  });
+}
+
+function startGlobalTimer() {
+  clearInterval(timerInterval);
+  totalTime = 90 * QUESTIONS.length;
+  timeLeft = totalTime;
+  updateTimerDisplay();
+  timerInterval = setInterval(function() {
+    timeLeft--;
+    updateTimerDisplay();
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      autoAdvance();
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  var el = document.getElementById('timerDisplay');
+  var mins = Math.floor(timeLeft / 60);
+  var secs = timeLeft % 60;
+  el.textContent = '⏱ ' + (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
+  el.className = 'timer-global';
+  var pct = timeLeft / totalTime;
+  if (pct < 0.10) { el.className = 'timer-global danger'; }
+  else if (pct < 0.20) { el.className = 'timer-global warn'; }
+}
+
+function autoAdvance() {
+  if (!answered) {
+    answered = true;
+    var q = QUESTIONS[qIdx];
+    if (q.source === 'cours') scoreCoursTotal++;
+    else scoreInfTotal++;
+    q.options.forEach(function(o, i) {
+      var wrap = document.getElementById('opt_' + i);
+      if (o.correct) { wrap.className = 'option-wrap missed'; }
+      var expEl = document.getElementById('optexp_' + i);
+      if (expEl) {
+        expEl.style.display = 'block';
+        expEl.className = 'opt-exp ' + (o.correct ? 'correct-exp' : 'wrong-exp');
+        expEl.innerHTML = '<span class="icon">' + (o.correct ? '✓' : '✗') + '</span>' + o.explanation;
+      }
+    });
+    document.getElementById('globalExpText').textContent = q.globalExplanation;
+    document.getElementById('globalExpBox').style.display = 'block';
+    document.getElementById('btnValidate').disabled = true;
+    document.getElementById('btnNext').disabled = false;
+  }
+  if (qIdx >= QUESTIONS.length - 1) {
+    setTimeout(function() { paintScore(); }, 1500);
+  } else {
+    setTimeout(function() { qIdx++; paint(); }, 1500);
+  }
+}
+
+function paint() {
+  var q = QUESTIONS[qIdx];
+  selected = [];
+  answered = false;
+
+  var bType = document.getElementById('badgeType');
+  bType.className = 'badge ' + (q.type === 'single' ? 'badge-single' : 'badge-multiple');
+  bType.textContent = q.type === 'single' ? 'Single answer' : 'Multiple answers';
+
+  var bSrc = document.getElementById('badgeSource');
+  bSrc.className = 'badge ' + (q.source === 'cours' ? 'badge-cours' : 'badge-inference');
+  bSrc.textContent = q.source === 'cours' ? '📘 From the course' : '🔍 Beyond the course';
+
+  document.getElementById('questionText').textContent = (qIdx + 1) + '. ' + q.question;
+
+  var letters = ['A','B','C','D','E'];
+  var container = document.getElementById('optionsContainer');
+  container.innerHTML = '';
+  q.options.forEach(function(o, i) {
+    var wrap = document.createElement('div');
+    wrap.className = 'option-wrap';
+    wrap.id = 'opt_' + i;
+    wrap.setAttribute('onclick', 'pickOption(' + i + ')');
+    var header = document.createElement('div');
+    header.className = 'option-header';
+    header.innerHTML = '<span class="option-letter">' + letters[i] + '</span><span class="option-text">' + o.text + '</span>';
+    var expDiv = document.createElement('div');
+    expDiv.className = 'opt-exp';
+    expDiv.id = 'optexp_' + i;
+    expDiv.style.display = 'none';
+    wrap.appendChild(header);
+    wrap.appendChild(expDiv);
+    container.appendChild(wrap);
+  });
+
+  document.getElementById('globalExpBox').style.display = 'none';
+  document.getElementById('globalExpText').textContent = '';
+  document.getElementById('btnValidate').disabled = false;
+  document.getElementById('btnNext').disabled = true;
+
+  document.getElementById('progBar').style.width = (qIdx / QUESTIONS.length * 100) + '%';
+}
+
+function pickOption(i) {
+  if (answered) return;
+  var q = QUESTIONS[qIdx];
+  if (q.type === 'single') {
+    selected = [i];
+    q.options.forEach(function(o, idx) {
+      document.getElementById('opt_' + idx).className = 'option-wrap' + (idx === i ? ' selected' : '');
+    });
+  } else {
+    var pos = selected.indexOf(i);
+    if (pos === -1) { selected.push(i); document.getElementById('opt_' + i).classList.add('selected'); }
+    else { selected.splice(pos, 1); document.getElementById('opt_' + i).classList.remove('selected'); }
+  }
+}
+
+function valider() {
+  if (answered) return;
+  answered = true;
+  var q = QUESTIONS[qIdx];
+  var correctIdxs = q.answers.slice();
+  var isCorrect = selected.slice().sort().join(',') === correctIdxs.slice().sort().join(',');
+
+  if (isCorrect) {
+    score++;
+    if (q.source === 'cours') scoreCoursCorrect++;
+    else scoreInfCorrect++;
+  }
+  if (q.source === 'cours') scoreCoursTotal++;
+  else scoreInfTotal++;
+
+  q.options.forEach(function(o, i) {
+    var wrap = document.getElementById('opt_' + i);
+    wrap.className = 'option-wrap';
+    var sel = selected.indexOf(i) !== -1;
+    if (o.correct && sel) { wrap.className = 'option-wrap correct'; }
+    else if (!o.correct && sel) { wrap.className = 'option-wrap wrong'; }
+    else if (o.correct && !sel) { wrap.className = 'option-wrap missed'; }
+    var expEl = document.getElementById('optexp_' + i);
+    if (expEl) {
+      expEl.style.display = 'block';
+      expEl.className = 'opt-exp ' + (o.correct ? 'correct-exp' : 'wrong-exp');
+      expEl.innerHTML = '<span class="icon">' + (o.correct ? '✓' : '✗') + '</span>' + o.explanation;
+    }
+  });
+
+  document.getElementById('globalExpText').textContent = q.globalExplanation;
+  document.getElementById('globalExpBox').style.display = 'block';
+  document.getElementById('btnValidate').disabled = true;
+  document.getElementById('btnNext').disabled = false;
+  document.getElementById('progBar').style.width = ((qIdx + 1) / QUESTIONS.length * 100) + '%';
+}
+
+function suivante() {
+  qIdx++;
+  if (qIdx >= QUESTIONS.length) { paintScore(); }
+  else { paint(); }
+}
+
+function paintScore() {
+  clearInterval(timerInterval);
+  document.getElementById('quizArea').style.display = 'none';
+  document.getElementById('scoreScreen').style.display = 'block';
+
+  var pct = Math.round((score / QUESTIONS.length) * 100);
+  var msg = pct >= 80 ? '🎉 Excellent! You\'re well prepared for the CCDAK.' :
+            pct >= 60 ? '👍 Good effort. Review the highlighted topics.' :
+            '📚 Keep studying — revisit the Replication concepts.';
+
+  document.getElementById('scoreTitle').textContent = score + ' / ' + QUESTIONS.length + ' (' + pct + '%)';
+  document.getElementById('scoreMsg').textContent = msg;
+
+  var bar = document.getElementById('scoreBar');
+  bar.style.width = pct + '%';
+  bar.style.background = pct >= 80 ? '#27ae60' : pct >= 60 ? '#f39c12' : '#C0392B';
+
+  document.getElementById('scoreDetail').innerHTML =
+    '<p><strong>📘 From the course:</strong> ' + scoreCoursCorrect + ' / ' + scoreCoursTotal + '</p>' +
+    '<p><strong>🔍 Beyond the course:</strong> ' + scoreInfCorrect + ' / ' + scoreInfTotal + '</p>';
+}
+
+function recommencer() {
+  qIdx = 0; selected = []; answered = false; score = 0;
+  scoreCoursTotal = 0; scoreCoursCorrect = 0;
+  scoreInfTotal = 0; scoreInfCorrect = 0;
+  prepareQuestions();
+  document.getElementById('scoreScreen').style.display = 'none';
+  document.getElementById('quizArea').style.display = 'block';
+  startGlobalTimer();
+  paint();
+}
+
+prepareQuestions();
+window.onload = function() { startGlobalTimer(); paint(); };
+</script>
+</body>
+</html>

@@ -15,6 +15,8 @@ Kafka producers send records to topics. The efficiency, reliability, and perform
 - **Round-Robin Sending:** If producers send data without a key, the data is sent round-robin to all available brokers.
 - **Acknowledgements:** Producers can choose to receive acknowledgements of data writes.
 
+![Key Points for CCDAK on Producers.png](images/Key%20Points%20for%20CCDAK%20on%20Producers.png)
+
 ### Important Producer Properties
 
 #### `acks`
@@ -71,6 +73,8 @@ Kafka producers send records to topics. The efficiency, reliability, and perform
 - **Default**: null
 - **Description**: Unique identifier for transactional messages. Necessary for exactly-once semantics.
 - **Trade-offs**: Enables transaction support at the cost of additional overhead for maintaining state.
+
+![Important Producer Properties.png](images/Important%20Producer%20Properties.png)
 
 ### Handling Errors in Kafka Producers
 

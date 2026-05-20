@@ -11,6 +11,8 @@ Kafka Consumers read records from Kafka topics. They can subscribe to one or mor
 
 When a consumer wants to join a group, it sends a JoinGroup request to the group coordinator. The first consumer to join becomes the group leader. The leader receives a list of all consumers in the group from the group coordinator (including those that sent a recent heartbeat and are considered alive) and is responsible for assigning a subset of partitions to each consumer.
 
+![Points to Remember for CCDAK on Consumers.png](images/Points%20to%20Remember%20for%20CCDAK%20on%20Consumers.png)
+
 ### Partition Assignors
 
 A `PartitionAssignor` is a class that, given consumers and the topics they subscribed to, decides which partitions will be assigned to which consumer. Kafka has two default assignment strategies:
@@ -41,6 +43,9 @@ A `PartitionAssignor` is a class that, given consumers and the topics they subsc
 * **Range** for **Range Assignor**: Imagine dividing a chocolate bar into contiguous pieces where each person gets a range of pieces.
 * **Sticky** for **Sticky Assignor**: Like sticky notes, once a partition is assigned to a consumer, it tries to "stick" with them across rebalances.
 * **Cooperative** for **Cooperative Sticky Assignor**: Think of a team project where everyone cooperates, making changes only when necessary, thus minimizing disruption.
+
+![Partition Assignors.png](images/Partition%20Assignors.png)
+
 
 ### Important Consumer Properties
 
@@ -108,6 +113,8 @@ A `PartitionAssignor` is a class that, given consumers and the topics they subsc
 - **Default**: Not set
 - **Description**: Specifies the client's rack to enable rack-aware partition assignment.
 - **Trade-offs**: Can reduce cross-rack traffic at the cost of potential imbalance in local traffic.
+
+![Important Consumer Properties.png](images/Important%20Consumer%20Properties.png)
 
 ### Additional Consumer Configurations and Practices
 
